@@ -1,0 +1,368 @@
+import React from 'react';
+import { useApp } from '../../context/AppContext';
+import { CalendarMode } from '../../types';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Plus, 
+  Clock, 
+  Filter, 
+  Calendar as CalendarIcon,
+  Printer
+} from 'lucide-react';
+
+import { getFixedToday } from '../../data/initialData';
+
+export const CalendarView: React.FC = () => {
+  const { 
+    calendarMode, 
+    setCalendarMode, 
+    calendarDate, 
+    setCalendarDate, 
+    selectedStaffId, 
+    setSelectedStaffId, 
+    appointments, 
+    clients, 
+    services, 
+    staff, 
+    settings,
+    openModal 
+  } = useApp();
+
+  const openHour = settings?.open ?? 8;
+  const closeHour = settings?.close ?? 18;
+  const hours = React.useMemo(() => {
+    const end = Math.max(openHour + 1, closeHour);
+    return Array.from({ length: end - openHour + 1 }, (_, i) => openHour + i);
+  }, [openHour, closeHour]);
+
+  // Format YYYY-MM-DD
+  const formatISO = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Date Navigation
+  const navigateDate = (dir: number) => {
+    const next = new Date(calendarDate);
+    if (calendarMode === 'day') {
+      next.setDate(next.getDate() + dir);
+    } else if (calendarMode === 'week') {
+      next.setDate(next.getDate() + dir * 7);
+    } else {
+      next.setMonth(next.getMonth() + dir);
+    }
+    setCalendarDate(next);
+  };
+
+  const setToday = () => {
+    setCalendarDate(getFixedToday());
+  };
+
+  // Week days starting Monday
+  const getWeekDays = (currDate: Date) => {
+    const start = new Date(currDate);
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
+    const monday = new Date(start.setDate(diff));
+
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const weekDays = getWeekDays(calendarDate);
+
+  // Filtered appointments
+  const getApptsForDate = (dateISO: string) => {
+    return appointments.filter((a) => {
+      if (a.date !== dateISO || a.status === 'cancelled') return false;
+      if (selectedStaffId !== 'all' && a.staffId !== selectedStaffId) return false;
+      return true;
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Top Toolbar: Mode Switcher, Date Nav, Staff Filter */}
+      <div className="card-box p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Left: Mode Buttons & Today */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="bg-[#EAE7DC] p-1 rounded-xl flex items-center gap-1">
+            {(['day', 'week', 'month'] as CalendarMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setCalendarMode(mode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
+                  calendarMode === mode
+                    ? 'bg-[#173E39] text-white shadow-sm'
+                    : 'text-[#5C716C] hover:text-[#173E39]'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={setToday}
+            className="btn-ghost text-xs px-3 py-1.5 rounded-xl font-bold"
+          >
+            Today (Aug 12)
+          </button>
+        </div>
+
+        {/* Center: Date Title Navigation */}
+        <div className="flex items-center gap-3 font-display text-lg font-bold text-[#173E39]">
+          <button
+            onClick={() => navigateDate(-1)}
+            className="p-1.5 rounded-xl bg-[#EAE7DC] hover:bg-[#D8D3C4] text-[#173E39]"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          <span>
+            {calendarMode === 'month'
+              ? calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+              : calendarMode === 'week'
+              ? `${weekDays[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })} - ${weekDays[6].toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : calendarDate.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+
+          <button
+            onClick={() => navigateDate(1)}
+            className="p-1.5 rounded-xl bg-[#EAE7DC] hover:bg-[#D8D3C4] text-[#173E39]"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Right: Staff Filter Selector & Print Schedule Button */}
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-[#5C716C]" />
+            <select
+              value={selectedStaffId}
+              onChange={(e) => setSelectedStaffId(e.target.value)}
+              className="text-xs bg-white border border-[#D8D3C4] rounded-xl px-3 py-1.5 font-bold outline-none"
+            >
+              <option value="all">All Stylists</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => openModal('printScheduleModal', { dateISO: formatISO(calendarDate), staffId: selectedStaffId })}
+            className="flex items-center gap-1.5 text-xs px-3.5 py-1.5 bg-white border border-[#D8D3C4] hover:bg-[#EAE7DC] text-[#173E39] rounded-xl font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
+            title="Print Daily Schedule PDF"
+          >
+            <Printer className="w-4 h-4 text-[#2E8A81]" />
+            <span>Print Schedule</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Calendar Body Grid */}
+      {calendarMode === 'week' && (
+        <div className="card-box p-0 overflow-x-auto border border-[#D8D3C4]">
+          <div className="min-w-[800px]">
+            {/* Week Header Days */}
+            <div className="grid grid-cols-8 bg-[#EAE7DC] border-b border-[#D8D3C4] text-center font-bold text-xs py-2.5 text-[#173E39]">
+              <div className="p-2 border-r border-[#D8D3C4]">Time</div>
+              {weekDays.map((d, idx) => {
+                const dateISO = formatISO(d);
+                const isToday = dateISO === '2026-08-12';
+                return (
+                  <div
+                    key={idx}
+                    className={`p-2 border-r border-[#D8D3C4] last:border-r-0 ${
+                      isToday ? 'bg-[#E8734A] text-white font-extrabold rounded-t-lg' : ''
+                    }`}
+                  >
+                    <div>{d.toLocaleDateString('default', { weekday: 'short' })}</div>
+                    <div className="text-sm">{d.getDate()}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Hours Rows */}
+            <div className="divide-y divide-[#D8D3C4]">
+              {hours.map((hour) => {
+                const hourStr = String(hour).padStart(2, '0') + ':00';
+                return (
+                  <div key={hour} className="grid grid-cols-8 min-h-[75px]">
+                    {/* Hour Column */}
+                    <div className="p-2 text-center text-xs font-bold text-[#5C716C] bg-[#F1EEE6]/50 border-r border-[#D8D3C4] flex items-center justify-center">
+                      {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
+                    </div>
+
+                    {/* 7 Days Grid Cells */}
+                    {weekDays.map((d, dIdx) => {
+                      const dateISO = formatISO(d);
+                      const dayAppts = getApptsForDate(dateISO).filter((a) => {
+                        const apptHour = parseInt(a.start.split(':')[0], 10);
+                        return apptHour === hour;
+                      });
+
+                      return (
+                        <div
+                          key={dIdx}
+                          onClick={() => openModal('appointmentForm', { date: dateISO, start: hourStr })}
+                          className="p-1 border-r border-[#D8D3C4] last:border-r-0 hover:bg-[#EAE7DC]/40 cursor-pointer transition-colors relative min-h-[75px]"
+                        >
+                          {dayAppts.map((a) => {
+                            const client = clients.find((c) => c.id === a.clientId);
+                            const service = services.find((s) => s.id === a.serviceId);
+                            const groomer = staff.find((st) => st.id === a.staffId);
+
+                            return (
+                              <div
+                                key={a.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openModal('appointmentDetail', { appointment: a });
+                                }}
+                                className="p-1.5 mb-1 rounded-lg text-[11px] text-white shadow-sm font-semibold hover:scale-[1.02] transition-transform cursor-pointer"
+                                style={{ backgroundColor: groomer ? groomer.color : '#2E8A81' }}
+                              >
+                                <div className="font-bold truncate">
+                                  {a.start} • {client ? client.name : 'Pet'}
+                                </div>
+                                <div className="text-[10px] opacity-90 truncate">
+                                  {service?.name}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Day Mode */}
+      {calendarMode === 'day' && (
+        <div className="card-box p-4 space-y-3">
+          <div className="text-sm font-bold text-[#173E39] border-b pb-2">
+            Schedule for {calendarDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </div>
+
+          <div className="divide-y divide-[#D8D3C4]">
+            {hours.map((hour) => {
+              const hourStr = String(hour).padStart(2, '0') + ':00';
+              const dateISO = formatISO(calendarDate);
+              const appts = getApptsForDate(dateISO).filter((a) => {
+                const apptHour = parseInt(a.start.split(':')[0], 10);
+                return apptHour === hour;
+              });
+
+              return (
+                <div key={hour} className="py-3 flex items-start gap-4">
+                  <div className="w-16 text-xs font-bold text-[#5C716C] pt-1">
+                    {hour > 12 ? `${hour - 12}:00 PM` : hour === 12 ? '12:00 PM' : `${hour}:00 AM`}
+                  </div>
+
+                  <div className="flex-1 flex flex-wrap gap-3">
+                    {appts.length === 0 ? (
+                      <button
+                        onClick={() => openModal('appointmentForm', { date: dateISO, start: hourStr })}
+                        className="text-xs text-[#5C716C] hover:text-[#2E8A81] py-1 px-3 border border-dashed border-[#D8D3C4] rounded-xl hover:border-[#2E8A81]"
+                      >
+                        + Book at {hourStr}
+                      </button>
+                    ) : (
+                      appts.map((a) => {
+                        const client = clients.find((c) => c.id === a.clientId);
+                        const service = services.find((s) => s.id === a.serviceId);
+                        const groomer = staff.find((st) => st.id === a.staffId);
+
+                        return (
+                          <div
+                            key={a.id}
+                            onClick={() => openModal('appointmentDetail', { appointment: a })}
+                            className="p-3 rounded-xl text-white text-xs font-bold shadow-sm min-w-[220px] cursor-pointer hover:opacity-95"
+                            style={{ backgroundColor: groomer ? groomer.color : '#2E8A81' }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>{a.start} ({a.duration}m)</span>
+                              <span className="uppercase text-[9px] bg-white/20 px-1.5 py-0.5 rounded">
+                                {a.status}
+                              </span>
+                            </div>
+                            <div className="text-sm font-display mt-1">{client?.name} ({client?.breed})</div>
+                            <div className="text-[11px] opacity-90 mt-0.5">{service?.name}</div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Month Mode */}
+      {calendarMode === 'month' && (
+        <div className="card-box p-4">
+          <div className="text-center text-xs text-[#5C716C] mb-3">
+            Click any day to view detailed appointments for that date.
+          </div>
+          {/* Simple month grid representation */}
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-[#173E39]">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+              <div key={d} className="py-1 text-[#5C716C]">{d}</div>
+            ))}
+            {/* Generate 35 days for current month view */}
+            {Array.from({ length: 31 }, (_, i) => {
+              const d = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), i + 1);
+              const dateISO = formatISO(d);
+              const dayAppts = getApptsForDate(dateISO);
+              const isToday = dateISO === '2026-08-12';
+
+              return (
+                <div
+                  key={i}
+                  onClick={() => {
+                    setCalendarDate(d);
+                    setCalendarMode('day');
+                  }}
+                  className={`p-3 rounded-xl border border-[#D8D3C4] min-h-[70px] flex flex-col justify-between text-left cursor-pointer hover:bg-[#EAE7DC]/50 ${
+                    isToday ? 'bg-[#E8734A]/10 border-[#E8734A]' : 'bg-white'
+                  }`}
+                >
+                  <div className={`font-bold ${isToday ? 'text-[#E8734A]' : 'text-[#173E39]'}`}>
+                    {i + 1}
+                  </div>
+                  {dayAppts.length > 0 && (
+                    <div className="text-[10px] bg-[#2E8A81] text-white font-bold px-1.5 py-0.5 rounded-full text-center">
+                      {dayAppts.length} grooms
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

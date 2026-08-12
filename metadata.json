@@ -1,0 +1,6 @@
+{
+  "name": "PawBook Pro — Dog Grooming Studio",
+  "description": "Dog Grooming Book & Client Studio with Appointment Management, Client & Pet Directory, Service Catalog, Staff Scheduling, Loyalty Program, Vaccine Alerts, and Revenue Analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
