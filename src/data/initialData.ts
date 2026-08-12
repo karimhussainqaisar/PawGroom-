@@ -112,6 +112,11 @@ export const INITIAL_CLIENTS: Client[] = [
     sensitivities: 'Sensitive skin — oatmeal shampoo only',
     lastCut: '#4F body, scissored face, 1/2" legs',
     rabiesExpiry: dDays(240),
+    vaccinationSchedule: [
+      { id: 'v1', vaccineName: 'Rabies (3-Year)', dateAdministered: '2024-04-10', nextDueDate: dDays(240), veterinarian: 'Bay Pet Clinic', batchNo: 'RB-9921', notes: '3-year booster up to date' },
+      { id: 'v2', vaccineName: 'Bordetella (Kennel Cough)', dateAdministered: '2026-02-15', nextDueDate: '2027-02-15', veterinarian: 'Bay Pet Clinic', batchNo: 'BD-4011', notes: 'Required for grooming' },
+      { id: 'v3', vaccineName: 'DHPP (Distemper Combo)', dateAdministered: '2025-08-01', nextDueDate: '2026-08-20', veterinarian: 'Bay Pet Clinic', batchNo: 'DH-1022' }
+    ],
     freqWeeks: 6,
     staffId: 'st1',
     fav: 'sv1',

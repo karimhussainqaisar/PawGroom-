@@ -17,6 +17,17 @@ export type DogSize = 'toy' | 'small' | 'medium' | 'large' | 'giant';
 
 export type AppointmentStatus = 'booked' | 'confirmed' | 'completed' | 'noshow' | 'cancelled';
 
+export interface VaccineRecord {
+  id: string;
+  vaccineName: string; // e.g. Rabies, DHPP, Bordetella, Parvovirus, Lyme
+  dateAdministered?: string; // 'YYYY-MM-DD'
+  nextDueDate: string; // 'YYYY-MM-DD'
+  veterinarian?: string;
+  batchNo?: string;
+  notes?: string;
+  status?: 'up_to_date' | 'due_soon' | 'expired';
+}
+
 export interface Client {
   id: string;
   name: string; // Dog's name
@@ -33,6 +44,7 @@ export interface Client {
   sensitivities: string;
   lastCut: string;
   rabiesExpiry: string; // ISO date string
+  vaccinationSchedule?: VaccineRecord[];
   freqWeeks: number;
   staffId: string; // Preferred groomer ID
   fav: string; // Preferred service ID

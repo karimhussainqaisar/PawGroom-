@@ -3,6 +3,7 @@ import {
   ViewMode, 
   CalendarMode, 
   Client, 
+  VaccineRecord,
   Service, 
   Package, 
   Staff, 
@@ -88,6 +89,8 @@ interface AppContextType {
   addClient: (client: Omit<Client, 'id' | 'createdAt' | 'points' | 'photos'>) => Client;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+  addVaccineRecord: (clientId: string, record: Omit<VaccineRecord, 'id'>) => void;
+  deleteVaccineRecord: (clientId: string, recordId: string) => void;
 
   addService: (svc: Omit<Service, 'id'>) => Service;
   updateService: (id: string, svc: Partial<Service>) => void;
@@ -368,6 +371,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Client deleted', 'info');
   };
 
+  const addVaccineRecord = (clientId: string, recordData: Omit<VaccineRecord, 'id'>) => {
+    const id = 'vax_' + Date.now();
+    const newRecord: VaccineRecord = { id, ...recordData };
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          const updatedSchedule = [newRecord, ...(c.vaccinationSchedule || [])];
+          // Also update rabiesExpiry if this vaccine is Rabies
+          const isRabies = recordData.vaccineName.toLowerCase().includes('rabies');
+          return {
+            ...c,
+            vaccinationSchedule: updatedSchedule,
+            ...(isRabies ? { rabiesExpiry: recordData.nextDueDate } : {})
+          };
+        }
+        return c;
+      })
+    );
+    showToast(`Vaccination schedule added for ${newRecord.vaccineName}!`, 'success');
+  };
+
+  const deleteVaccineRecord = (clientId: string, recordId: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            vaccinationSchedule: (c.vaccinationSchedule || []).filter((v) => v.id !== recordId)
+          };
+        }
+        return c;
+      })
+    );
+    showToast('Vaccine record removed', 'info');
+  };
+
   const addService = (svcData: Omit<Service, 'id'>) => {
     const id = 'sv_' + Date.now();
     const newSvc: Service = { id, ...svcData };
@@ -636,6 +675,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addClient,
         updateClient,
         deleteClient,
+        addVaccineRecord,
+        deleteVaccineRecord,
         addService,
         updateService,
         deleteService,

@@ -211,22 +211,40 @@ export const ClientsView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Vaccine Status Tag */}
-                  <div className="mt-3 flex items-center justify-between text-xs">
-                    <span className="text-[#5C716C] font-semibold">Rabies Vaccine:</span>
-                    {isRabiesExpired ? (
-                      <span className="bg-[#FEF2F2] text-[#C9503A] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
-                        EXPIRED ({client.rabiesExpiry})
+                  {/* Vaccine Status & Schedule Tag */}
+                  <div className="mt-3 bg-[#FFF8E7] border border-[#FFE7B3] p-2.5 rounded-xl space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#240C0B] font-bold flex items-center gap-1">
+                        <span>Rabies / Vaccine:</span>
                       </span>
-                    ) : isRabiesWarning ? (
-                      <span className="bg-[#FFFBEB] text-[#9A6E1B] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
-                        EXPIRING SOON ({client.rabiesExpiry})
+                      {isRabiesExpired ? (
+                        <span className="bg-[#FEF2F2] text-[#C9503A] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
+                          EXPIRED ({client.rabiesExpiry})
+                        </span>
+                      ) : isRabiesWarning ? (
+                        <span className="bg-[#FFFBEB] text-[#9A6E1B] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
+                          EXPIRING SOON ({client.rabiesExpiry})
+                        </span>
+                      ) : (
+                        <span className="bg-[#E1F0E7] text-[#357A54] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
+                          ACTIVE ({client.rabiesExpiry})
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-[#FFE7B3]/60 text-[11px]">
+                      <span className="text-[#A08E8B]">
+                        {client.vaccinationSchedule?.length
+                          ? `${client.vaccinationSchedule.length} Vaccine Schedules Recorded`
+                          : 'No custom schedule'}
                       </span>
-                    ) : (
-                      <span className="bg-[#E1F0E7] text-[#357A54] font-extrabold px-2.5 py-0.5 rounded-full text-[10px]">
-                        ACTIVE ({client.rabiesExpiry})
-                      </span>
-                    )}
+                      <button
+                        onClick={() => openModal('vaccineScheduleForm', { clientId: client.id })}
+                        className="text-[#FF6B00] hover:text-[#E55C00] font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" /> Add Vaccine
+                      </button>
+                    </div>
                   </div>
                 </div>
 

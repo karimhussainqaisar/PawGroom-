@@ -83,16 +83,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
             )}
           </button>
 
-          {/* User Badge Pill */}
+          {/* User Badge Pill - Shop & Owner Display */}
           <div className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs">
             <img 
               src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80" 
-              alt="User Profile" 
+              alt={settings.name || "Owner Profile"} 
               className="w-7 h-7 rounded-full object-cover border border-[#FF6B00]"
             />
             <div className="text-left leading-tight pr-1">
-              <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider">Welcome back</span>
-              <span className="text-xs font-extrabold text-[#240C0B] font-display">FAHD ABRAR</span>
+              <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider">
+                {settings.salonName || 'PawBook Studio'}
+              </span>
+              <span className="text-xs font-extrabold text-[#240C0B] font-display">
+                {settings.name || 'FAHD ABRAR'}
+              </span>
             </div>
           </div>
 

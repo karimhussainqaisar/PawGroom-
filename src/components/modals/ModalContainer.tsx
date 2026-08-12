@@ -29,6 +29,7 @@ export const ModalContainer: React.FC = () => {
     addTransformation, 
     redeemPoints, 
     updateAppointmentStatus,
+    addVaccineRecord,
     showToast 
   } = useApp();
 
@@ -133,6 +134,11 @@ export const ModalContainer: React.FC = () => {
         {/* Modal 17: Official Invoice / Receipt Modal */}
         {activeModal === 'invoiceModal' && (
           <InvoiceModal data={modalData} onClose={closeModal} />
+        )}
+
+        {/* Modal 18: Vaccination Schedule Form Modal */}
+        {activeModal === 'vaccineScheduleForm' && (
+          <VaccineScheduleFormModal data={modalData} onClose={closeModal} />
         )}
       </div>
     </div>
@@ -536,48 +542,99 @@ const ClientFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, o
 
 // 4. Client Grooming History Modal
 const ClientHistoryModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { appointments, services, staff, openModal } = useApp();
+  const { appointments, services, staff, settings, openModal } = useApp();
   const client = data?.client;
   if (!client) return null;
 
   const history = appointments.filter((a) => a.clientId === client.id && a.status === 'completed');
+  const vaxList = client.vaccinationSchedule || [];
 
   return (
     <div className="space-y-4 text-xs">
-      <h3 className="font-display font-bold text-xl text-[#173E39]">
-        Grooming History — {client.name}
-      </h3>
-
-      {history.length === 0 ? (
-        <p className="text-[#5C716C]">No prior completed grooming sessions recorded for this pet.</p>
-      ) : (
-        <div className="space-y-3 max-h-72 overflow-y-auto pr-1 divide-y divide-[#D8D3C4]">
-          {history.map((a) => {
-            const svc = services.find((s) => s.id === a.serviceId);
-            const st = staff.find((s) => s.id === a.staffId);
-            return (
-              <div key={a.id} className="pt-2.5 flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 font-bold text-[#173E39]">
-                    <span>{a.date} @ {a.start}</span>
-                    <span className="text-[#2E8A81]">${a.price + (a.retail || 0)}</span>
-                  </div>
-                  <div className="text-[#5C716C] mt-0.5">{svc?.name} • Stylist: {st?.name}</div>
-                  {a.notes && <div className="text-[#5C716C] italic mt-0.5">"{a.notes}"</div>}
-                </div>
-
-                <button
-                  onClick={() => openModal('invoiceModal', { appointment: a })}
-                  className="btn-ghost text-[11px] px-2.5 py-1 rounded-xl flex items-center gap-1 font-bold text-[#173E39] shrink-0 hover:bg-[#EAE7DC]"
-                  title="Print Invoice"
-                >
-                  <Printer className="w-3.5 h-3.5 text-[#2E8A81]" /> Invoice
-                </button>
-              </div>
-            );
-          })}
+      <div className="flex items-center justify-between border-b border-[#E8E1D1] pb-2">
+        <div>
+          <h3 className="font-display font-bold text-xl text-[#240C0B]">
+            Medical & Grooming Record — {client.name}
+          </h3>
+          <p className="text-[11px] text-[#A08E8B]">
+            Owner: <strong className="text-[#240C0B]">{client.owner}</strong> • Shop: {settings.salonName || 'PawBook Studio'} ({settings.name || 'Owner'})
+          </p>
         </div>
-      )}
+        <button
+          onClick={() => openModal('vaccineScheduleForm', { clientId: client.id })}
+          className="flex items-center gap-1 px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          <span>+ Schedule Vaccine</span>
+        </button>
+      </div>
+
+      {/* Vaccination Schedule Section */}
+      <div className="bg-[#FFF8E7] border border-[#FFE7B3] p-3 rounded-2xl space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="font-bold text-[#240C0B] flex items-center gap-1">
+            <ShieldAlert className="w-4 h-4 text-[#FF6B00]" />
+            <span>Vaccination Schedule & Immunizations</span>
+          </span>
+          <span className="text-[10px] text-[#A08E8B]">
+            Rabies Expiry: <strong className="text-[#240C0B]">{client.rabiesExpiry}</strong>
+          </span>
+        </div>
+
+        {vaxList.length === 0 ? (
+          <p className="text-[#A08E8B] text-[11px] italic">No specific vaccine records attached yet.</p>
+        ) : (
+          <div className="space-y-1.5 pt-1">
+            {vaxList.map((v: any) => (
+              <div key={v.id} className="bg-white/80 p-2 rounded-xl border border-[#FFE7B3] flex justify-between items-center text-[11px]">
+                <div>
+                  <div className="font-bold text-[#240C0B]">{v.vaccineName}</div>
+                  <div className="text-[#A08E8B]">Administered: {v.dateAdministered || 'N/A'} • Vet: {v.veterinarian || 'N/A'}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-[#FF6B00]">Due: {v.nextDueDate}</div>
+                  {v.batchNo && <div className="text-[10px] text-[#A08E8B]">Lot #{v.batchNo}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grooming Sessions */}
+      <div>
+        <h4 className="font-bold text-[#240C0B] mb-2 text-sm">Grooming History ({history.length})</h4>
+        {history.length === 0 ? (
+          <p className="text-[#5C716C]">No prior completed grooming sessions recorded for this pet.</p>
+        ) : (
+          <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-[#D8D3C4]">
+            {history.map((a) => {
+              const svc = services.find((s) => s.id === a.serviceId);
+              const st = staff.find((s) => s.id === a.staffId);
+              return (
+                <div key={a.id} className="pt-2.5 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 font-bold text-[#240C0B]">
+                      <span>{a.date} @ {a.start}</span>
+                      <span className="text-[#FF6B00]">${a.price + (a.retail || 0)}</span>
+                    </div>
+                    <div className="text-[#5C716C] mt-0.5">{svc?.name} • Stylist: {st?.name}</div>
+                    {a.notes && <div className="text-[#5C716C] italic mt-0.5">"{a.notes}"</div>}
+                  </div>
+
+                  <button
+                    onClick={() => openModal('invoiceModal', { appointment: a })}
+                    className="btn-ghost text-[11px] px-2.5 py-1 rounded-xl flex items-center gap-1 font-bold text-[#240C0B] shrink-0 hover:bg-[#EAE7DC]"
+                    title="Print Invoice"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-[#FF6B00]" /> Invoice
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="pt-2 flex justify-end">
         <button onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">Close</button>
@@ -1765,6 +1822,216 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           </p>
         </div>
       </div>
+    </div>
+  );
+};
+
+// 18. Vaccine Schedule Form Modal
+const VaccineScheduleFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
+  const { clients, settings, addVaccineRecord } = useApp();
+
+  const [clientId, setClientId] = useState(data?.clientId || clients[0]?.id || '');
+  const [vaccineName, setVaccineName] = useState('Rabies (3-Year)');
+  const [dateAdministered, setDateAdministered] = useState('2026-08-12');
+  const [nextDueDate, setNextDueDate] = useState('2027-08-12');
+  const [veterinarian, setVeterinarian] = useState('Central Pet Hospital');
+  const [batchNo, setBatchNo] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const quickVaccines = [
+    'Rabies (3-Year)',
+    'Rabies (1-Year)',
+    'Bordetella (Kennel Cough)',
+    'DHPP (Distemper Combo)',
+    'Parvovirus',
+    'Lyme Disease',
+    'Feline Leukemia'
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientId) return;
+
+    addVaccineRecord(clientId, {
+      vaccineName,
+      dateAdministered,
+      nextDueDate,
+      veterinarian,
+      batchNo,
+      notes
+    });
+
+    onClose();
+  };
+
+  return (
+    <div className="space-y-4 text-[#240C0B]">
+      <div className="border-b border-[#E8E1D1] pb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00]">
+            <ShieldAlert className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold font-display text-[#240C0B]">
+              Add Vaccination Schedule
+            </h2>
+            <p className="text-xs text-[#A08E8B]">
+              Record medical vaccine dates & upcoming renewals for pets
+            </p>
+          </div>
+        </div>
+
+        {/* Shop Name & Owner Name Display Badge */}
+        <div className="mt-3 bg-[#FFF8E7] border border-[#FFE7B3] p-2.5 rounded-xl flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[#240C0B]">{settings.salonName || 'PawBook Pro Studio'}</span>
+            <span className="text-[#A08E8B]">|</span>
+            <span className="text-[#FF6B00] font-semibold">Owner: {settings.name || 'FAHD ABRAR'}</span>
+          </div>
+          <span className="text-[10px] bg-[#FF6B00]/10 text-[#FF6B00] font-bold px-2 py-0.5 rounded-md">
+            Official Health Record
+          </span>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Select Pet / Client */}
+        <div>
+          <label className="block text-xs font-bold text-[#240C0B] mb-1">
+            Select Pet / Owner <span className="text-[#FF6B00]">*</span>
+          </label>
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            required
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.breed}) — Owner: {c.owner}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Quick Vaccine Presets */}
+        <div>
+          <label className="block text-xs font-bold text-[#240C0B] mb-1">
+            Vaccine Name <span className="text-[#FF6B00]">*</span>
+          </label>
+          <input
+            type="text"
+            value={vaccineName}
+            onChange={(e) => setVaccineName(e.target.value)}
+            className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00] mb-2"
+            placeholder="e.g. Rabies (3-Year)"
+            required
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {quickVaccines.map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVaccineName(v)}
+                className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                  vaccineName === v
+                    ? 'bg-[#FF6B00] text-white border-[#FF6B00] font-bold shadow-xs'
+                    : 'bg-[#F1EEE6] text-[#5C716C] border-[#D8D3C4] hover:bg-[#E8E1D1]'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Dates */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-[#240C0B] mb-1">
+              Date Administered
+            </label>
+            <input
+              type="date"
+              value={dateAdministered}
+              onChange={(e) => setDateAdministered(e.target.value)}
+              className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#240C0B] mb-1">
+              Next Due / Expiry Date <span className="text-[#FF6B00]">*</span>
+            </label>
+            <input
+              type="date"
+              value={nextDueDate}
+              onChange={(e) => setNextDueDate(e.target.value)}
+              className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Vet Clinic & Batch # */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-[#240C0B] mb-1">
+              Veterinarian / Clinic
+            </label>
+            <input
+              type="text"
+              value={veterinarian}
+              onChange={(e) => setVeterinarian(e.target.value)}
+              className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              placeholder="e.g. Central Pet Hospital"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#240C0B] mb-1">
+              Batch / Lot Number (Optional)
+            </label>
+            <input
+              type="text"
+              value={batchNo}
+              onChange={(e) => setBatchNo(e.target.value)}
+              className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+              placeholder="e.g. RB-9902"
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-xs font-bold text-[#240C0B] mb-1">
+            Notes / Health Instructions
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full bg-[#FFFDF9] border border-[#D8D3C4] rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#FF6B00]"
+            placeholder="Special notes or vaccine verification info..."
+          />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-[#E8E1D1]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-[#F1EEE6] hover:bg-[#E8E1D1] text-[#5C716C] rounded-xl text-xs font-bold transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-xl text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Check className="w-4 h-4" />
+            <span>Save Vaccination Schedule</span>
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
