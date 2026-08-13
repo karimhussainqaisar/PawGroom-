@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { formatISO } from '../../data/initialData';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -19,9 +20,10 @@ export const RevenueView: React.FC = () => {
   const [lineBreakdown, setLineBreakdown] = useState<'total' | 'breakdown'>('breakdown');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed'>('all');
 
-  const todayStr = '2026-08-12';
+  const todayStr = formatISO(new Date());
+  const currentMonthStr = todayStr.slice(0, 7);
 
-  // Active revenue-generating appointments in August 2026
+  // Active revenue-generating appointments
   const activeAppts = React.useMemo(() => {
     return appointments.filter((a) => {
       if (a.status === 'cancelled') return false;
@@ -30,17 +32,17 @@ export const RevenueView: React.FC = () => {
     });
   }, [appointments, filterStatus]);
 
-  // Today's Revenue (Aug 12)
+  // Today's Revenue
   const todayRevenue = React.useMemo(() => {
     return appointments
       .filter((a) => a.date === todayStr && a.status !== 'cancelled')
       .reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
   }, [appointments, todayStr]);
 
-  // Financial Metrics (August 2026)
+  // Financial Metrics (Current Month)
   const augAppts = React.useMemo(() => {
-    return activeAppts.filter((a) => a.date.startsWith('2026-08'));
-  }, [activeAppts]);
+    return activeAppts.filter((a) => a.date.startsWith(currentMonthStr));
+  }, [activeAppts, currentMonthStr]);
 
   const totalGroomRev = augAppts.reduce((sum, a) => sum + a.price, 0);
   const totalRetailRev = augAppts.reduce((sum, a) => sum + (a.retail || 0), 0);
@@ -50,15 +52,19 @@ export const RevenueView: React.FC = () => {
   const netProfit = grossRev - totalExpenses;
   const avgTicket = augAppts.length > 0 ? grossRev / augAppts.length : 0;
 
-  // Daily revenue chart data for all 31 days of August 2026
+  // Daily revenue chart data for all days of the current month
   const chartData = React.useMemo(() => {
     const map: Record<string, { date: string; fullDate: string; grooming: number; retail: number; total: number }> = {};
+    const [yearStr, monthStr] = currentMonthStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
     
-    // Fill August 1 to August 31 days
-    for (let day = 1; day <= 31; day++) {
+    // Fill days of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
       const dayStr = day < 10 ? `0${day}` : `${day}`;
-      const iso = `2026-08-${dayStr}`;
-      const label = `Aug ${day}`;
+      const iso = `${yearStr}-${monthStr}-${dayStr}`;
+      const label = `Day ${day}`;
       map[iso] = { date: label, fullDate: iso, grooming: 0, retail: 0, total: 0 };
     }
 
@@ -71,7 +77,7 @@ export const RevenueView: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => a.fullDate.localeCompare(b.fullDate));
-  }, [augAppts]);
+  }, [augAppts, currentMonthStr]);
 
   // Peak Earning Day
   const peakDay = React.useMemo(() => {
@@ -118,7 +124,7 @@ export const RevenueView: React.FC = () => {
             Financial & Revenue Analytics
           </h2>
           <p className="text-xs text-[#5C716C]">
-            Gross sales, retail product add-ons, net profit margin & daily earnings trends for August 2026.
+            Gross sales, retail product add-ons, net profit margin & daily earnings trends for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
           </p>
         </div>
 
@@ -156,7 +162,9 @@ export const RevenueView: React.FC = () => {
         {/* Card 1: Today's Revenue */}
         <div className="card-box p-4 bg-gradient-to-br from-[#FFE4D3] via-[#FFD7BE] to-[#FFC5A1] text-[#541900] border-none shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider opacity-80">Today's Revenue (Aug 12)</span>
+            <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+              Today's Revenue ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+            </span>
             <Calendar className="w-4 h-4 opacity-70" />
           </div>
           <div className="text-3xl font-display font-black tracking-tight mt-1">
@@ -167,9 +175,11 @@ export const RevenueView: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 2: Gross August Sales */}
+        {/* Card 2: Gross Monthly Sales */}
         <div className="card-box p-4">
-          <div className="text-xs font-bold text-[#5C716C] uppercase">Gross August Sales</div>
+          <div className="text-xs font-bold text-[#5C716C] uppercase">
+            Gross {new Date().toLocaleDateString('en-US', { month: 'long' })} Sales
+          </div>
           <div className="text-3xl font-display font-bold text-[#173E39] mt-1">
             ${grossRev.toLocaleString()}
           </div>

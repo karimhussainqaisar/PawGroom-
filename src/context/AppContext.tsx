@@ -125,7 +125,7 @@ interface AppContextType {
   importDataJSON: (jsonStr: string) => boolean;
 }
 
-const STORAGE_KEY = 'pawbook_pro_store_v1';
+const STORAGE_KEY = 'pawbook_pro_store_v3';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 

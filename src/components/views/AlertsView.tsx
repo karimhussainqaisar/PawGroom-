@@ -4,7 +4,7 @@ import { AlertTriangle, Send, Phone, ShieldAlert, Plus, Trash2, Calendar, CheckC
 
 export const AlertsView: React.FC = () => {
   const { clients, settings, openModal, deleteVaccineRecord } = useApp();
-  const today = new Date(2026, 7, 12);
+  const today = new Date();
 
   // Categorize Vaccine Expiry
   const alertsList = React.useMemo(() => {

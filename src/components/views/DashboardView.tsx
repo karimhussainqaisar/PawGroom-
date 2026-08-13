@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { formatISO } from '../../data/initialData';
 import { 
   Calendar, 
   DollarSign, 
@@ -40,7 +41,10 @@ export const DashboardView: React.FC = () => {
     showToast 
   } = useApp();
 
-  const todayStr = '2026-08-12'; // Fixed anchor demo date
+  const todayStr = formatISO(new Date());
+  const currentMonthStr = todayStr.slice(0, 7);
+  const formattedTodayLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const formattedMonthLabel = new Date().toLocaleDateString('en-US', { month: 'short' });
 
   // Toggle for Appointments card: 'today' vs 'upcoming'
   const [apptFilter, setApptFilter] = useState<'today' | 'upcoming'>('today');
@@ -60,12 +64,12 @@ export const DashboardView: React.FC = () => {
     return todaysAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
   }, [todaysAppts]);
 
-  // Month-To-Date (August 2026) Revenue across all valid appointments
+  // Month-To-Date Revenue across all valid appointments
   const mtdRevenue = React.useMemo(() => {
     return appointments
-      .filter((a) => a.status !== 'cancelled' && a.date.startsWith('2026-08'))
+      .filter((a) => a.status !== 'cancelled' && a.date.startsWith(currentMonthStr))
       .reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
-  }, [appointments]);
+  }, [appointments, currentMonthStr]);
 
   // Featured pet names for morning greeting
   const featuredPetsText = React.useMemo(() => {
@@ -82,20 +86,19 @@ export const DashboardView: React.FC = () => {
     return 'your pet clients';
   }, [todaysAppts, clients]);
 
-  // Upcoming / Recent Appointments List
+  // Upcoming Appointments List (strictly dates after today)
   const upcomingApptsList = React.useMemo(() => {
     return appointments
-      .filter(a => a.status !== 'cancelled')
-      .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
-      .slice(0, 5);
-  }, [appointments]);
+      .filter(a => a.status !== 'cancelled' && a.date > todayStr)
+      .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  }, [appointments, todayStr]);
 
   // List of appointments to show in the Appointments card
   const displayedCardAppts = apptFilter === 'today' ? todaysAppts : upcomingApptsList;
 
   // Pets Data Summary Table List
   const petDataSummary = React.useMemo(() => {
-    const today = new Date(2026, 7, 12);
+    const today = new Date();
     return clients.map(client => {
       let healthStatus = 'Good';
       let statusBg = 'bg-[#3BB221] text-white';
@@ -130,18 +133,23 @@ export const DashboardView: React.FC = () => {
     }).slice(0, 4);
   }, [clients, appointments, todayStr]);
 
-  // August Daily Revenue Breakdown Array (31 days)
+  // Current Month Daily Revenue Breakdown Array
   const augustDailyData = React.useMemo(() => {
-    const days = Array.from({ length: 31 }, (_, i) => {
+    const [yearStr, monthStr] = todayStr.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
       const dayNum = i + 1;
-      const dateStr = `2026-08-${String(dayNum).padStart(2, '0')}`;
+      const dateStr = `${yearStr}-${monthStr}-${String(dayNum).padStart(2, '0')}`;
       const dayAppts = appointments.filter(a => a.date === dateStr && a.status !== 'cancelled');
       const rev = dayAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
       return { day: dayNum, dateStr, rev, count: dayAppts.length };
     });
     const maxRev = Math.max(...days.map(d => d.rev), 100);
     return { days, maxRev };
-  }, [appointments]);
+  }, [appointments, todayStr]);
 
   // Service Category Breakdown Ratios for Health & Care Radial
   const careCategoryRatio = React.useMemo(() => {
@@ -266,7 +274,7 @@ export const DashboardView: React.FC = () => {
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#541900] rounded-full shadow-2xs">
               <span>${mtdRevenue.toLocaleString()}</span>
-              <span className="opacity-70 font-normal">MTD August</span>
+              <span className="opacity-70 font-normal">MTD {formattedMonthLabel}</span>
             </div>
           </div>
 
@@ -355,7 +363,7 @@ export const DashboardView: React.FC = () => {
                 apptFilter === 'today' ? 'bg-[#331D00] text-white shadow-2xs' : 'text-[#8C6D38] hover:text-[#331D00]'
               }`}
             >
-              Today (Aug 12)
+              Today ({formattedTodayLabel})
             </button>
             <button
               onClick={() => setApptFilter('upcoming')}
@@ -363,7 +371,7 @@ export const DashboardView: React.FC = () => {
                 apptFilter === 'upcoming' ? 'bg-[#331D00] text-white shadow-2xs' : 'text-[#8C6D38] hover:text-[#331D00]'
               }`}
             >
-              Upcoming ({appointments.filter(a => a.status !== 'cancelled').length})
+              Upcoming ({upcomingApptsList.length})
             </button>
           </div>
 

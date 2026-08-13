@@ -114,7 +114,7 @@ export const CalendarView: React.FC = () => {
             onClick={setToday}
             className="btn-ghost text-xs px-3 py-1.5 rounded-xl font-bold"
           >
-            Today (Aug 12)
+            Today ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
           </button>
         </div>
 
@@ -182,16 +182,23 @@ export const CalendarView: React.FC = () => {
               <div className="p-2 border-r border-[#D8D3C4]">Time</div>
               {weekDays.map((d, idx) => {
                 const dateISO = formatISO(d);
-                const isToday = dateISO === '2026-08-12';
+                const isToday = dateISO === formatISO(new Date());
                 return (
                   <div
                     key={idx}
-                    className={`p-2 border-r border-[#D8D3C4] last:border-r-0 ${
-                      isToday ? 'bg-[#E8734A] text-white font-extrabold rounded-t-lg' : ''
+                    className={`p-2 border-r border-[#D8D3C4] last:border-r-0 transition-colors ${
+                      isToday ? 'bg-[#FF6B00] text-white font-extrabold rounded-t-lg shadow-sm' : ''
                     }`}
                   >
-                    <div>{d.toLocaleDateString('default', { weekday: 'short' })}</div>
-                    <div className="text-sm">{d.getDate()}</div>
+                    <div className="flex items-center justify-center gap-1">
+                      <span>{d.toLocaleDateString('default', { weekday: 'short' })}</span>
+                      {isToday && (
+                        <span className="text-[9px] bg-white text-[#FF6B00] px-1 py-0.2 rounded font-black uppercase">
+                          Today
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm font-extrabold">{d.getDate()}</div>
                   </div>
                 );
               })}
@@ -260,8 +267,15 @@ export const CalendarView: React.FC = () => {
       {/* Day Mode */}
       {calendarMode === 'day' && (
         <div className="card-box p-4 space-y-3">
-          <div className="text-sm font-bold text-[#173E39] border-b pb-2">
-            Schedule for {calendarDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          <div className="text-sm font-bold text-[#173E39] border-b pb-2 flex items-center justify-between">
+            <span>
+              Schedule for {calendarDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            </span>
+            {formatISO(calendarDate) === formatISO(new Date()) && (
+              <span className="bg-[#FF6B00] text-white text-xs px-2.5 py-0.5 rounded-full font-black uppercase shadow-2xs">
+                Today
+              </span>
+            )}
           </div>
 
           <div className="divide-y divide-[#D8D3C4]">
@@ -331,12 +345,12 @@ export const CalendarView: React.FC = () => {
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="py-1 text-[#5C716C]">{d}</div>
             ))}
-            {/* Generate 35 days for current month view */}
+            {/* Generate days for current month view */}
             {Array.from({ length: 31 }, (_, i) => {
               const d = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), i + 1);
               const dateISO = formatISO(d);
               const dayAppts = getApptsForDate(dateISO);
-              const isToday = dateISO === '2026-08-12';
+              const isToday = dateISO === formatISO(new Date());
 
               return (
                 <div
@@ -345,12 +359,21 @@ export const CalendarView: React.FC = () => {
                     setCalendarDate(d);
                     setCalendarMode('day');
                   }}
-                  className={`p-3 rounded-xl border border-[#D8D3C4] min-h-[70px] flex flex-col justify-between text-left cursor-pointer hover:bg-[#EAE7DC]/50 ${
-                    isToday ? 'bg-[#E8734A]/10 border-[#E8734A]' : 'bg-white'
+                  className={`p-3 rounded-xl border transition-all min-h-[70px] flex flex-col justify-between text-left cursor-pointer hover:bg-[#EAE7DC]/50 ${
+                    isToday 
+                      ? 'bg-[#FF6B00]/10 border-[#FF6B00] border-2 ring-2 ring-[#FF6B00]/30 shadow-2xs font-extrabold' 
+                      : 'border-[#D8D3C4] bg-white'
                   }`}
                 >
-                  <div className={`font-bold ${isToday ? 'text-[#E8734A]' : 'text-[#173E39]'}`}>
-                    {i + 1}
+                  <div className="flex items-center justify-between">
+                    <span className={`font-bold ${isToday ? 'text-[#FF6B00] text-sm' : 'text-[#173E39]'}`}>
+                      {i + 1}
+                    </span>
+                    {isToday && (
+                      <span className="text-[9px] bg-[#FF6B00] text-white font-black px-1.5 py-0.5 rounded-md uppercase">
+                        Today
+                      </span>
+                    )}
                   </div>
                   {dayAppts.length > 0 && (
                     <div className="text-[10px] bg-[#2E8A81] text-white font-bold px-1.5 py-0.5 rounded-full text-center">

@@ -38,108 +38,111 @@ export const ModalContainer: React.FC = () => {
   const isWideModal = activeModal === 'printScheduleModal' || activeModal === 'invoiceModal' || activeModal === 'clientHistory';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto modal-overlay print:bg-white print:p-0 print:static print:block">
-      <div className={`bg-white rounded-3xl shadow-2xl w-full p-6 relative border border-[#D8D3C4] my-8 animate-in fade-in zoom-in-95 duration-150 modal-box print:shadow-none print:border-none print:max-w-none print:w-full print:m-0 print:p-0 ${
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-2 sm:p-4 md:p-6 flex items-start sm:items-center justify-center min-h-screen modal-overlay print:bg-white print:p-0 print:static print:block">
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-h-[88dvh] sm:max-h-[90vh] flex flex-col p-4 sm:p-6 relative border border-[#D8D3C4] my-auto animate-in fade-in zoom-in-95 duration-150 modal-box print:max-h-none print:shadow-none print:border-none print:max-w-none print:w-full print:m-0 print:p-0 ${
         isWideModal ? 'max-w-3xl' : 'max-w-lg'
       }`}>
-        {/* Close button */}
+        {/* Close button - Pinned at top right with clear background & high z-index */}
         <button
           onClick={closeModal}
-          className="no-print absolute top-4 right-4 p-2 text-[#5C716C] hover:text-[#173E39] rounded-xl hover:bg-[#F1EEE6] transition-colors"
+          className="no-print absolute top-3 right-3 sm:top-4 sm:right-4 z-30 p-2 text-[#5C716C] hover:text-[#240C0B] rounded-xl bg-white/90 border border-[#E8E1D1] shadow-2xs hover:bg-[#F1EEE6] transition-colors cursor-pointer"
           title="Close Modal"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Modal 1: Appointment Booking / Edit Form */}
-        {activeModal === 'appointmentForm' && (
-          <AppointmentFormModal data={modalData} onClose={closeModal} />
-        )}
+        {/* Scrollable Modal Content Body */}
+        <div className="overflow-y-auto pr-1 sm:pr-2 flex-1 space-y-4 text-[#240C0B]">
+          {/* Modal 1: Appointment Booking / Edit Form */}
+          {activeModal === 'appointmentForm' && (
+            <AppointmentFormModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 2: Appointment Detail & Quick Checkout */}
-        {activeModal === 'appointmentDetail' && (
-          <AppointmentDetailModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 2: Appointment Detail & Quick Checkout */}
+          {activeModal === 'appointmentDetail' && (
+            <AppointmentDetailModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 3: Client & Pet Record Form */}
-        {activeModal === 'clientForm' && (
-          <ClientFormModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 3: Client & Pet Record Form */}
+          {activeModal === 'clientForm' && (
+            <ClientFormModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 4: Client Grooming History */}
-        {activeModal === 'clientHistory' && (
-          <ClientHistoryModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 4: Client Grooming History */}
+          {activeModal === 'clientHistory' && (
+            <ClientHistoryModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 5: Service Form */}
-        {activeModal === 'serviceForm' && (
-          <ServiceFormModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 5: Service Form */}
+          {activeModal === 'serviceForm' && (
+            <ServiceFormModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 6: Package Form */}
-        {activeModal === 'packageForm' && (
-          <PackageFormModal onClose={closeModal} />
-        )}
+          {/* Modal 6: Package Form */}
+          {activeModal === 'packageForm' && (
+            <PackageFormModal onClose={closeModal} />
+          )}
 
-        {/* Modal 7: Staff Form */}
-        {activeModal === 'staffForm' && (
-          <StaffFormModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 7: Staff Form */}
+          {activeModal === 'staffForm' && (
+            <StaffFormModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 8: Inventory Product Form */}
-        {activeModal === 'inventoryForm' && (
-          <InventoryFormModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 8: Inventory Product Form */}
+          {activeModal === 'inventoryForm' && (
+            <InventoryFormModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 9: Gift Card Form */}
-        {activeModal === 'giftCardForm' && (
-          <GiftCardFormModal onClose={closeModal} />
-        )}
+          {/* Modal 9: Gift Card Form */}
+          {activeModal === 'giftCardForm' && (
+            <GiftCardFormModal onClose={closeModal} />
+          )}
 
-        {/* Modal 10: Expense Form */}
-        {activeModal === 'expenseForm' && (
-          <ExpenseFormModal onClose={closeModal} />
-        )}
+          {/* Modal 10: Expense Form */}
+          {activeModal === 'expenseForm' && (
+            <ExpenseFormModal onClose={closeModal} />
+          )}
 
-        {/* Modal 11: Waitlist Form */}
-        {activeModal === 'waitlistForm' && (
-          <WaitlistFormModal onClose={closeModal} />
-        )}
+          {/* Modal 11: Waitlist Form */}
+          {activeModal === 'waitlistForm' && (
+            <WaitlistFormModal onClose={closeModal} />
+          )}
 
-        {/* Modal 12: Transformation Gallery Form */}
-        {activeModal === 'transformationForm' && (
-          <TransformationFormModal onClose={closeModal} />
-        )}
+          {/* Modal 12: Transformation Gallery Form */}
+          {activeModal === 'transformationForm' && (
+            <TransformationFormModal onClose={closeModal} />
+          )}
 
-        {/* Modal 13: Redeem Points Modal */}
-        {activeModal === 'redeemModal' && (
-          <RedeemModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 13: Redeem Points Modal */}
+          {activeModal === 'redeemModal' && (
+            <RedeemModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 14: Send Reminder Modal */}
-        {activeModal === 'reminderModal' && (
-          <ReminderModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 14: Send Reminder Modal */}
+          {activeModal === 'reminderModal' && (
+            <ReminderModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 15: Generic Confirmation Modal */}
-        {activeModal === 'confirmModal' && (
-          <ConfirmModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 15: Generic Confirmation Modal */}
+          {activeModal === 'confirmModal' && (
+            <ConfirmModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 16: Print Daily Schedule Modal */}
-        {activeModal === 'printScheduleModal' && (
-          <PrintScheduleModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 16: Print Daily Schedule Modal */}
+          {activeModal === 'printScheduleModal' && (
+            <PrintScheduleModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 17: Official Invoice / Receipt Modal */}
-        {activeModal === 'invoiceModal' && (
-          <InvoiceModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 17: Official Invoice / Receipt Modal */}
+          {activeModal === 'invoiceModal' && (
+            <InvoiceModal data={modalData} onClose={closeModal} />
+          )}
 
-        {/* Modal 18: Vaccination Schedule Form Modal */}
-        {activeModal === 'vaccineScheduleForm' && (
-          <VaccineScheduleFormModal data={modalData} onClose={closeModal} />
-        )}
+          {/* Modal 18: Vaccination Schedule Form Modal */}
+          {activeModal === 'vaccineScheduleForm' && (
+            <VaccineScheduleFormModal data={modalData} onClose={closeModal} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -151,10 +154,18 @@ export const ModalContainer: React.FC = () => {
 const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
   const { clients, services, staff, settings, addAppointment } = useApp();
 
+  const getTodayISO = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [clientId, setClientId] = useState(data?.clientId || clients[0]?.id || '');
   const [serviceId, setServiceId] = useState(data?.serviceId || services[0]?.id || '');
   const [staffId, setStaffId] = useState(data?.staffId || staff[0]?.id || '');
-  const [date, setDate] = useState(data?.date || '2026-08-12');
+  const [date, setDate] = useState(data?.date || getTodayISO());
   const [start, setStart] = useState(data?.start || '10:00');
   const [retail, setRetail] = useState(0);
   const [notes, setNotes] = useState('');
@@ -1656,25 +1667,31 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const pointsEarned = Math.floor(total);
 
   const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
+  const isPaid = appt.status === 'completed';
 
   const handlePrint = () => {
     triggerPrintDocument(`Invoice ${invoiceNum} - PawBook Pro`, 'printable-invoice-doc');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Action Toolbar (Hidden when printing) */}
-      <div className="no-print bg-[#F1EEE6] p-4 rounded-2xl border border-[#D8D3C4] flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Receipt className="w-5 h-5 text-[#2E8A81]" />
-          <span className="font-display font-bold text-sm text-[#173E39]">Official Client Receipt & Invoice</span>
+      <div className="no-print bg-[#F8F6F0] p-3.5 sm:p-4 rounded-2xl border border-[#D8D3C4] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-[#FF6B00]/10 text-[#FF6B00] rounded-xl border border-[#FF6B00]/20 shrink-0">
+            <Receipt className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-display font-bold text-xs sm:text-sm text-[#240C0B]">Client Invoice & Receipt</h3>
+            <p className="text-[11px] text-[#5C716C]">Generate PDF or print official receipt</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           <button
             type="button"
             onClick={handlePrint}
-            className="printable-btn bg-[#173E39] hover:bg-[#0F2E2B] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="printable-btn bg-[#FF6B00] hover:bg-[#E55C00] text-white font-bold text-xs px-4 sm:px-5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" />
             <span>Print Invoice / Save PDF</span>
@@ -1682,7 +1699,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           <button
             type="button"
             onClick={onClose}
-            className="btn-ghost text-xs px-4 py-2.5 rounded-xl font-bold"
+            className="px-3.5 py-2.5 bg-white border border-[#D8D3C4] hover:bg-[#E8E1D1] text-[#240C0B] text-xs rounded-xl font-bold transition-colors cursor-pointer"
           >
             Close
           </button>
@@ -1690,136 +1707,216 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
       </div>
 
       {/* Printable Invoice Sheet */}
-      <div id="printable-invoice-doc" className="printable-area bg-white p-4 sm:p-6 text-[#173E39] space-y-6 rounded-2xl border border-[#D8D3C4] print:border-none">
-        {/* Studio & Invoice Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start border-b-2 border-[#173E39] pb-6 gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Scissors className="w-6 h-6 text-[#E8734A]" />
-              <h1 className="font-display font-bold text-2xl text-[#173E39] tracking-tight">
-                {settings?.name || settings?.salonName || 'PawBook Pro Grooming Studio'}
-              </h1>
+      <div 
+        id="printable-invoice-doc" 
+        className="printable-area bg-white p-4 sm:p-8 md:p-10 text-[#240C0B] space-y-6 rounded-2xl border border-[#D8D3C4] shadow-sm print:shadow-none print:border-none print:p-0 print:m-0"
+      >
+        {/* Top Accent Brand Line */}
+        <div className="h-2 w-full bg-gradient-to-r from-[#FF6B00] via-[#E8734A] to-[#2E8A81] rounded-full mb-2 print:hidden" />
+
+        {/* Header: Studio Brand & Invoice Meta */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b border-[#E8E1D1] pb-6">
+          {/* Studio Brand Info */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-[#240C0B] text-white rounded-xl shadow-xs">
+                <Scissors className="w-6 h-6 text-[#FF6B00]" />
+              </div>
+              <div>
+                <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#240C0B] tracking-tight">
+                  {settings?.name || settings?.salonName || 'PawBook Pro Studio'}
+                </h1>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF6B00] bg-[#FF6B00]/10 px-2 py-0.5 rounded-md">
+                  Licensed Pet Care Studio
+                </span>
+              </div>
             </div>
-            <p className="text-xs text-[#5C716C] font-medium">{settings?.address || '100 Bark Avenue, Suite 4 • San Francisco, CA 94107'}</p>
-            <p className="text-xs text-[#5C716C]">Tel: {settings?.phone || '(555) 123-PAWS'} • Email: billing@pawbookpro.com</p>
+            
+            <div className="text-xs text-[#5C716C] space-y-0.5 pt-1 font-medium">
+              <p>{settings?.address || '100 Bark Avenue, Suite 4 • San Francisco, CA 94107'}</p>
+              <p>Phone: {settings?.phone || '(555) 123-PAWS'} • Email: billing@pawbookpro.com</p>
+              <p className="text-[11px] text-[#8C715C]">Tax ID: US-88492019-PET • License #: PB-94021</p>
+            </div>
           </div>
 
-          <div className="text-left sm:text-right space-y-1 bg-[#F1EEE6]/60 p-4 rounded-2xl border border-[#D8D3C4]/60 w-full sm:w-auto">
-            <div className="text-xs uppercase font-extrabold text-[#E8734A] tracking-wider">Grooming Invoice</div>
-            <div className="font-display font-bold text-base text-[#173E39]">{invoiceNum}</div>
-            <div className="text-xs text-[#5C716C]">Date Issued: <span className="font-bold text-[#173E39]">{appt.date}</span></div>
-            <div className="pt-1">
-              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                appt.status === 'completed'
-                  ? 'bg-[#E1F2E8] text-[#3E9B6E]'
-                  : 'bg-[#FEF3C7] text-[#D97706]'
+          {/* Invoice Document Info */}
+          <div className="text-left sm:text-right space-y-2 bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4]/80 w-full sm:w-auto min-w-[200px]">
+            <div>
+              <div className="text-[10px] font-black uppercase text-[#8C715C] tracking-widest">Official Document</div>
+              <div className="font-display font-extrabold text-2xl text-[#240C0B] tracking-tight">INVOICE</div>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
+                <span>Number:</span>
+                <span className="font-mono font-bold text-[#240C0B]">{invoiceNum}</span>
+              </div>
+              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
+                <span>Issue Date:</span>
+                <span className="font-bold text-[#240C0B]">{appt.date}</span>
+              </div>
+              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
+                <span>Service Time:</span>
+                <span className="font-bold text-[#240C0B]">{appt.start}</span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                isPaid
+                  ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]'
+                  : 'bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]'
               }`}>
-                {appt.status === 'completed' ? 'Paid in Full' : 'Pending Payment'}
+                <span className={`w-2 h-2 rounded-full ${isPaid ? 'bg-[#059669]' : 'bg-[#D97706]'}`} />
+                {isPaid ? 'Paid In Full' : 'Payment Pending'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Bill To & Pet Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#F1EEE6]/40 p-4 rounded-2xl border border-[#D8D3C4]/80 text-xs">
-          <div className="space-y-1">
-            <div className="font-bold text-[10px] uppercase text-[#5C716C] tracking-wider">Billed To (Client Owner)</div>
-            <div className="font-bold text-sm text-[#173E39]">{client?.owner || 'Pet Parent'}</div>
-            <div className="text-[#5C716C]">{client?.name ? `Pet: ${client.name} (${client.breed || 'Dog'})` : ''}</div>
-            <div className="text-[#5C716C]">Phone: {client?.phone || 'N/A'}</div>
-            <div className="text-[#5C716C]">Email: {client?.email || 'N/A'}</div>
+        {/* Bill To & Session Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Client & Pet Card */}
+          <div className="bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4] space-y-2">
+            <div className="flex items-center gap-2 border-b border-[#E8E1D1] pb-2 text-[#FF6B00] font-bold text-[11px] uppercase tracking-wider">
+              <FileText className="w-3.5 h-3.5" />
+              <span>Billed To (Client & Pet)</span>
+            </div>
+            
+            <div className="space-y-1">
+              <div className="font-display font-bold text-base text-[#240C0B]">{client?.owner || 'Pet Parent'}</div>
+              <div className="text-[#5C716C] font-medium flex items-center gap-1.5">
+                <span className="font-bold text-[#240C0B]">Pet:</span> 
+                <span className="bg-white px-2 py-0.5 rounded-md border border-[#E8E1D1] font-bold text-[#240C0B]">
+                  🐾 {client?.name || 'Pet'} ({client?.breed || 'Dog'})
+                </span>
+              </div>
+              <div className="text-[#5C716C]">Phone: {client?.phone || 'N/A'}</div>
+              <div className="text-[#5C716C]">Email: {client?.email || 'N/A'}</div>
+            </div>
           </div>
 
-          <div className="space-y-1 sm:border-l sm:border-[#D8D3C4] sm:pl-4">
-            <div className="font-bold text-[10px] uppercase text-[#5C716C] tracking-wider">Session & Stylist Info</div>
-            <div className="font-bold text-sm text-[#173E39]">Groomer: {groomer?.name || 'Dani Brooks'}</div>
-            <div className="text-[#5C716C]">Appointment Date: {appt.date} @ {appt.start}</div>
-            <div className="text-[#5C716C]">Session Duration: {appt.duration} minutes</div>
-            {client?.sensitivities && (
-              <div className="text-[#991B1B] font-bold pt-1">
-                ⚠️ Care Notes: {client.sensitivities}
-              </div>
-            )}
+          {/* Service & Stylist Card */}
+          <div className="bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4] space-y-2">
+            <div className="flex items-center gap-2 border-b border-[#E8E1D1] pb-2 text-[#2E8A81] font-bold text-[11px] uppercase tracking-wider">
+              <Scissors className="w-3.5 h-3.5" />
+              <span>Session & Stylist Info</span>
+            </div>
+
+            <div className="space-y-1">
+              <div className="font-display font-bold text-base text-[#240C0B]">{groomer?.name || 'Senior Pet Stylist'}</div>
+              <div className="text-[#5C716C]">Grooming Station: <span className="font-bold text-[#240C0B]">Station 1 • Main Studio</span></div>
+              <div className="text-[#5C716C]">Duration: <span className="font-bold text-[#240C0B]">{appt.duration} minutes</span></div>
+              <div className="text-[#5C716C]">Payment Method: <span className="font-bold text-[#240C0B]">Credit Card / Square POS</span></div>
+              {client?.sensitivities && (
+                <div className="text-[#991B1B] font-bold pt-1 text-[11px] flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Care Note: {client.sensitivities}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Itemized Charges Table */}
-        <div className="border border-[#173E39] rounded-2xl overflow-hidden">
+        {/* Itemized Billing Table */}
+        <div className="border border-[#240C0B]/10 rounded-2xl overflow-hidden shadow-2xs">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-[#173E39] text-white font-bold">
-                <th className="p-3">Description</th>
-                <th className="p-3 text-center">Duration</th>
-                <th className="p-3 text-right">Price</th>
+              <tr className="bg-[#240C0B] text-white font-bold">
+                <th className="p-3.5 sm:p-4">Service & Item Description</th>
+                <th className="p-3.5 sm:p-4 text-center">Duration / Qty</th>
+                <th className="p-3.5 sm:p-4 text-right">Unit Rate</th>
+                <th className="p-3.5 sm:p-4 text-right">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#D8D3C4] bg-white">
-              <tr>
-                <td className="p-3">
-                  <div className="font-bold text-[#173E39] text-sm">{service?.name || 'Full Pet Grooming Session'}</div>
+            <tbody className="divide-y divide-[#E8E1D1] bg-white text-[#240C0B]">
+              <tr className="hover:bg-[#F8F6F0]/50 transition-colors">
+                <td className="p-3.5 sm:p-4">
+                  <div className="font-display font-bold text-sm text-[#240C0B]">
+                    {service?.name || 'Full Pet Grooming Session'}
+                  </div>
                   <div className="text-[11px] text-[#5C716C] mt-0.5">
-                    Includes bath, brush, styling, nail trim, and ear cleaning for {client?.name}.
+                    Includes organic bath, blowout, scissor coat styling, nail trim & sanitation for {client?.name || 'pet'}.
                   </div>
                 </td>
-                <td className="p-3 text-center font-semibold text-[#5C716C]">{appt.duration}m</td>
-                <td className="p-3 text-right font-bold text-[#173E39] text-sm">${servicePrice.toFixed(2)}</td>
+                <td className="p-3.5 sm:p-4 text-center font-semibold text-[#5C716C]">
+                  {appt.duration}m
+                </td>
+                <td className="p-3.5 sm:p-4 text-right font-medium text-[#5C716C]">
+                  ${servicePrice.toFixed(2)}
+                </td>
+                <td className="p-3.5 sm:p-4 text-right font-extrabold text-[#240C0B] text-sm">
+                  ${servicePrice.toFixed(2)}
+                </td>
               </tr>
 
               {retailAddon > 0 && (
-                <tr>
-                  <td className="p-3">
-                    <div className="font-bold text-[#173E39]">Retail Add-on & Spa Care Products</div>
-                    <div className="text-[11px] text-[#5C716C] mt-0.5">Custom shampoo / conditioner / home care product</div>
+                <tr className="hover:bg-[#F8F6F0]/50 transition-colors">
+                  <td className="p-3.5 sm:p-4">
+                    <div className="font-bold text-[#240C0B]">Retail Add-on & Spa Care Products</div>
+                    <div className="text-[11px] text-[#5C716C] mt-0.5">Custom organic shampoo, leave-in conditioner & spa treat</div>
                   </td>
-                  <td className="p-3 text-center font-semibold text-[#5C716C]">—</td>
-                  <td className="p-3 text-right font-bold text-[#173E39]">${retailAddon.toFixed(2)}</td>
+                  <td className="p-3.5 sm:p-4 text-center font-semibold text-[#5C716C]">1x</td>
+                  <td className="p-3.5 sm:p-4 text-right font-medium text-[#5C716C]">${retailAddon.toFixed(2)}</td>
+                  <td className="p-3.5 sm:p-4 text-right font-bold text-[#240C0B]">${retailAddon.toFixed(2)}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Calculations & Summary Box */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pt-2">
-          {/* Paw Perks / Loyalty Box */}
-          <div className="bg-[#FEF3C7]/60 border border-[#FCD34D] p-3.5 rounded-2xl text-xs space-y-1 w-full sm:w-1/2">
-            <div className="flex items-center gap-1.5 font-bold text-[#D97706]">
+        {/* Totals & Paw Perks Rewards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end pt-2">
+          {/* Loyalty & Studio Assurance */}
+          <div className="bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A]/60 border border-[#FCD34D] p-4 rounded-2xl text-xs space-y-2">
+            <div className="flex items-center gap-2 font-display font-bold text-[#B45309]">
               <Award className="w-4 h-4 text-[#D97706]" />
               <span>Paw Perks™ Loyalty Rewards</span>
             </div>
-            <div className="text-[#78350F] text-[11px]">
-              {client?.name} earned <span className="font-bold text-[#D97706]">+{pointsEarned} Paw Points</span> for this session!
-            </div>
-            <div className="text-[10px] text-[#92400E] font-medium">
-              Total Client Loyalty Balance: <span className="font-bold">{(client?.points || 0) + pointsEarned} Points</span>
+            <p className="text-[#78350F] text-[11px] leading-relaxed">
+              {client?.name || 'Client'} earned <span className="font-extrabold text-[#B45309]">+{pointsEarned} Paw Points</span> for today's session!
+            </p>
+            <div className="pt-1 text-[11px] text-[#92400E] font-medium border-t border-[#FCD34D]/60 flex justify-between">
+              <span>Updated Loyalty Points Balance:</span>
+              <span className="font-extrabold text-[#B45309]">{(client?.points || 0) + pointsEarned} Points</span>
             </div>
           </div>
 
-          {/* Totals Table */}
-          <div className="w-full sm:w-64 space-y-2 text-xs bg-[#F1EEE6] p-4 rounded-2xl border border-[#D8D3C4]">
+          {/* Financial Calculation Box */}
+          <div className="bg-[#F8F6F0] p-4 sm:p-5 rounded-2xl border border-[#D8D3C4] space-y-2 text-xs">
             <div className="flex justify-between text-[#5C716C]">
               <span>Subtotal:</span>
-              <span className="font-semibold text-[#173E39]">${subtotal.toFixed(2)}</span>
+              <span className="font-bold text-[#240C0B]">${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-[#5C716C]">
               <span>Sales Tax (8%):</span>
-              <span className="font-semibold text-[#173E39]">${tax.toFixed(2)}</span>
+              <span className="font-bold text-[#240C0B]">${tax.toFixed(2)}</span>
             </div>
-            <div className="border-t border-[#D8D3C4] pt-2 flex justify-between font-display font-bold text-base text-[#173E39]">
-              <span>Total Paid:</span>
-              <span className="text-[#2E8A81]">${total.toFixed(2)}</span>
+
+            <div className="border-t-2 border-[#240C0B] pt-2.5 flex justify-between items-center">
+              <div>
+                <span className="font-display font-black text-sm text-[#240C0B]">Total Paid:</span>
+                <p className="text-[10px] text-[#5C716C]">USD (All Taxes Included)</p>
+              </div>
+              <span className="font-display font-black text-2xl text-[#FF6B00]">
+                ${total.toFixed(2)}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Post Groom Care & Footer */}
-        <div className="pt-4 border-t border-[#D8D3C4] text-center text-xs text-[#5C716C] space-y-1">
-          <p className="font-bold text-[#173E39]">
-            Thank you for trusting PawBook Pro with {client?.name || 'your pet'}'s care! 🐾
+        {/* Footer & Thank You Message */}
+        <div className="pt-6 border-t border-[#E8E1D1] text-center text-xs space-y-2">
+          <p className="font-display font-bold text-[#240C0B] text-sm">
+            Thank you for trusting PawBook Pro Studio with {client?.name || 'your pet'}'s care! 🐾
           </p>
-          <p className="text-[11px]">
-            Recommended Next Grooming Appointment: <span className="font-bold text-[#2E8A81]">4 to 6 weeks from today</span>.
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#5C716C]">
+            <span>Recommended Next Visit: <strong className="text-[#FF6B00]">4 to 6 weeks</strong></span>
+            <span>•</span>
+            <span>Support: billing@pawbookpro.com</span>
+            <span>•</span>
+            <span>www.pawbookpro.com</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1830,10 +1927,27 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
 const VaccineScheduleFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
   const { clients, settings, addVaccineRecord } = useApp();
 
+  const getTodayISO = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getNextYearISO = () => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [clientId, setClientId] = useState(data?.clientId || clients[0]?.id || '');
   const [vaccineName, setVaccineName] = useState('Rabies (3-Year)');
-  const [dateAdministered, setDateAdministered] = useState('2026-08-12');
-  const [nextDueDate, setNextDueDate] = useState('2027-08-12');
+  const [dateAdministered, setDateAdministered] = useState(getTodayISO());
+  const [nextDueDate, setNextDueDate] = useState(getNextYearISO());
   const [veterinarian, setVeterinarian] = useState('Central Pet Hospital');
   const [batchNo, setBatchNo] = useState('');
   const [notes, setNotes] = useState('');

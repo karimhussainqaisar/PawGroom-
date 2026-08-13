@@ -12,11 +12,11 @@ import {
   Settings 
 } from '../types';
 
-// Anchor demo date at fixed 2026-08-12 (August 12th)
-export const FIXED_DEMO_DATE = new Date(2026, 7, 12, 10, 0, 0);
+// Dynamic device date helper
+export const FIXED_DEMO_DATE = new Date();
 
 export function getFixedToday(): Date {
-  return new Date(FIXED_DEMO_DATE);
+  return new Date();
 }
 
 export function formatISO(d: Date): string {
@@ -32,9 +32,8 @@ export function addDays(d: Date, days: number): Date {
   return res;
 }
 
-const t = getFixedToday();
 const iso = (d: Date) => formatISO(d);
-const dDays = (n: number) => iso(addDays(t, n));
+const dDays = (n: number) => iso(addDays(new Date(), n));
 
 export const INITIAL_STAFF_COLORS = ['#2E8A81', '#E8734A', '#8B6D9C', '#5E90A8'];
 
