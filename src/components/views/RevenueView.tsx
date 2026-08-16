@@ -15,12 +15,15 @@ import {
 import { ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, BarChart, Bar } from 'recharts';
 
 export const RevenueView: React.FC = () => {
-  const { appointments, expenses, services, showToast } = useApp();
+  const { appointments, expenses, services, formatPrice, currencySymbol, showToast } = useApp();
   const [chartMode, setChartMode] = useState<'line' | 'area'>('line');
   const [lineBreakdown, setLineBreakdown] = useState<'total' | 'breakdown'>('breakdown');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed'>('all');
 
-  const todayStr = formatISO(new Date());
+  const today = new Date();
+  const currentMonthLabel = today.toLocaleDateString('en-US', { month: 'long' });
+  const currentYear = today.getFullYear();
+  const todayStr = formatISO(today);
   const currentMonthStr = todayStr.slice(0, 7);
 
   // Active revenue-generating appointments
@@ -163,12 +166,12 @@ export const RevenueView: React.FC = () => {
         <div className="card-box p-4 bg-gradient-to-br from-[#FFE4D3] via-[#FFD7BE] to-[#FFC5A1] text-[#541900] border-none shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider opacity-80">
-              Today's Revenue ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+              Today's Revenue ({today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
             </span>
             <Calendar className="w-4 h-4 opacity-70" />
           </div>
           <div className="text-3xl font-display font-black tracking-tight mt-1">
-            ${todayRevenue.toLocaleString()}
+            {formatPrice(todayRevenue)}
           </div>
           <div className="text-xs font-bold opacity-80 mt-1">
             From today's scheduled grooms
@@ -178,13 +181,13 @@ export const RevenueView: React.FC = () => {
         {/* Card 2: Gross Monthly Sales */}
         <div className="card-box p-4">
           <div className="text-xs font-bold text-[#5C716C] uppercase">
-            Gross {new Date().toLocaleDateString('en-US', { month: 'long' })} Sales
+            Gross {currentMonthLabel} Sales
           </div>
           <div className="text-3xl font-display font-bold text-[#173E39] mt-1">
-            ${grossRev.toLocaleString()}
+            {formatPrice(grossRev)}
           </div>
           <div className="text-xs text-[#2E8A81] font-bold mt-1">
-            ${totalGroomRev} grooms + ${totalRetailRev} retail
+            {formatPrice(totalGroomRev)} grooms + {formatPrice(totalRetailRev)} retail
           </div>
         </div>
 
@@ -192,7 +195,7 @@ export const RevenueView: React.FC = () => {
         <div className="card-box p-4">
           <div className="text-xs font-bold text-[#5C716C] uppercase">Average Ticket</div>
           <div className="text-3xl font-display font-bold text-[#173E39] mt-1">
-            ${avgTicket.toFixed(1)}
+            {formatPrice(avgTicket)}
           </div>
           <div className="text-xs text-[#5C716C] mt-1">
             Per grooming session
@@ -203,7 +206,7 @@ export const RevenueView: React.FC = () => {
         <div className="card-box p-4">
           <div className="text-xs font-bold text-[#5C716C] uppercase">Net Operating Margin</div>
           <div className="text-3xl font-display font-bold text-[#3E9B6E] mt-1">
-            ${netProfit.toLocaleString()}
+            {formatPrice(netProfit)}
           </div>
           <div className="text-xs text-[#3E9B6E] font-bold mt-1">
             {grossRev > 0 ? Math.round((netProfit / grossRev) * 100) : 0}% net profit margin
@@ -217,10 +220,10 @@ export const RevenueView: React.FC = () => {
           <div>
             <h3 className="font-display font-bold text-base text-[#173E39] flex items-center gap-2">
               <LineChartIcon className="w-5 h-5 text-[#2E8A81]" />
-              Daily August 2026 Earnings Chart
+              Daily {currentMonthLabel} {currentYear} Earnings Chart
             </h3>
             <p className="text-xs text-[#5C716C] mt-0.5">
-              Visualize revenue growth across all 31 days of August 2026.
+              Visualize revenue growth across all days of {currentMonthLabel} {currentYear}.
             </p>
           </div>
 
@@ -294,7 +297,7 @@ export const RevenueView: React.FC = () => {
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E0D5" vertical={false} />
                 <XAxis dataKey="date" stroke="#5C716C" fontSize={10} tickLine={false} interval={2} />
-                <YAxis stroke="#5C716C" fontSize={11} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                <YAxis stroke="#5C716C" fontSize={11} tickLine={false} tickFormatter={(v) => formatPrice(v)} />
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: '#173E39',
@@ -304,7 +307,7 @@ export const RevenueView: React.FC = () => {
                     fontSize: '12px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                   }}
-                  formatter={(val: any, name: any) => [`$${val}`, name]}
+                  formatter={(val: any, name: any) => [formatPrice(val), name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
 
@@ -355,10 +358,10 @@ export const RevenueView: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E0D5" vertical={false} />
                 <XAxis dataKey="date" stroke="#5C716C" fontSize={10} interval={2} />
-                <YAxis stroke="#5C716C" fontSize={11} tickFormatter={(v) => `$${v}`} />
+                <YAxis stroke="#5C716C" fontSize={11} tickFormatter={(v) => formatPrice(v)} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#173E39', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val: any) => `$${val}`}
+                  formatter={(val: any) => formatPrice(val)}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 <Area type="monotone" dataKey="grooming" name="Grooming Revenue" stroke="#2E8A81" strokeWidth={2.5} fillOpacity={1} fill="url(#colorGrooming)" />
@@ -372,17 +375,17 @@ export const RevenueView: React.FC = () => {
       {/* Top Grossing Services Bar Chart */}
       <div className="card-box space-y-4">
         <h3 className="font-display font-bold text-base text-[#173E39]">
-          Top Grossing Grooming Services (August 2026)
+          Top Grossing Grooming Services ({currentMonthLabel} {currentYear})
         </h3>
 
         <div className="h-[220px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topServicesData} layout="vertical">
-              <XAxis type="number" stroke="#5C716C" fontSize={11} tickFormatter={(v) => `$${v}`} />
+              <XAxis type="number" stroke="#5C716C" fontSize={11} tickFormatter={(v) => formatPrice(v)} />
               <YAxis dataKey="name" type="category" stroke="#5C716C" fontSize={11} width={150} />
               <Tooltip 
                 contentStyle={{ backgroundColor: '#173E39', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
-                formatter={(val: any) => `$${val}`}
+                formatter={(val: any) => formatPrice(val)}
               />
               <Bar dataKey="total" fill="#E8734A" radius={[0, 8, 8, 0]} />
             </BarChart>

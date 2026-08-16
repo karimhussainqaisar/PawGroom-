@@ -1,108 +1,166 @@
 @import "tailwindcss";
 
 @layer base {
-  :root {
-    /* Modern Pet Care Studio Palette (Matching Reference UI) */
-    --studio-canvas: #F8A838;     /* Outer warm studio golden canvas */
-    --app-bg: #FAF8F5;            /* App container background */
-    --paper: #FFFFFF;            /* Pure white card container */
-    
-    /* Dark Espresso Sidebar */
-    --sidebar-bg: #240C0B;        /* Dark espresso chocolate brown */
-    --sidebar-dark: #180504;      /* Deepest espresso */
-    
-    /* Primary Accent Orange */
-    --orange-primary: #FF6B00;    /* Vibrant orange active pill */
-    --orange-hover: #E55C00;
-    
-    /* Pastel Card Gradients */
-    --card-purple-from: #ECE5FF;  /* Pastel Lavender */
-    --card-purple-to: #D5C2FF;
-    --card-purple-ink: #321360;
-
-    --card-orange-from: #FFE4D3;  /* Pastel Peach */
-    --card-orange-to: #FFC7A5;
-    --card-orange-ink: #541900;
-
-    --card-pink-from: #FFE2F2;    /* Pastel Pink */
-    --card-pink-to: #FFBFDC;
-    --card-pink-ink: #560A38;
-
-    --card-cream-bg: #FFF8E7;     /* Soft Yellow Cream */
-    --card-cream-ink: #331D00;
-
-    --card-[#E3F6D8]: #E3F6D8;    /* Soft Pistachio Green */
-    --card-green-ink: #1D3A0E;
-
-    /* Text Colors */
-    --ink: #240C0B;               /* Deep espresso body text */
-    --ink-muted: #6E5B58;         /* Muted text */
+  :root,
+  [data-theme="terracotta"] {
+    /* 1. Warm Terracotta & Espresso (Default Warm Studio) */
+    --studio-canvas: #F8A838;
+    --app-bg: #FAF8F5;
+    --paper: #FFFFFF;
+    --sidebar-bg: #240C0B;
+    --sidebar-dark: #180504;
+    --primary-color: #FF6B00;
+    --primary-hover: #E55C00;
+    --primary-light: #FFF0E6;
+    --primary-border: #FFD4BA;
+    --accent-color: #2E8A81;
+    --ink: #240C0B;
+    --ink-muted: #6E5B58;
     --ink-light: #A08E8B;
+  }
 
-    --font-display: "Fredoka", "Trebuchet MS", sans-serif;
-    --font-body: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  [data-theme="emerald"] {
+    /* 2. Emerald & Forest Sage (Fresh Botanical Pet Spa) */
+    --studio-canvas: #2E8A81;
+    --app-bg: #F4F8F6;
+    --paper: #FFFFFF;
+    --sidebar-bg: #0E2925;
+    --sidebar-dark: #071715;
+    --primary-color: #059669;
+    --primary-hover: #047857;
+    --primary-light: #ECFDF5;
+    --primary-border: #A7F3D0;
+    --accent-color: #D97706;
+    --ink: #0E2925;
+    --ink-muted: #4B6358;
+    --ink-light: #7E998E;
+  }
+
+  [data-theme="ocean"] {
+    /* 3. Ocean Breeze & Navy (Modern Coastal Blue) */
+    --studio-canvas: #3B82F6;
+    --app-bg: #F0F6FF;
+    --paper: #FFFFFF;
+    --sidebar-bg: #0F172A;
+    --sidebar-dark: #020617;
+    --primary-color: #2563EB;
+    --primary-hover: #1D4ED8;
+    --primary-light: #EFF6FF;
+    --primary-border: #BFDBFE;
+    --accent-color: #0891B2;
+    --ink: #0F172A;
+    --ink-muted: #475569;
+    --ink-light: #94A3B8;
+  }
+
+  [data-theme="plum"] {
+    /* 4. Royal Plum & Dusty Rose (Luxury Boutique Pet Salon) */
+    --studio-canvas: #A855F7;
+    --app-bg: #FAF5FF;
+    --paper: #FFFFFF;
+    --sidebar-bg: #2E103B;
+    --sidebar-dark: #190521;
+    --primary-color: #9333EA;
+    --primary-hover: #7E22CE;
+    --primary-light: #F3E8FF;
+    --primary-border: #E9D5FF;
+    --accent-color: #DB2777;
+    --ink: #2E103B;
+    --ink-muted: #6B4E75;
+    --ink-light: #A38DAA;
+  }
+
+  [data-theme="coral"] {
+    /* 5. Sunset Coral & Truffle (Artisan Pet Care) */
+    --studio-canvas: #FB923C;
+    --app-bg: #FFF9F5;
+    --paper: #FFFFFF;
+    --sidebar-bg: #351C14;
+    --sidebar-dark: #200E08;
+    --primary-color: #EA580C;
+    --primary-hover: #C2410C;
+    --primary-light: #FFF7ED;
+    --primary-border: #FED7AA;
+    --accent-color: #CA8A04;
+    --ink: #351C14;
+    --ink-muted: #73544B;
+    --ink-light: #A68B83;
+  }
+
+  [data-theme="slate"] {
+    /* 6. Midnight Slate & Champagne Gold (Executive Modern) */
+    --studio-canvas: #64748B;
+    --app-bg: #F8FAFC;
+    --paper: #FFFFFF;
+    --sidebar-bg: #18181B;
+    --sidebar-dark: #09090B;
+    --primary-color: #D97706;
+    --primary-hover: #B45309;
+    --primary-light: #FFFBEB;
+    --primary-border: #FDE68A;
+    --accent-color: #4F46E5;
+    --ink: #18181B;
+    --ink-muted: #52525B;
+    --ink-light: #A1A1AA;
   }
 
   body {
-    font-family: var(--font-body);
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--studio-canvas);
     color: var(--ink);
     font-size: 15px;
     line-height: 1.5;
+    transition: background-color 0.3s ease;
   }
 
   h1, h2, h3, h4, .font-display {
-    font-family: var(--font-display);
+    font-family: "Fredoka", "Trebuchet MS", sans-serif;
   }
 }
 
 /* Custom UI Component Classes */
 .btn-primary {
-  background-color: #FF6B00;
+  background-color: var(--primary-color, #FF6B00);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(255, 107, 0, 0.32);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-primary:hover {
-  background-color: #E55C00;
+  background-color: var(--primary-hover, #E55C00);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(255, 107, 0, 0.42);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
 .btn-dark {
-  background-color: #240C0B;
+  background-color: var(--sidebar-bg, #240C0B);
   color: #ffffff;
   transition: all 0.2s ease;
 }
 .btn-dark:hover {
-  background-color: #381514;
+  opacity: 0.9;
 }
 
 .btn-ghost {
   background: #ffffff;
   border: 1.5px solid #E6DFD5;
-  color: #240C0B;
+  color: var(--ink, #240C0B);
   transition: all 0.2s ease;
 }
 .btn-ghost:hover {
-  border-color: #FF6B00;
-  color: #FF6B00;
+  border-color: var(--primary-color, #FF6B00);
+  color: var(--primary-color, #FF6B00);
 }
 
 .card-box {
   background: #ffffff;
   border-radius: 24px;
-  box-shadow: 0 2px 12px rgba(36, 12, 11, 0.04), 0 8px 24px rgba(36, 12, 11, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.04);
   padding: 24px;
-  border: 1px solid rgba(230, 223, 213, 0.6);
+  border: 1px solid rgba(230, 223, 213, 0.7);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
-.card-box:hover {
-  box-shadow: 0 4px 16px rgba(36, 12, 11, 0.06), 0 12px 32px rgba(36, 12, 11, 0.08);
-}
-
-/* Custom scrollbars */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -111,60 +169,29 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(36, 12, 11, 0.18);
-  border-radius: 99px;
+  background: #D8D3C4;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(36, 12, 11, 0.35);
+  background: #A08E8B;
 }
 
-/* Print Styles for PDF & Invoice Printing */
+/* Print Styles */
 @media print {
-  header,
-  aside,
-  nav,
-  .no-print,
-  button:not(.printable-btn) {
-    display: none !important;
-  }
-
   body {
     background: #ffffff !important;
-    color: #240C0B !important;
-    font-size: 11pt !important;
-    margin: 0 !important;
+    color: #000000 !important;
     padding: 0 !important;
   }
-
-  .modal-overlay {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    background: #ffffff !important;
+  .no-print {
+    display: none !important;
+  }
+  .printable-area {
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
-  }
-
-  .modal-box {
-    max-width: 100% !important;
-    width: 100% !important;
     border: none !important;
-    box-shadow: none !important;
-    padding: 15px !important;
-    margin: 0 !important;
-  }
-
-  .print-page-break {
-    page-break-inside: avoid;
-  }
-
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 }
-
-

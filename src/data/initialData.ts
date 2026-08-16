@@ -9,7 +9,8 @@ import {
   Expense, 
   WaitlistItem, 
   Transformation, 
-  Settings 
+  Settings,
+  LoyaltyRedemption
 } from '../types';
 
 // Dynamic device date helper
@@ -579,6 +580,55 @@ export const INITIAL_TRANSFORMATIONS: Transformation[] = [
   },
 ];
 
+export const INITIAL_REDEMPTIONS: LoyaltyRedemption[] = [
+  {
+    id: 'red_1',
+    clientId: 'cl1', // Bella (Emma Clark)
+    rewardTitle: '15% Off VIP Full Grooming',
+    points: 150,
+    code: 'BELLA-15',
+    date: dDays(-2),
+    discountType: 'percent',
+    discountValue: 15,
+    status: 'applied',
+    isAutoApplied: true,
+  },
+  {
+    id: 'red_2',
+    clientId: 'cl1', // Bella (Emma Clark)
+    rewardTitle: '$10 Off Next Groom',
+    points: 100,
+    code: 'PERK-10492',
+    date: dDays(-5),
+    discountType: 'fixed',
+    discountValue: 10,
+    status: 'active',
+  },
+  {
+    id: 'red_3',
+    clientId: 'cl3', // Max (James Okafor)
+    rewardTitle: '20% Spa Day Discount',
+    points: 200,
+    code: 'MAX-20OFF',
+    date: dDays(-3),
+    discountType: 'percent',
+    discountValue: 20,
+    status: 'applied',
+    isAutoApplied: true,
+  },
+  {
+    id: 'red_4',
+    clientId: 'cl5', // Teddy (Sophia Chen)
+    rewardTitle: '10% Welcome Perk',
+    points: 80,
+    code: 'TEDDY-10',
+    date: dDays(-1),
+    discountType: 'percent',
+    discountValue: 10,
+    status: 'active',
+  }
+];
+
 export const INITIAL_SETTINGS: Settings = {
   name: 'PawBook Pro Grooming Studio',
   salonName: 'PawBook Pro Grooming Studio',
@@ -593,6 +643,7 @@ export const INITIAL_SETTINGS: Settings = {
   theme: 'light',
   accent: 'clay',
   invSeq: 104,
+  taxRate: 8.5, // 8.5% US Sales Tax default (configurable 0% to 20%)
   currency: 'USD',
   onboarded: 1,
   mobile: 1,

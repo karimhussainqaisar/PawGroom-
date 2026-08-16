@@ -58,7 +58,7 @@ export const CalendarView: React.FC = () => {
   };
 
   const setToday = () => {
-    setCalendarDate(getFixedToday());
+    setCalendarDate(new Date());
   };
 
   // Week days starting Monday

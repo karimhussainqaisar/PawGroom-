@@ -42,6 +42,9 @@ export interface Client {
   weight?: string;
   behaviorNotes: string[];
   sensitivities: string;
+  careNotes?: string;
+  allergies?: string;
+  medicalNotes?: string;
   lastCut: string;
   rabiesExpiry: string; // ISO date string
   vaccinationSchedule?: VaccineRecord[];
@@ -94,6 +97,9 @@ export interface Appointment {
   status: AppointmentStatus;
   retail?: number;
   notes?: string;
+  discountAmount?: number;
+  discountCode?: string;
+  discountTitle?: string;
 }
 
 export interface InventoryItem {
@@ -151,11 +157,19 @@ export interface LoyaltyRedemption {
   points: number;
   code: string;
   date: string;
+  discountType: 'percent' | 'fixed' | 'free_service';
+  discountValue: number;
+  status: 'active' | 'applied' | 'used';
+  usedInAppointmentId?: string;
+  isAutoApplied?: boolean;
 }
+
+export type ColorTheme = 'terracotta' | 'emerald' | 'ocean' | 'plum' | 'coral' | 'slate';
 
 export interface Settings {
   name: string;
   salonName?: string;
+  tagline?: string;
   address?: string;
   phone: string;
   open: number; // e.g. 8 (8 AM)
@@ -165,9 +179,11 @@ export interface Settings {
   redeem: number; // points needed per $1 off
   bday: number; // birthday multiplier
   theme: 'light' | 'dark';
+  colorTheme?: ColorTheme;
   accent: 'clay' | 'teal' | 'plum' | 'honey';
   invSeq: number;
-  currency: 'USD' | 'GBP' | 'EUR' | 'CAD' | 'AUD';
+  taxRate?: number; // 0% to 20% US sales tax rate applied on invoices
+  currency: 'USD' | 'GBP' | 'EUR' | 'CAD' | 'AUD' | 'JPY' | 'INR' | 'CHF' | 'AED' | 'SAR' | string;
   onboarded: number;
   mobile: number;
 }

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert } from 'lucide-react';
+import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const ModalContainer: React.FC = () => {
@@ -310,7 +310,25 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
 
 // 2. Appointment Detail & Checkout Modal
 const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, staff, inventory, updateAppointmentStatus, deleteAppointment, confirmDelete, showToast, openModal } = useApp();
+  const { 
+    clients, 
+    services, 
+    staff, 
+    inventory, 
+    redemptions,
+    settings,
+    createPromoCode,
+    applyVoucherCode,
+    markVoucherAsUsed,
+    updateAppointmentStatus, 
+    updateAppointment,
+    deleteAppointment, 
+    confirmDelete, 
+    showToast, 
+    openModal,
+    formatPrice 
+  } = useApp();
+  
   const appt = data?.appointment;
   if (!appt) return null;
 
@@ -320,10 +338,87 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
 
   const [retailAddon, setRetailAddon] = useState(appt.retail || 0);
 
+  // Filter promo codes strictly for THIS specific client or dog
+  const clientPromoCodes = useMemo(() => {
+    if (!appt.clientId) return [];
+    return redemptions.filter((r) => r.clientId === appt.clientId && r.status !== 'used');
+  }, [redemptions, appt.clientId]);
+
+  // Find initial applied promo code for this dog/client
+  const defaultPromo = useMemo(() => {
+    if (appt.discountCode) {
+      return clientPromoCodes.find((r) => r.code === appt.discountCode) || null;
+    }
+    return clientPromoCodes.find((r) => r.status === 'applied' || r.isAutoApplied) || null;
+  }, [clientPromoCodes, appt.discountCode]);
+
+  const [selectedPromoCode, setSelectedPromoCode] = useState<string>(defaultPromo ? defaultPromo.code : '');
+  const [showCreatePromo, setShowCreatePromo] = useState(false);
+  const [newPromoTitle, setNewPromoTitle] = useState('15% Off VIP Session');
+  const [newPromoType, setNewPromoType] = useState<'percent' | 'fixed'>('percent');
+  const [newPromoVal, setNewPromoVal] = useState<number>(15);
+
+  const servicePrice = service?.price || appt.price || 0;
+  const grossSubtotal = servicePrice + retailAddon;
+
+  // Selected promo calculation
+  const activeVoucher = clientPromoCodes.find((r) => r.code === selectedPromoCode);
+  let discountAmount = 0;
+  let discountTitle = '';
+
+  if (activeVoucher) {
+    discountTitle = activeVoucher.rewardTitle;
+    if (activeVoucher.discountType === 'percent') {
+      discountAmount = Math.round(grossSubtotal * (activeVoucher.discountValue / 100) * 100) / 100;
+    } else {
+      discountAmount = Math.min(grossSubtotal, activeVoucher.discountValue);
+    }
+  }
+
+  const taxableSubtotal = Math.max(0, grossSubtotal - discountAmount);
+  const taxRate = settings.taxRate !== undefined ? settings.taxRate : 8.5;
+  const taxAmount = Math.round(taxableSubtotal * (taxRate / 100) * 100) / 100;
+  const finalTotal = taxableSubtotal + taxAmount;
+
+  const handleQuickCreatePromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    const created = createPromoCode(
+      client.id,
+      newPromoTitle,
+      newPromoType,
+      newPromoVal,
+      0,
+      true // set to applied in checkout
+    );
+    if (created) {
+      setSelectedPromoCode(created.code);
+      setShowCreatePromo(false);
+    }
+  };
+
   const handleComplete = () => {
+    // Save invoice and discount details to appointment
+    updateAppointment(appt.id, {
+      retail: retailAddon,
+      discountAmount,
+      discountCode: activeVoucher ? activeVoucher.code : undefined,
+      discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+      taxRate,
+      taxAmount,
+      totalAmount: finalTotal,
+    });
+
+    if (activeVoucher) {
+      markVoucherAsUsed(activeVoucher.code, appt.id);
+    }
+
     updateAppointmentStatus(appt.id, 'completed', retailAddon);
     confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
-    showToast(`Appointment completed! Retail: $${retailAddon}`, 'success');
+    showToast(
+      `Appointment completed! Total: ${formatPrice(finalTotal)} (Tax: ${taxRate}%${discountAmount > 0 ? `, Promo: -${formatPrice(discountAmount)}` : ''})`,
+      'success'
+    );
     onClose();
   };
 
@@ -342,57 +437,249 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between border-b pb-2">
-        <h3 className="font-display font-bold text-xl text-[#173E39]">
-          Grooming Session Details
-        </h3>
+        <div>
+          <h3 className="font-display font-bold text-xl text-[#173E39]">
+            Grooming Session & Checkout
+          </h3>
+          <p className="text-[11px] text-[#5C716C]">
+            Review service, client-specific promo codes, and US tax calculation
+          </p>
+        </div>
         <span className="text-xs font-bold px-2.5 py-1 rounded-full uppercase bg-[#E1ECF0] text-[#3A6B7C]">
           {appt.status}
         </span>
       </div>
 
-      <div className="space-y-2 text-xs">
-        <div>
-          <span className="font-bold text-[#173E39]">Pet: </span>
-          <span className="text-[#2E8A81] font-bold text-sm">{client?.name} ({client?.breed})</span>
-        </div>
-        <div>
-          <span className="font-bold text-[#173E39]">Owner: </span>
-          <span>{client?.owner} • {client?.phone}</span>
-        </div>
-        <div>
-          <span className="font-bold text-[#173E39]">Service: </span>
-          <span>{service?.name} (${service?.price})</span>
-        </div>
-        <div>
-          <span className="font-bold text-[#173E39]">Stylist: </span>
-          <span>{groomer?.name}</span>
-        </div>
-        <div>
-          <span className="font-bold text-[#173E39]">Date & Time: </span>
-          <span>{appt.date} @ {appt.start}</span>
+      <div className="space-y-2.5 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[#FAF8F5] p-3 rounded-2xl border border-[#D8D3C4]">
+          <div>
+            <span className="font-bold text-[#173E39]">Pet: </span>
+            <span className="text-[#2E8A81] font-bold text-sm">{client?.name} ({client?.breed})</span>
+          </div>
+          <div>
+            <span className="font-bold text-[#173E39]">Owner: </span>
+            <span>{client?.owner} • {client?.phone}</span>
+          </div>
+          <div>
+            <span className="font-bold text-[#173E39]">Service: </span>
+            <span className="font-semibold text-[#173E39]">{service?.name} (${service?.price})</span>
+          </div>
+          <div>
+            <span className="font-bold text-[#173E39]">Stylist: </span>
+            <span>{groomer?.name}</span>
+          </div>
+          <div>
+            <span className="font-bold text-[#173E39]">Date & Time: </span>
+            <span>{appt.date} @ {appt.start}</span>
+          </div>
+          <div>
+            <span className="font-bold text-[#173E39]">Client Points: </span>
+            <span className="font-bold text-[#FF6B00]">{client?.points || 0} pts</span>
+          </div>
         </div>
 
         {client?.sensitivities && (
-          <div className="bg-[#FEF2F2] p-2 rounded-xl text-[#991B1B] font-semibold">
-            ⚠️ Sensitivity: {client.sensitivities}
+          <div className="bg-[#FEF2F2] p-2 rounded-xl text-[#991B1B] font-semibold flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Sensitivity Alert: {client.sensitivities}</span>
           </div>
         )}
 
         {/* Add-on Retail Sales */}
         <div className="pt-2 border-t">
-          <label className="font-bold text-[#173E39]">Add-on Retail Products ($)</label>
+          <label className="font-bold text-[#173E39] block mb-1">Add-on Retail Products ($)</label>
           <select
             value={retailAddon}
             onChange={(e) => setRetailAddon(parseFloat(e.target.value))}
-            className="w-full mt-1 p-2 border rounded-xl"
+            className="w-full p-2 border border-[#D8D3C4] rounded-xl bg-white outline-none focus:border-[#2E8A81]"
           >
-            <option value={0}>None ($0)</option>
+            <option value={0}>None ($0.00)</option>
             {inventory.map((i) => (
               <option key={i.id} value={i.price}>
-                {i.name} (+${i.price})
+                {i.name} (+${i.price.toFixed(2)})
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Dog/Client Specific Promo Codes & Discounts */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#2E8A81]/40 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-[#173E39]">
+              <Gift className="w-4 h-4 text-[#FF6B00]" />
+              <span>Promo Code for {client?.name || 'Client'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCreatePromo(!showCreatePromo)}
+              className="text-[11px] font-extrabold text-[#2E8A81] hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <Sparkles className="w-3 h-3 text-[#FF6B00]" />
+              {showCreatePromo ? 'Close Form' : `+ Create Promo for ${client?.name || 'Pet'}`}
+            </button>
+          </div>
+
+          {showCreatePromo && (
+            <form onSubmit={handleQuickCreatePromo} className="p-3 bg-[#FAF8F5] border border-[#E7C0B5] rounded-xl space-y-2">
+              <div className="font-bold text-xs text-[#240C0B]">
+                Issue Promo Code for {client?.name} (Auto-Applied to Checkout)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-1">
+                  <label className="text-[10px] font-bold text-[#7A6865]">Discount Type</label>
+                  <select
+                    value={newPromoType}
+                    onChange={(e) => setNewPromoType(e.target.value as 'percent' | 'fixed')}
+                    className="w-full mt-0.5 p-1.5 border border-[#D8D3C4] rounded-lg bg-white font-bold"
+                  >
+                    <option value="percent">Percentage (%)</option>
+                    <option value="fixed">Fixed Dollar ($)</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-[10px] font-bold text-[#7A6865]">Value ({newPromoType === 'percent' ? '%' : '$'})</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={newPromoType === 'percent' ? 100 : 500}
+                    value={newPromoVal}
+                    onChange={(e) => setNewPromoVal(parseFloat(e.target.value) || 0)}
+                    className="w-full mt-0.5 p-1.5 border border-[#D8D3C4] rounded-lg bg-white font-bold text-center"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-[10px] font-bold text-[#7A6865]">Promo Description</label>
+                  <input
+                    type="text"
+                    value={newPromoTitle}
+                    onChange={(e) => setNewPromoTitle(e.target.value)}
+                    className="w-full mt-0.5 p-1.5 border border-[#D8D3C4] rounded-lg bg-white text-xs"
+                    placeholder="e.g. VIP Promo"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-[#2E8A81] font-bold">
+                  ✓ Automatically set to APPLIED in this checkout
+                </span>
+                <button type="submit" className="btn-primary text-xs px-3 py-1 rounded-lg font-bold">
+                  Create & Apply
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* List/Select Promo Codes Specific to this Client */}
+          {clientPromoCodes.length === 0 ? (
+            <div className="text-[11px] text-[#7A6865] bg-[#FAF8F5] p-2.5 rounded-xl border border-dashed border-[#D8D3C4]">
+              No active promo codes issued for {client?.name}. Click "+ Create Promo" above to generate a client-specific code.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-[#7A6865]">
+                Available Promo Codes for {client?.name} (Only specific to this pet/client):
+              </label>
+              <div className="grid grid-cols-1 gap-1.5">
+                <div
+                  onClick={() => setSelectedPromoCode('')}
+                  className={`p-2 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                    !selectedPromoCode 
+                      ? 'bg-[#FAF8F5] border-[#240C0B] font-bold text-[#240C0B]' 
+                      : 'bg-white border-[#D8D3C4] text-[#7A6865] hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  <span>No promo code applied</span>
+                  {!selectedPromoCode && <Check className="w-3.5 h-3.5 text-[#240C0B]" />}
+                </div>
+
+                {clientPromoCodes.map((promo) => {
+                  const isSelected = selectedPromoCode === promo.code;
+                  return (
+                    <div
+                      key={promo.id}
+                      onClick={() => setSelectedPromoCode(promo.code)}
+                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-[#ECFDF5] border-[#10B981] ring-1 ring-[#10B981] text-[#065F46] font-bold shadow-xs'
+                          : 'bg-white border-[#D8D3C4] text-[#173E39] hover:bg-[#FAF8F5]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-xs bg-white px-2 py-0.5 rounded-md border border-[#D8D3C4]">
+                          {promo.code}
+                        </span>
+                        <div>
+                          <div className="font-bold text-xs">{promo.rewardTitle}</div>
+                          <div className="text-[10px] text-[#5C716C]">
+                            {promo.discountType === 'percent' ? `${promo.discountValue}% Off Invoice` : `$${promo.discountValue} Off`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {promo.status === 'applied' && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-[#FF6B00] text-white rounded-full">
+                            Applied
+                          </span>
+                        )}
+                        {isSelected && <Check className="w-4 h-4 text-[#10B981]" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Real-Time Checkout Invoice Calculation Breakdown */}
+        <div className="p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#D8D3C4] space-y-1.5 text-xs">
+          <div className="font-display font-bold text-xs text-[#173E39] border-b border-[#D8D3C4]/60 pb-1 flex justify-between">
+            <span>Invoice Breakdown</span>
+            <span className="text-[10px] text-[#7A6865] font-normal">US Tax Setting: {taxRate}%</span>
+          </div>
+
+          <div className="flex justify-between text-[#5C716C]">
+            <span>Grooming Service ({service?.name || 'Service'}):</span>
+            <span className="font-bold text-[#173E39]">{formatPrice(servicePrice)}</span>
+          </div>
+
+          {retailAddon > 0 && (
+            <div className="flex justify-between text-[#5C716C]">
+              <span>Retail Add-ons:</span>
+              <span className="font-bold text-[#173E39]">+{formatPrice(retailAddon)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between text-[#5C716C] pt-0.5 border-t border-[#D8D3C4]/40">
+            <span>Gross Subtotal:</span>
+            <span className="font-bold text-[#173E39]">{formatPrice(grossSubtotal)}</span>
+          </div>
+
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-[#059669] font-bold">
+              <span className="flex items-center gap-1">
+                <Gift className="w-3 h-3" />
+                Promo Discount ({activeVoucher?.code || 'Promo'} - {activeVoucher?.discountType === 'percent' ? `${activeVoucher.discountValue}%` : `$${activeVoucher?.discountValue}`}):
+              </span>
+              <span>-{formatPrice(discountAmount)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between text-[#5C716C]">
+            <span>Taxable Subtotal:</span>
+            <span className="font-bold text-[#173E39]">{formatPrice(taxableSubtotal)}</span>
+          </div>
+
+          <div className="flex justify-between text-[#5C716C]">
+            <span>US Sales Tax ({taxRate}%):</span>
+            <span className="font-bold text-[#FF6B00]">+{formatPrice(taxAmount)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm font-display font-extrabold text-[#240C0B] pt-1.5 border-t-2 border-[#240C0B]">
+            <span>Total Payable:</span>
+            <span className="text-base text-[#FF6B00]">{formatPrice(finalTotal)}</span>
+          </div>
         </div>
       </div>
 
@@ -406,18 +693,30 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           >
             <Trash2 className="w-4 h-4" /> Cancel/Delete
           </button>
-          <div className="text-sm font-display font-bold text-[#173E39]">
-            Total: ${appt.price + retailAddon}
-          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => {
-              openModal('invoiceModal', { appointment: appt, retailAddon });
+              openModal('invoiceModal', { 
+                appointment: {
+                  ...appt,
+                  retail: retailAddon,
+                  discountAmount,
+                  discountCode: activeVoucher ? activeVoucher.code : undefined,
+                  discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+                  taxRate,
+                  taxAmount,
+                  totalAmount: finalTotal,
+                }, 
+                retailAddon,
+                discountAmount,
+                discountCode: activeVoucher ? activeVoucher.code : undefined,
+                discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+              });
             }}
-            className="btn-ghost text-xs px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 hover:bg-[#EAE7DC] text-[#173E39]"
+            className="btn-ghost text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 hover:bg-[#EAE7DC] text-[#173E39] cursor-pointer"
             title="Print Client Invoice / Receipt"
           >
             <Printer className="w-4 h-4 text-[#2E8A81]" />
@@ -427,12 +726,12 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           {appt.status !== 'completed' && (
             <button
               onClick={handleComplete}
-              className="btn-primary text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-1"
+              className="btn-primary text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-1 cursor-pointer shadow-sm"
             >
-              <Check className="w-4 h-4" /> Complete & Checkout
+              <Check className="w-4 h-4" /> Complete & Checkout ({formatPrice(finalTotal)})
             </button>
           )}
-          <button onClick={onClose} className="btn-ghost text-xs px-3 py-2 rounded-xl">
+          <button onClick={onClose} className="btn-ghost text-xs px-3 py-2 rounded-xl cursor-pointer">
             Close
           </button>
         </div>
@@ -456,25 +755,50 @@ const ClientFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, o
   const [freqWeeks, setFreqWeeks] = useState(existing?.freqWeeks || 6);
   const [rabiesExpiry, setRabiesExpiry] = useState(existing?.rabiesExpiry || '2027-01-15');
   const [lastCut, setLastCut] = useState(existing?.lastCut || '');
+  const [sensitivities, setSensitivities] = useState(
+    Array.isArray(existing?.sensitivities) 
+      ? existing.sensitivities.join(', ') 
+      : existing?.sensitivities || ''
+  );
+  const [allergies, setAllergies] = useState(existing?.allergies || '');
+  const [careNotes, setCareNotes] = useState(existing?.careNotes || '');
+  const [medicalNotes, setMedicalNotes] = useState(existing?.medicalNotes || '');
+  const [behaviorNotesStr, setBehaviorNotesStr] = useState(
+    Array.isArray(existing?.behaviorNotes)
+      ? existing.behaviorNotes.join(', ')
+      : existing?.behaviorNotes || ''
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedBehaviorNotes = behaviorNotesStr
+      .split(/[,;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const clientPayload = {
+      name,
+      owner,
+      phone,
+      email,
+      breed,
+      size,
+      coat,
+      freqWeeks,
+      rabiesExpiry,
+      lastCut,
+      sensitivities,
+      allergies,
+      careNotes,
+      medicalNotes,
+      behaviorNotes: parsedBehaviorNotes,
+    };
+
     if (existing) {
-      updateClient(existing.id, { name, owner, phone, email, breed, size, coat, freqWeeks, rabiesExpiry, lastCut });
+      updateClient(existing.id, clientPayload);
     } else {
       addClient({
-        name,
-        owner,
-        phone,
-        email,
-        breed,
-        size,
-        coat,
-        freqWeeks,
-        rabiesExpiry,
-        lastCut,
-        behaviorNotes: [],
-        sensitivities: '',
+        ...clientPayload,
         staffId: 'st1',
         fav: 'sv1',
       });
@@ -541,6 +865,70 @@ const ClientFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, o
       <div>
         <label className="font-bold text-[#173E39]">Coat & Blade Cut Notes</label>
         <input type="text" value={lastCut} onChange={(e) => setLastCut(e.target.value)} placeholder="e.g. #4 body, teddy head" className="w-full mt-1 p-2 border rounded-xl" />
+      </div>
+
+      {/* Special Care & Sensitivities */}
+      <div className="bg-[#FFF3EB] border border-[#FFD0B3] p-3 rounded-2xl space-y-2.5">
+        <div className="font-bold text-[#541900] flex items-center gap-1.5">
+          <span>🛡️ Pet Care, Sensitivities & Medical</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="font-bold text-[#541900] text-[11px]">Sensitivities (e.g. paws, ears)</label>
+            <input 
+              type="text" 
+              value={sensitivities} 
+              onChange={(e) => setSensitivities(e.target.value)} 
+              placeholder="e.g. Sensitive paws, tail" 
+              className="w-full mt-0.5 p-2 bg-white border border-[#FFD0B3] rounded-xl outline-none" 
+            />
+          </div>
+          <div>
+            <label className="font-bold text-[#541900] text-[11px]">Allergies (shampoos, scents)</label>
+            <input 
+              type="text" 
+              value={allergies} 
+              onChange={(e) => setAllergies(e.target.value)} 
+              placeholder="e.g. Lavender shampoo allergy" 
+              className="w-full mt-0.5 p-2 bg-white border border-[#FFD0B3] rounded-xl outline-none" 
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="font-bold text-[#541900] text-[11px]">Care Instructions</label>
+            <input 
+              type="text" 
+              value={careNotes} 
+              onChange={(e) => setCareNotes(e.target.value)} 
+              placeholder="e.g. Low heat dryer only" 
+              className="w-full mt-0.5 p-2 bg-white border border-[#FFD0B3] rounded-xl outline-none" 
+            />
+          </div>
+          <div>
+            <label className="font-bold text-[#541900] text-[11px]">Medical Notes</label>
+            <input 
+              type="text" 
+              value={medicalNotes} 
+              onChange={(e) => setMedicalNotes(e.target.value)} 
+              placeholder="e.g. Hip dysplasia, gentle handling" 
+              className="w-full mt-0.5 p-2 bg-white border border-[#FFD0B3] rounded-xl outline-none" 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-bold text-[#541900] text-[11px]">Behavioral Warnings (comma separated)</label>
+          <input 
+            type="text" 
+            value={behaviorNotesStr} 
+            onChange={(e) => setBehaviorNotesStr(e.target.value)} 
+            placeholder="e.g. Table anxious, hates ear cleaning" 
+            className="w-full mt-0.5 p-2 bg-white border border-[#FFD0B3] rounded-xl outline-none" 
+          />
+        </div>
       </div>
 
       <div className="pt-2 flex justify-end gap-2">
@@ -1227,41 +1615,220 @@ const TransformationFormModal: React.FC<{ onClose: () => void }> = ({ onClose })
   );
 };
 
-// 13. Redeem Points Modal
+// 13. Redeem Points & Promo Code Modal
 const RedeemModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, redeemPoints } = useApp();
+  const { clients, redeemPoints, createPromoCode, showToast, formatPrice } = useApp();
   const reward = data?.reward || { title: '$10 Off Next Groom', pts: 100 };
   const [selectedClientId, setSelectedClientId] = useState(data?.client?.id || clients[0]?.id || '');
+  const [mode, setMode] = useState<'points' | 'custom'>(data?.mode || 'points');
+  const [customTitle, setCustomTitle] = useState('15% Off Grooming Voucher');
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [discountValue, setDiscountValue] = useState<number>(15);
+  const [autoApplyInCheckout, setAutoApplyInCheckout] = useState(true);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
   const client = clients.find((c) => c.id === selectedClientId);
+  const clientPoints = client?.points || 0;
+  const canRedeem = mode === 'custom' || clientPoints >= reward.pts;
 
   const handleRedeem = () => {
     if (!client) return;
-    const code = redeemPoints(client.id, reward.title, reward.pts);
-    if (code) onClose();
+    if (mode === 'points') {
+      const code = redeemPoints(client.id, reward.title, reward.pts, autoApplyInCheckout);
+      if (code) {
+        setGeneratedCode(code);
+      }
+    } else {
+      const created = createPromoCode(
+        client.id,
+        customTitle,
+        discountType,
+        discountValue,
+        0,
+        autoApplyInCheckout
+      );
+      if (created) {
+        setGeneratedCode(created.code);
+        showToast(`Promo code ${created.code} created for ${client.name}!`, 'success');
+      }
+    }
+  };
+
+  const handleCopy = () => {
+    if (generatedCode) {
+      navigator.clipboard.writeText(generatedCode);
+      showToast(`Copied voucher code ${generatedCode}!`, 'success');
+    }
   };
 
   return (
     <div className="space-y-4 text-xs">
-      <h3 className="font-display font-bold text-xl text-[#173E39]">Redeem Loyalty Reward</h3>
-      <div className="bg-[#FFFBEB] p-3 rounded-2xl border border-[#E7A93C]/40">
-        <div className="font-bold text-sm text-[#173E39]">{reward.title}</div>
-        <div className="text-[#C98A22] font-bold mt-1">{reward.pts} Points Required</div>
+      <div className="flex items-center justify-between border-b pb-2">
+        <div>
+          <h3 className="font-display font-bold text-xl text-[#173E39]">
+            {generatedCode ? '🎉 Promo / Reward Code Issued!' : 'Client Promo & Loyalty Rewards'}
+          </h3>
+          <p className="text-[11px] text-[#5C716C]">
+            Create client/dog-specific promo codes and redeem loyalty points
+          </p>
+        </div>
       </div>
 
-      <div>
-        <label className="font-bold text-[#173E39]">Select Client</label>
-        <select value={selectedClientId} onChange={(e) => setSelectedClientId(e.target.value)} className="w-full mt-1 p-2 border rounded-xl">
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name} ({c.owner}) — {c.points || 0} pts available</option>
-          ))}
-        </select>
-      </div>
+      {!generatedCode ? (
+        <>
+          {/* Mode Switcher */}
+          <div className="grid grid-cols-2 gap-2 bg-[#F1EEE6] p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setMode('points')}
+              className={`py-2 px-3 rounded-lg font-bold text-xs transition-all ${
+                mode === 'points'
+                  ? 'bg-white text-[#173E39] shadow-xs'
+                  : 'text-[#7A6865] hover:text-[#173E39]'
+              }`}
+            >
+              Redeem Catalog Reward
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('custom')}
+              className={`py-2 px-3 rounded-lg font-bold text-xs transition-all ${
+                mode === 'custom'
+                  ? 'bg-white text-[#173E39] shadow-xs'
+                  : 'text-[#7A6865] hover:text-[#173E39]'
+              }`}
+            >
+              + Create Custom Promo Code
+            </button>
+          </div>
 
-      <div className="pt-2 flex justify-end gap-2">
-        <button onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">Cancel</button>
-        <button onClick={handleRedeem} className="btn-primary text-xs px-5 py-2 rounded-xl font-bold">Confirm Redemption</button>
-      </div>
+          <div>
+            <label className="font-bold text-[#173E39]">Select Target Pet & Client</label>
+            <select 
+              value={selectedClientId} 
+              onChange={(e) => setSelectedClientId(e.target.value)} 
+              className="w-full mt-1 p-2.5 border border-[#D8D3C4] rounded-xl font-bold bg-white outline-none"
+            >
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  🐾 {c.name} ({c.owner}) — {c.points || 0} pts available
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {mode === 'points' ? (
+            <div className="bg-[#FFFBEB] p-3.5 rounded-2xl border border-[#E7A93C]/40 space-y-1">
+              <div className="font-bold text-sm text-[#173E39]">{reward.title}</div>
+              <div className="text-[#C98A22] font-bold">{reward.pts} Points Required</div>
+              {!canRedeem && (
+                <div className="p-2 bg-[#FEF2F2] border border-[#E7C0B5] text-[#991B1B] rounded-xl font-bold text-[11px] mt-2">
+                  ⚠️ Not enough points. {client?.name} has {clientPoints} points, but {reward.pts} points are required.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 p-3.5 bg-[#FAF8F5] rounded-2xl border border-[#D8D3C4]">
+              <div>
+                <label className="font-bold text-[#173E39]">Promo Title / Description</label>
+                <input
+                  type="text"
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="w-full mt-1 p-2 border border-[#D8D3C4] rounded-xl bg-white text-xs font-semibold"
+                  placeholder="e.g. 15% VIP Fall Grooming"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-[#173E39]">Discount Type</label>
+                  <select
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as 'percent' | 'fixed')}
+                    className="w-full mt-1 p-2 border border-[#D8D3C4] rounded-xl bg-white font-bold"
+                  >
+                    <option value="percent">Percentage (%)</option>
+                    <option value="fixed">Fixed Dollar ($)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-[#173E39]">
+                    Discount Value ({discountType === 'percent' ? '%' : '$'})
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={discountType === 'percent' ? 100 : 500}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                    className="w-full mt-1 p-2 border border-[#D8D3C4] rounded-xl bg-white font-bold text-center"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Set to Applied in Checkout Checkbox */}
+          <div className="p-3 bg-[#E1F0E7]/60 border border-[#357A54]/30 rounded-xl flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              id="autoApplyInCheckout"
+              checked={autoApplyInCheckout}
+              onChange={(e) => setAutoApplyInCheckout(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded text-[#2E8A81] focus:ring-[#2E8A81]"
+            />
+            <label htmlFor="autoApplyInCheckout" className="cursor-pointer">
+              <span className="font-bold text-[#173E39] block">
+                Set to "Applied" in checkout
+              </span>
+              <span className="text-[11px] text-[#5C716C] block">
+                When checking out {client?.name || 'this pet'}, this promo code will be automatically selected and applied to the invoice.
+              </span>
+            </label>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">Cancel</button>
+            <button 
+              onClick={handleRedeem} 
+              disabled={!canRedeem}
+              className="btn-primary text-xs px-5 py-2 rounded-xl font-bold disabled:opacity-50 cursor-pointer shadow-xs"
+            >
+              {mode === 'points' ? 'Confirm Redemption & Issue Promo' : 'Create & Apply Promo Code'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-3 pt-1">
+          <div className="bg-[#E1F0E7] border border-[#357A54]/40 p-4 rounded-2xl text-center space-y-2">
+            <p className="text-xs font-bold text-[#1E5638]">
+              Promo code successfully created & linked to {client?.name}!
+            </p>
+            <div className="text-2xl font-mono font-black tracking-widest text-[#173E39] bg-white p-2.5 rounded-xl border border-[#D8D3C4] inline-block shadow-xs">
+              {generatedCode}
+            </div>
+            {autoApplyInCheckout && (
+              <div className="inline-block bg-[#10B981] text-white font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                ✓ Set to APPLIED in checkout
+              </div>
+            )}
+            <p className="text-[11px] text-[#2E8A81] font-semibold">
+              This promo code will only show and apply during checkout for {client?.name} ({client?.owner}).
+            </p>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">Close</button>
+            <button 
+              onClick={handleCopy} 
+              className="btn-primary text-xs px-5 py-2 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy Code & Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1662,8 +2229,18 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const retailAddon = data?.retailAddon !== undefined ? data.retailAddon : appt.retail || 0;
   const servicePrice = service?.price || appt.price || 0;
   const subtotal = servicePrice + retailAddon;
-  const tax = Math.round(subtotal * 0.08 * 100) / 100; // 8% sales tax
-  const total = subtotal + tax;
+
+  // Read client/dog promo code discount if applied
+  const discountAmount = data?.discountAmount !== undefined ? data.discountAmount : appt.discountAmount || 0;
+  const discountCode = data?.discountCode || appt.discountCode || '';
+  const discountTitle = data?.discountTitle || appt.discountTitle || '';
+
+  const taxableSubtotal = Math.max(0, subtotal - discountAmount);
+
+  // Dynamic US tax rate from settings (0% to 20%)
+  const taxRate = settings?.taxRate !== undefined ? settings.taxRate : 8.5;
+  const tax = Math.round(taxableSubtotal * (taxRate / 100) * 100) / 100;
+  const total = taxableSubtotal + tax;
   const pointsEarned = Math.floor(total);
 
   const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
@@ -1683,7 +2260,9 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           </div>
           <div>
             <h3 className="font-display font-bold text-xs sm:text-sm text-[#240C0B]">Client Invoice & Receipt</h3>
-            <p className="text-[11px] text-[#5C716C]">Generate PDF or print official receipt</p>
+            <p className="text-[11px] text-[#5C716C]">
+              US Tax Rate: <span className="font-bold text-[#FF6B00]">{taxRate}%</span> • {discountAmount > 0 ? `Promo applied: -${discountCode || '$' + discountAmount}` : 'Standard rates'}
+            </p>
           </div>
         </div>
 
@@ -1726,9 +2305,14 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                 <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#240C0B] tracking-tight">
                   {settings?.name || settings?.salonName || 'PawBook Pro Studio'}
                 </h1>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF6B00] bg-[#FF6B00]/10 px-2 py-0.5 rounded-md">
-                  Licensed Pet Care Studio
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF6B00] bg-[#FF6B00]/10 px-2 py-0.5 rounded-md">
+                    Licensed Pet Care Studio
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E8A81] bg-[#E1F0E7] px-2 py-0.5 rounded-md">
+                    US Tax Rate: {taxRate}%
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -1861,6 +2445,25 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                   <td className="p-3.5 sm:p-4 text-right font-bold text-[#240C0B]">${retailAddon.toFixed(2)}</td>
                 </tr>
               )}
+
+              {discountAmount > 0 && (
+                <tr className="bg-[#ECFDF5]/50 text-[#065F46] font-bold">
+                  <td className="p-3.5 sm:p-4">
+                    <div className="flex items-center gap-1.5 font-display text-sm">
+                      <Gift className="w-4 h-4 text-[#10B981]" />
+                      <span>Client Promo Code Discount ({discountCode ? `${discountCode} • ` : ''}{discountTitle || 'Special Voucher'})</span>
+                    </div>
+                    <div className="text-[11px] text-[#047857] mt-0.5">
+                      Client-specific promo code automatically applied to session
+                    </div>
+                  </td>
+                  <td className="p-3.5 sm:p-4 text-center font-semibold">1x</td>
+                  <td className="p-3.5 sm:p-4 text-right font-medium">-${discountAmount.toFixed(2)}</td>
+                  <td className="p-3.5 sm:p-4 text-right font-extrabold text-sm text-[#059669]">
+                    -${discountAmount.toFixed(2)}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -1885,17 +2488,32 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           {/* Financial Calculation Box */}
           <div className="bg-[#F8F6F0] p-4 sm:p-5 rounded-2xl border border-[#D8D3C4] space-y-2 text-xs">
             <div className="flex justify-between text-[#5C716C]">
-              <span>Subtotal:</span>
+              <span>Gross Subtotal:</span>
               <span className="font-bold text-[#240C0B]">${subtotal.toFixed(2)}</span>
             </div>
+
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-[#059669] font-bold">
+                <span>Promo Discount ({discountCode || 'Applied'}):</span>
+                <span>-${discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-[#5C716C] pt-1 border-t border-[#D8D3C4]/60">
+              <span>Taxable Subtotal:</span>
+              <span className="font-bold text-[#240C0B]">${taxableSubtotal.toFixed(2)}</span>
+            </div>
+
             <div className="flex justify-between text-[#5C716C]">
-              <span>Sales Tax (8%):</span>
+              <span>
+                US Sales Tax ({taxRate > 0 ? `${taxRate}%` : '0% - Tax Exempt'}):
+              </span>
               <span className="font-bold text-[#240C0B]">${tax.toFixed(2)}</span>
             </div>
 
             <div className="border-t-2 border-[#240C0B] pt-2.5 flex justify-between items-center">
               <div>
-                <span className="font-display font-black text-sm text-[#240C0B]">Total Paid:</span>
+                <span className="font-display font-black text-sm text-[#240C0B]">Total Payable:</span>
                 <p className="text-[10px] text-[#5C716C]">USD (All Taxes Included)</p>
               </div>
               <span className="font-display font-black text-2xl text-[#FF6B00]">

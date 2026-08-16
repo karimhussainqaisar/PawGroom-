@@ -19,8 +19,14 @@ import { GalleryView } from './components/views/GalleryView';
 import { SettingsView } from './components/views/SettingsView';
 
 const MainLayout: React.FC = () => {
-  const { view } = useApp();
+  const { view, settings } = useApp();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Apply theme to html root element
+  useEffect(() => {
+    const themeName = settings.colorTheme || 'terracotta';
+    document.documentElement.setAttribute('data-theme', themeName);
+  }, [settings.colorTheme]);
 
   // Retract sidebar on view change
   useEffect(() => {
@@ -68,12 +74,19 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8A838] p-2 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center antialiased selection:bg-[#FF6B00] selection:text-white">
+    <div 
+      data-theme={settings.colorTheme || 'terracotta'} 
+      className="min-h-screen p-2 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center antialiased selection:bg-[#FF6B00] selection:text-white transition-colors duration-300"
+      style={{ backgroundColor: 'var(--studio-canvas, #F8A838)' }}
+    >
       {/* Toast Notification Container */}
       <Toast />
 
       {/* Main Floating Studio Card Frame */}
-      <div className="w-full max-w-[1600px] min-h-[92vh] bg-[#FAF8F5] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative">
+      <div 
+        className="w-full max-w-[1600px] min-h-[92vh] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative transition-colors duration-300"
+        style={{ backgroundColor: 'var(--app-bg, #FAF8F5)' }}
+      >
         {/* Side Navigation Bar */}
         <Sidebar mobileOpen={isSidebarOpen} setMobileOpen={setIsSidebarOpen} />
 

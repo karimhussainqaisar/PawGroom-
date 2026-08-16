@@ -83,11 +83,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
                 </svg>
               </div>
               <div>
-                <h1 className="font-display font-extrabold text-2xl text-white tracking-wide uppercase leading-none">
-                  PET CARE
+                <h1 className="font-display font-extrabold text-base text-white tracking-wide uppercase leading-tight line-clamp-1">
+                  {settings.salonName || settings.name || 'Pet Care Studio'}
                 </h1>
                 <span className="text-[9px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
-                  {settings?.name || 'PawBook Pro'}
+                  {settings.name || 'Grooming & Spa'}
                 </span>
               </div>
             </div>

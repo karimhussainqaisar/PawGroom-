@@ -203,13 +203,70 @@ export const ClientsView: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Care Notes & Sensitivities */}
+                  {(() => {
+                    const sensitivitiesList: string[] = Array.isArray(client.sensitivities)
+                      ? (client.sensitivities as string[])
+                      : typeof client.sensitivities === 'string' && client.sensitivities.trim()
+                      ? client.sensitivities.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+                      : [];
+
+                    const hasCareInfo = sensitivitiesList.length > 0 || client.allergies || client.careNotes || client.medicalNotes;
+                    if (!hasCareInfo) return null;
+
+                    return (
+                      <div className="mt-2 bg-[#FFF3EB] border border-[#FFD0B3] p-2.5 rounded-xl space-y-1.5 text-xs text-[#541900]">
+                        <div className="font-extrabold text-[11px] flex items-center gap-1 text-[#FF6B00]">
+                          <span>🛡️ Pet Care Notes & Sensitivities</span>
+                        </div>
+                        {sensitivitiesList.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {sensitivitiesList.map((s, sIdx) => (
+                              <span key={sIdx} className="bg-[#FFE4D3] text-[#541900] px-2 py-0.5 rounded-md font-bold text-[10px]">
+                                ⚠️ {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {client.allergies && (
+                          <div>
+                            <span className="font-bold text-[#541900]">Allergies: </span>
+                            <span className="text-[#7A2E00]">{client.allergies}</span>
+                          </div>
+                        )}
+                        {client.careNotes && (
+                          <div>
+                            <span className="font-bold text-[#541900]">Care Instructions: </span>
+                            <span className="text-[#7A2E00]">{client.careNotes}</span>
+                          </div>
+                        )}
+                        {client.medicalNotes && (
+                          <div>
+                            <span className="font-bold text-[#541900]">Medical: </span>
+                            <span className="text-[#7A2E00]">{client.medicalNotes}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Behavioral Warnings */}
-                  {client.behaviorNotes && client.behaviorNotes.length > 0 && (
-                    <div className="mt-2 text-xs bg-[#FEF2F2] border border-[#E7C0B5] text-[#991B1B] p-2 rounded-xl font-semibold flex items-start gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-[#C9503A] flex-none mt-0.5" />
-                      <div>{client.behaviorNotes.join(', ')}</div>
-                    </div>
-                  )}
+                  {(() => {
+                    const behaviorList: string[] = Array.isArray(client.behaviorNotes)
+                      ? client.behaviorNotes
+                      : typeof client.behaviorNotes === 'string' && (client.behaviorNotes as string).trim()
+                      ? [(client.behaviorNotes as string).trim()]
+                      : [];
+
+                    if (behaviorList.length === 0) return null;
+
+                    return (
+                      <div className="mt-2 text-xs bg-[#FEF2F2] border border-[#E7C0B5] text-[#991B1B] p-2 rounded-xl font-semibold flex items-start gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-[#C9503A] flex-none mt-0.5" />
+                        <div>{behaviorList.join(', ')}</div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Vaccine Status & Schedule Tag */}
                   <div className="mt-3 bg-[#FFF8E7] border border-[#FFE7B3] p-2.5 rounded-xl space-y-1.5 text-xs">

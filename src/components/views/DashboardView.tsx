@@ -38,13 +38,17 @@ export const DashboardView: React.FC = () => {
     updateAppointmentStatus, 
     openModal, 
     setView,
-    showToast 
+    showToast,
+    formatPrice,
+    settings
   } = useApp();
 
-  const todayStr = formatISO(new Date());
+  const today = new Date();
+  const todayStr = formatISO(today);
   const currentMonthStr = todayStr.slice(0, 7);
-  const formattedTodayLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const formattedMonthLabel = new Date().toLocaleDateString('en-US', { month: 'short' });
+  const formattedTodayLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const formattedMonthLabel = today.toLocaleDateString('en-US', { month: 'long' });
+  const currentYear = today.getFullYear();
 
   // Toggle for Appointments card: 'today' vs 'upcoming'
   const [apptFilter, setApptFilter] = useState<'today' | 'upcoming'>('today');
@@ -270,11 +274,11 @@ export const DashboardView: React.FC = () => {
               <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Total Revenue Today</span>
             </div>
             <div className="font-display font-extrabold text-4xl tracking-tight text-[#541900]">
-              ${todayRevenue.toLocaleString()}
+              {formatPrice(todayRevenue)}
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#541900] rounded-full shadow-2xs">
-              <span>${mtdRevenue.toLocaleString()}</span>
-              <span className="opacity-70 font-normal">MTD {formattedMonthLabel}</span>
+              <span>{formatPrice(mtdRevenue)}</span>
+              <span className="opacity-70 font-normal">MTD {formattedMonthLabel.slice(0, 3)}</span>
             </div>
           </div>
 
@@ -433,7 +437,7 @@ export const DashboardView: React.FC = () => {
                     {/* Quick Options Bar: Invoice, Complete, Details */}
                     <div className="pt-1.5 border-t border-[#FFEBBF]/60 flex items-center justify-between text-xs">
                       <span className="font-extrabold text-[#331D00] text-xs">
-                        ${item.price + (item.retail || 0)}
+                        {formatPrice(item.price + (item.retail || 0))}
                       </span>
 
                       <div className="flex items-center gap-1.5">
@@ -552,7 +556,7 @@ export const DashboardView: React.FC = () => {
               Grooming Schedule
             </h2>
             <span className="text-[11px] font-bold text-[#FF6B00] bg-[#FFF3EB] px-2.5 py-1 rounded-full">
-              Today (Aug 12)
+              Today ({formattedTodayLabel})
             </span>
           </div>
 
@@ -615,7 +619,7 @@ export const DashboardView: React.FC = () => {
                         <div>
                           <span className="text-[9px] text-[#C2B1E5] block uppercase font-semibold">Total Price</span>
                           <span className="font-display font-extrabold text-base text-white">
-                            ${appt.price + (appt.retail || 0)}
+                            {formatPrice(appt.price + (appt.retail || 0))}
                           </span>
                         </div>
 
@@ -658,7 +662,7 @@ export const DashboardView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-bold text-[#240C0B]">${appt.price}</span>
+                      <span className="text-xs font-bold text-[#240C0B]">{formatPrice(appt.price)}</span>
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
                         isCompleted ? 'bg-[#E1F0E7] text-[#10B981]' : 'bg-[#FFE7B3] text-[#331D00]'
                       }`}>
@@ -754,21 +758,21 @@ export const DashboardView: React.FC = () => {
               <h3 className="font-display font-extrabold text-lg text-[#240C0B]">
                 Monthly Revenue Matrix
               </h3>
-              <p className="text-[11px] text-[#A08E8B]">August 2026 Daily Revenue Graph</p>
+              <p className="text-[11px] text-[#A08E8B]">{formattedMonthLabel} {currentYear} Daily Revenue Graph</p>
             </div>
             <button
               onClick={() => setView('revenue')}
               className="text-xs font-extrabold text-[#3B1F70] bg-[#ECE5FF] hover:bg-[#DCD0FF] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
             >
-              ${mtdRevenue.toLocaleString()} MTD Revenue
+              {formatPrice(mtdRevenue)} MTD Revenue
             </button>
           </div>
 
-          {/* Dynamic Interactive Bar Visualizer for August (Days 1 to 31) */}
+          {/* Dynamic Interactive Bar Visualizer */}
           <div className="pt-2 relative">
             {hoveredDay && (
               <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#240C0B] text-white text-[10px] font-extrabold px-3 py-1 rounded-lg shadow-md z-20">
-                Aug {hoveredDay.day}: ${hoveredDay.rev} ({hoveredDay.count} grooms)
+                {formattedMonthLabel.slice(0, 3)} {hoveredDay.day}: {formatPrice(hoveredDay.rev)} ({hoveredDay.count} grooms)
               </div>
             )}
 
@@ -778,7 +782,7 @@ export const DashboardView: React.FC = () => {
                   ? Math.max(12, Math.round((item.rev / augustDailyData.maxRev) * 100))
                   : 6;
 
-                const isToday = item.day === 12;
+                const isToday = item.dateStr === todayStr;
 
                 return (
                   <div 
@@ -797,7 +801,7 @@ export const DashboardView: React.FC = () => {
                           : 'bg-[#F1EEE6]'
                       }`} 
                       style={{ height: `${heightPct}%` }}
-                      title={`Aug ${item.day}: $${item.rev}`}
+                      title={`${formattedMonthLabel.slice(0, 3)} ${item.day}: ${formatPrice(item.rev)}`}
                     />
                     <span className={`text-[7.5px] font-extrabold ${isToday ? 'text-[#FF6B00]' : 'text-[#A08E8B]'}`}>
                       {item.day}

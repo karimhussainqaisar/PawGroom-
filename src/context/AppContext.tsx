@@ -28,10 +28,12 @@ import {
   INITIAL_EXPENSES, 
   INITIAL_WAITLIST, 
   INITIAL_TRANSFORMATIONS, 
+  INITIAL_REDEMPTIONS,
   INITIAL_SETTINGS,
   getFixedToday,
   formatISO
 } from '../data/initialData';
+import { formatPrice as formatPriceUtil, getCurrencySymbol } from '../utils/format';
 
 export interface ToastMessage {
   id: string;
@@ -63,6 +65,10 @@ interface AppContextType {
   transformations: Transformation[];
   redemptions: LoyaltyRedemption[];
   settings: Settings;
+
+  // Currency & Theme formatting helpers
+  formatPrice: (amount: number) => string;
+  currencySymbol: string;
   
   toasts: ToastMessage[];
   showToast: (text: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
@@ -117,7 +123,26 @@ interface AppContextType {
   addTransformation: (tr: Omit<Transformation, 'id'>) => Transformation;
   deleteTransformation: (id: string) => void;
 
-  redeemPoints: (clientId: string, rewardTitle: string, pointsNeeded: number) => string | null;
+  redeemPoints: (
+    clientId: string,
+    rewardTitle: string,
+    pointsNeeded: number,
+    discountType?: 'percent' | 'fixed' | 'free_service',
+    discountValue?: number,
+    setApplied?: boolean
+  ) => string | null;
+  createPromoCode: (
+    clientId: string,
+    rewardTitle: string,
+    discountType: 'percent' | 'fixed' | 'free_service',
+    discountValue: number,
+    pointsNeeded?: number,
+    setApplied?: boolean,
+    customCode?: string
+  ) => LoyaltyRedemption | null;
+  setVoucherAppliedStatus: (code: string, status: 'active' | 'applied' | 'used') => void;
+  applyVoucherCode: (code: string, subtotal: number, clientId?: string) => { valid: boolean; discountAmount: number; title: string; message: string; voucher?: LoyaltyRedemption };
+  markVoucherAsUsed: (code: string, appointmentId: string) => void;
 
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetToDemoData: () => void;
@@ -188,7 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [redemptions, setRedemptions] = useState<LoyaltyRedemption[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY + '_redemptions');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : INITIAL_REDEMPTIONS;
   });
 
   const [settings, setSettings] = useState<Settings>(() => {
@@ -529,23 +554,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Gallery entry deleted', 'info');
   };
 
-  const redeemPoints = (clientId: string, rewardTitle: string, pointsNeeded: number) => {
+  const formatPrice = (amount: number) => {
+    return formatPriceUtil(amount, settings.currency);
+  };
+
+  const currencySymbol = getCurrencySymbol(settings.currency);
+
+  const redeemPoints = (
+    clientId: string,
+    rewardTitle: string,
+    pointsNeeded: number,
+    discountType: 'percent' | 'fixed' | 'free_service' = 'fixed',
+    discountValue: number = 10,
+    setApplied: boolean = true
+  ) => {
     const client = clients.find((c) => c.id === clientId);
     if (!client) {
-      showToast('Client not found', 'error');
+      showToast('Client / Dog not found', 'error');
       return null;
     }
     if ((client.points || 0) < pointsNeeded) {
-      showToast(`Insufficient points! Client has ${client.points} pts, needs ${pointsNeeded} pts.`, 'warning');
+      showToast(`Insufficient points! Client has ${client.points || 0} pts, needs ${pointsNeeded} pts.`, 'warning');
       return null;
+    }
+
+    // Determine discount value based on title if not explicitly passed
+    let discType = discountType;
+    let discVal = discountValue;
+    if (rewardTitle.includes('%')) {
+      discType = 'percent';
+      const match = rewardTitle.match(/(\d+)%/);
+      discVal = match ? parseInt(match[1], 10) : 10;
+    } else if (rewardTitle.includes('$') || rewardTitle.toLowerCase().includes('off')) {
+      discType = 'fixed';
+      const match = rewardTitle.match(/\$(\d+)/);
+      discVal = match ? parseInt(match[1], 10) : (pointsNeeded / 10);
+    } else if (rewardTitle.toLowerCase().includes('free teeth')) {
+      discType = 'fixed';
+      discVal = 12;
+    } else if (rewardTitle.toLowerCase().includes('facial') || rewardTitle.toLowerCase().includes('spa')) {
+      discType = 'fixed';
+      discVal = 18;
     }
 
     // Deduct points
     setClients((prev) =>
-      prev.map((c) => (c.id === clientId ? { ...c, points: c.points - pointsNeeded } : c))
+      prev.map((c) => (c.id === clientId ? { ...c, points: Math.max(0, (c.points || 0) - pointsNeeded) } : c))
     );
 
-    const voucherCode = 'REWARD-' + Math.floor(100000 + Math.random() * 900000);
+    const clientPrefix = client.name.toUpperCase().replace(/[^A-Z]/g, '') || 'PERK';
+    const voucherCode = `${clientPrefix}-${discType === 'percent' ? `${discVal}OFF` : Math.floor(1000 + Math.random() * 9000)}`;
+    
     const newRedemption: LoyaltyRedemption = {
       id: 'red_' + Date.now(),
       clientId,
@@ -553,11 +612,141 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       points: pointsNeeded,
       code: voucherCode,
       date: formatISO(getFixedToday()),
+      discountType: discType,
+      discountValue: discVal,
+      status: setApplied ? 'applied' : 'active',
+      isAutoApplied: setApplied,
     };
 
     setRedemptions((prev) => [newRedemption, ...prev]);
-    showToast(`Redeemed "${rewardTitle}"! Voucher code: ${voucherCode}`, 'success');
+    showToast(`Redeemed "${rewardTitle}" for ${client.name}! Code ${voucherCode} is set to ${setApplied ? 'APPLIED in checkout' : 'ACTIVE'}.`, 'success');
     return voucherCode;
+  };
+
+  const createPromoCode = (
+    clientId: string,
+    rewardTitle: string,
+    discountType: 'percent' | 'fixed' | 'free_service' = 'percent',
+    discountValue: number = 15,
+    pointsNeeded: number = 0,
+    setApplied: boolean = true,
+    customCode?: string
+  ) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) {
+      showToast('Client / Dog not found', 'error');
+      return null;
+    }
+
+    if (pointsNeeded > 0 && (client.points || 0) < pointsNeeded) {
+      showToast(`Insufficient points! Client has ${client.points || 0} pts, needs ${pointsNeeded} pts.`, 'warning');
+      return null;
+    }
+
+    if (pointsNeeded > 0) {
+      setClients((prev) =>
+        prev.map((c) => (c.id === clientId ? { ...c, points: Math.max(0, (c.points || 0) - pointsNeeded) } : c))
+      );
+    }
+
+    const clientPrefix = client.name.toUpperCase().replace(/[^A-Z]/g, '') || 'PROMO';
+    const cleanCode = (customCode && customCode.trim())
+      ? customCode.trim().toUpperCase()
+      : `${clientPrefix}-${discountType === 'percent' ? `${discountValue}OFF` : Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newRedemption: LoyaltyRedemption = {
+      id: 'red_' + Date.now(),
+      clientId,
+      rewardTitle,
+      points: pointsNeeded,
+      code: cleanCode,
+      date: formatISO(getFixedToday()),
+      discountType,
+      discountValue,
+      status: setApplied ? 'applied' : 'active',
+      isAutoApplied: setApplied,
+    };
+
+    setRedemptions((prev) => [newRedemption, ...prev]);
+    showToast(
+      `Created promo code ${cleanCode} for ${client.name} (${discountType === 'percent' ? `${discountValue}% Off` : `$${discountValue} Off`}) - Set to ${setApplied ? 'APPLIED in checkout' : 'ACTIVE'}!`,
+      'success'
+    );
+    return newRedemption;
+  };
+
+  const setVoucherAppliedStatus = (code: string, status: 'active' | 'applied' | 'used') => {
+    const cleanCode = code.trim().toUpperCase();
+    setRedemptions((prev) =>
+      prev.map((r) =>
+        r.code.toUpperCase() === cleanCode ? { ...r, status, isAutoApplied: status === 'applied' } : r
+      )
+    );
+  };
+
+  const applyVoucherCode = (code: string, subtotal: number, clientId?: string) => {
+    if (!code || !code.trim()) {
+      return { valid: false, discountAmount: 0, title: '', message: 'Please enter a promo code' };
+    }
+    const cleanCode = code.trim().toUpperCase();
+
+    // Check existing redemptions first
+    const found = redemptions.find((r) => r.code.toUpperCase() === cleanCode);
+    if (found) {
+      if (found.status === 'used') {
+        return { valid: false, discountAmount: 0, title: found.rewardTitle, message: `Promo code ${cleanCode} has already been redeemed` };
+      }
+      if (clientId && found.clientId !== clientId) {
+        return { valid: false, discountAmount: 0, title: found.rewardTitle, message: `Promo code ${cleanCode} is specific to another dog/client profile` };
+      }
+
+      let discount = 0;
+      if (found.discountType === 'percent') {
+        discount = Math.round(subtotal * (found.discountValue / 100) * 100) / 100;
+      } else {
+        discount = Math.min(subtotal, found.discountValue);
+      }
+      return {
+        valid: true,
+        discountAmount: discount,
+        title: found.rewardTitle,
+        message: `Promo applied: ${found.rewardTitle} (-${formatPrice(discount)})`,
+        voucher: found,
+      };
+    }
+
+    // Built-in standard promo codes support
+    if (cleanCode === 'WELCOME10' || cleanCode === 'PAWS10') {
+      const discount = Math.round(subtotal * 0.1 * 100) / 100;
+      return {
+        valid: true,
+        discountAmount: discount,
+        title: '10% Welcome Promo Discount',
+        message: `Promo applied: 10% Off (-${formatPrice(discount)})`,
+      };
+    }
+
+    if (cleanCode === 'SPADAY25' || cleanCode === 'VIP25') {
+      const discount = Math.min(subtotal, 25);
+      return {
+        valid: true,
+        discountAmount: discount,
+        title: '$25 Spa Day Voucher',
+        message: `Promo applied: $25 Off (-${formatPrice(discount)})`,
+      };
+    }
+
+    return { valid: false, discountAmount: 0, title: '', message: `Invalid or unassigned promo code "${code}"` };
+  };
+
+  const markVoucherAsUsed = (code: string, appointmentId: string) => {
+    if (!code) return;
+    const cleanCode = code.trim().toUpperCase();
+    setRedemptions((prev) =>
+      prev.map((r) =>
+        r.code.toUpperCase() === cleanCode ? { ...r, status: 'used', usedInAppointmentId: appointmentId, isAutoApplied: false } : r
+      )
+    );
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
@@ -576,7 +765,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenses(INITIAL_EXPENSES);
     setWaitlist(INITIAL_WAITLIST);
     setTransformations(INITIAL_TRANSFORMATIONS);
-    setRedemptions([]);
+    setRedemptions(INITIAL_REDEMPTIONS);
     setSettings(INITIAL_SETTINGS);
     
     // Clear storage keys
@@ -696,6 +885,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTransformation,
         deleteTransformation,
         redeemPoints,
+        createPromoCode,
+        setVoucherAppliedStatus,
+        applyVoucherCode,
+        markVoucherAsUsed,
+        formatPrice,
+        currencySymbol,
         updateSettings,
         resetToDemoData,
         exportDataJSON,
