@@ -152,7 +152,7 @@ export const ModalContainer: React.FC = () => {
 
 // 1. Appointment Form Modal
 const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, packages, staff, settings, addAppointment, formatPrice } = useApp();
+  const { clients, services, packages, staff, settings, addAppointment, updateAppointment, formatPrice } = useApp();
 
   const getTodayISO = () => {
     const d = new Date();
@@ -162,17 +162,19 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
     return `${year}-${month}-${day}`;
   };
 
-  const initialPkg = data?.packageId ? packages.find(p => p.id === data.packageId) : null;
+  const appt = data?.appointment;
+  const initialPkgId = data?.packageId || appt?.packageId;
+  const initialPkg = initialPkgId ? packages.find(p => p.id === initialPkgId) : null;
 
   const [bookingType, setBookingType] = useState<'service' | 'package'>(initialPkg ? 'package' : 'service');
-  const [clientId, setClientId] = useState(data?.clientId || clients[0]?.id || '');
-  const [serviceId, setServiceId] = useState(data?.serviceId || services[0]?.id || '');
+  const [clientId, setClientId] = useState(data?.clientId || appt?.clientId || clients[0]?.id || '');
+  const [serviceId, setServiceId] = useState(data?.serviceId || appt?.serviceId || services[0]?.id || '');
   const [selectedPackageId, setSelectedPackageId] = useState<string>(initialPkg ? initialPkg.id : packages[0]?.id || '');
-  const [staffId, setStaffId] = useState(data?.staffId || staff[0]?.id || '');
-  const [date, setDate] = useState(data?.date || getTodayISO());
-  const [start, setStart] = useState(data?.start || '10:00');
-  const [retail, setRetail] = useState(0);
-  const [notes, setNotes] = useState(data?.notes || '');
+  const [staffId, setStaffId] = useState(data?.staffId || appt?.staffId || staff[0]?.id || '');
+  const [date, setDate] = useState(data?.date || appt?.date || getTodayISO());
+  const [start, setStart] = useState(data?.start || appt?.start || '10:00');
+  const [retail, setRetail] = useState(appt?.retail || 0);
+  const [notes, setNotes] = useState(data?.notes || appt?.notes || '');
 
   const selectedSvc = services.find((s) => s.id === serviceId);
   const selectedPkg = packages.find((p) => p.id === selectedPackageId);
@@ -199,36 +201,71 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
     if (bookingType === 'package' && selectedPkg) {
       // Find main service or fallback
       const primarySvcId = selectedPkg.serviceIds[0] || services[0]?.id || 'sv1';
-      addAppointment({
-        clientId,
-        serviceId: primarySvcId,
-        staffId,
-        date,
-        start,
-        duration: selectedPkg.duration,
-        price: selectedPkg.price,
-        status: 'booked',
-        retail,
-        notes: notes ? `${notes} (Spa Package: ${selectedPkg.name})` : `Spa Package: ${selectedPkg.name}`,
-      });
+      
+      if (appt) {
+        updateAppointment(appt.id, {
+          clientId,
+          serviceId: primarySvcId,
+          packageId: selectedPkg.id,
+          packageName: selectedPkg.name,
+          staffId,
+          date,
+          start,
+          duration: selectedPkg.duration,
+          price: selectedPkg.price,
+          retail,
+          notes: notes ? notes : `Spa Package: ${selectedPkg.name}`,
+        });
+      } else {
+        addAppointment({
+          clientId,
+          serviceId: primarySvcId,
+          packageId: selectedPkg.id,
+          packageName: selectedPkg.name,
+          staffId,
+          date,
+          start,
+          duration: selectedPkg.duration,
+          price: selectedPkg.price,
+          status: 'booked',
+          retail,
+          notes: notes ? notes : `Spa Package: ${selectedPkg.name}`,
+        });
+      }
       onClose();
       return;
     }
 
     if (!selectedSvc) return;
 
-    addAppointment({
-      clientId,
-      serviceId,
-      staffId,
-      date,
-      start,
-      duration: selectedSvc.duration,
-      price: selectedSvc.price,
-      status: 'booked',
-      retail,
-      notes,
-    });
+    if (appt) {
+      updateAppointment(appt.id, {
+        clientId,
+        serviceId,
+        packageId: undefined,
+        packageName: undefined,
+        staffId,
+        date,
+        start,
+        duration: selectedSvc.duration,
+        price: selectedSvc.price,
+        retail,
+        notes,
+      });
+    } else {
+      addAppointment({
+        clientId,
+        serviceId,
+        staffId,
+        date,
+        start,
+        duration: selectedSvc.duration,
+        price: selectedSvc.price,
+        status: 'booked',
+        retail,
+        notes,
+      });
+    }
     onClose();
   };
 

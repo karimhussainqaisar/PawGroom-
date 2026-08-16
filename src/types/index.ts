@@ -89,6 +89,8 @@ export interface Appointment {
   id: string;
   clientId: string;
   serviceId: string;
+  packageId?: string;
+  packageName?: string;
   staffId: string;
   date: string; // ISO format 'YYYY-MM-DD'
   start: string; // 'HH:MM'
