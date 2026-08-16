@@ -21,7 +21,8 @@ export const ServicesView: React.FC = () => {
     deleteService, 
     deletePackage, 
     confirmDelete,
-    searchQuery 
+    searchQuery,
+    formatPrice 
   } = useApp();
 
   // Category label map
@@ -100,7 +101,7 @@ export const ServicesView: React.FC = () => {
                       {pkg.name}
                     </span>
                     <span className="text-lg font-display font-bold text-[#E8734A]">
-                      ${pkg.price}
+                      {formatPrice(pkg.price)}
                     </span>
                   </div>
 
@@ -120,7 +121,13 @@ export const ServicesView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-[#D8D3C4] flex items-center justify-end">
+                <div className="mt-4 pt-3 border-t border-[#D8D3C4] flex items-center justify-between">
+                  <button
+                    onClick={() => openModal('appointmentForm', { packageId: pkg.id, notes: `Booked Spa Package: ${pkg.name}` })}
+                    className="btn-primary text-xs px-3.5 py-1.5 rounded-full font-bold shadow-xs cursor-pointer"
+                  >
+                    Book This Package
+                  </button>
                   <button
                     onClick={() => {
                       confirmDelete({
@@ -130,7 +137,7 @@ export const ServicesView: React.FC = () => {
                         onConfirm: () => deletePackage(pkg.id),
                       });
                     }}
-                    className="p-1.5 text-[#5C716C] hover:text-[#C9503A] rounded-lg text-xs flex items-center gap-1"
+                    className="p-1.5 text-[#5C716C] hover:text-[#C9503A] rounded-lg text-xs flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" /> Delete
                   </button>

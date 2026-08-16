@@ -76,6 +76,9 @@ export const SettingsView: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: settings.name || settings.salonName || 'PawBook Pro Grooming Studio',
+    email: settings.email || 'care@pawbookpro.com',
+    website: settings.website || 'www.pawbookpro.com',
+    photo: settings.photo || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80',
     address: settings.address || '100 Bark Avenue, Suite 4, San Francisco, CA 94107',
     phone: settings.phone || '(555) 123-PAWS',
     open: settings.open ?? 8,
@@ -99,12 +102,35 @@ export const SettingsView: React.FC = () => {
     updateSettings({ ...settings, taxRate: clamped });
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Image size exceeds 2MB limit', 'warning');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setFormData((prev) => ({ ...prev, photo: result }));
+          updateSettings({ ...settings, photo: result });
+          showToast('Clinic photo updated successfully!', 'success');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettings({
       ...settings,
       name: formData.name,
       salonName: formData.name,
+      email: formData.email,
+      website: formData.website,
+      photo: formData.photo,
       address: formData.address,
       phone: formData.phone,
       open: formData.open,
@@ -114,6 +140,7 @@ export const SettingsView: React.FC = () => {
       taxRate: formData.taxRate,
       colorTheme: formData.colorTheme,
     });
+    showToast('Shop & Clinic settings saved across all views & invoices!', 'success');
   };
 
   const handleDownload = () => {
@@ -214,14 +241,95 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 2. Shop Profile & Settings Form */}
-      <form onSubmit={handleSubmit} className="card-box space-y-4">
-        <h2 className="font-display font-bold text-lg text-[#173E39] border-b pb-2">
-          Grooming Shop Profile & Operating Hours
-        </h2>
+      <form onSubmit={handleSubmit} className="card-box space-y-5">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 className="font-display font-bold text-lg text-[#173E39]">
+              Clinic & Grooming Studio Profile
+            </h2>
+            <p className="text-xs text-[#7A6865] mt-0.5">
+              All details here automatically synchronize across invoices, the sidebar profile, headers, emails, and client receipts.
+            </p>
+          </div>
+          <span className="text-[11px] font-bold px-2.5 py-1 bg-[#E1F0E7] text-[#2E8A81] rounded-full border border-[#BBE3CA]">
+            Synchronized Globally
+          </span>
+        </div>
+
+        {/* Studio Photo / Avatar Uploader & Presets */}
+        <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#D8D3C4] space-y-3">
+          <label className="font-bold text-xs text-[#173E39] block">
+            Clinic / Studio Profile Photo & Logo
+          </label>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#FF6B00] shadow-sm shrink-0 bg-white">
+              <img
+                src={formData.photo}
+                alt="Clinic Preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="space-y-2 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="btn-primary text-xs px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 font-bold cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" /> Upload New Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-[11px] text-[#7A6865]">or paste image URL:</span>
+              </div>
+              <input
+                type="url"
+                value={formData.photo}
+                onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+                placeholder="https://..."
+                className="w-full px-3 py-1.5 text-xs border border-[#D8D3C4] rounded-xl font-medium focus:border-[#FF6B00] outline-none bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Quick Preset Studio Logos */}
+          <div className="pt-2 border-t border-[#D8D3C4]/60">
+            <span className="text-[11px] font-bold text-[#7A6865] block mb-1.5">
+              Quick Preset Avatars:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { label: 'Golden Retriever Spa', url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80' },
+                { label: 'Poodle Chic', url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=240&q=80' },
+                { label: 'Modern Pet Vet Clinic', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80' },
+                { label: 'Fluffy Husky Studio', url: 'https://images.unsplash.com/photo-1537151625747-768eb6cf92b2?auto=format&fit=crop&w=240&q=80' },
+                { label: 'Cute Frenchie Salon', url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=240&q=80' },
+              ].map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, photo: preset.url }));
+                    updateSettings({ ...settings, photo: preset.url });
+                    showToast(`Updated clinic photo to "${preset.label}"!`, 'success');
+                  }}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border flex items-center gap-1.5 transition-all cursor-pointer ${
+                    formData.photo === preset.url
+                      ? 'bg-[#240C0B] text-white border-[#240C0B]'
+                      : 'bg-white text-[#173E39] border-[#D8D3C4] hover:border-[#FF6B00]'
+                  }`}
+                >
+                  <img src={preset.url} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                  <span>{preset.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="md:col-span-2">
-            <label className="font-bold text-[#173E39]">Shop / Salon Name</label>
+          <div>
+            <label className="font-bold text-[#173E39]">Shop / Clinic Name</label>
             <input
               type="text"
               required
@@ -230,9 +338,42 @@ export const SettingsView: React.FC = () => {
               className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
               placeholder="e.g., PawBook Pro Grooming Studio"
             />
-            <p className="text-[10px] text-[#7A6865] mt-1 font-semibold">
-              This name is dynamically used across invoices, headers, reminders, and notifications.
-            </p>
+          </div>
+
+          <div>
+            <label className="font-bold text-[#173E39]">Shop Phone / Mobile Number</label>
+            <input
+              type="text"
+              required
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
+              placeholder="e.g., (555) 123-PAWS"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-[#173E39]">Clinic Email (Synced on Invoices)</label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
+              placeholder="e.g., care@pawbookpro.com"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-[#173E39]">Clinic Website (Synced on Invoices)</label>
+            <input
+              type="text"
+              required
+              value={formData.website}
+              onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+              className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
+              placeholder="e.g., www.pawbookpro.com"
+            />
           </div>
 
           <div className="md:col-span-2">
@@ -244,18 +385,6 @@ export const SettingsView: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
               placeholder="e.g., 100 Bark Avenue, Suite 4, San Francisco, CA 94107"
-            />
-          </div>
-
-          <div>
-            <label className="font-bold text-[#173E39]">Shop Phone Number</label>
-            <input
-              type="text"
-              required
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full mt-1 px-3 py-2 border border-[#D8D3C4] rounded-xl font-medium focus:border-[#2E8A81] outline-none bg-white"
-              placeholder="e.g., (555) 123-PAWS"
             />
           </div>
 

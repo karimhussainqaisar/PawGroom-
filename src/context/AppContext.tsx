@@ -114,6 +114,9 @@ interface AppContextType {
   deleteInventoryItem: (id: string) => void;
 
   addGiftCard: (gc: Omit<GiftCard, 'id' | 'issued'>) => GiftCard;
+  redeemGiftCard: (code: string, amount: number) => { success: boolean; message: string; remainingBalance: number };
+  reloadGiftCard: (id: string, additionalAmount: number) => void;
+  deleteGiftCard: (id: string) => void;
   addExpense: (exp: Omit<Expense, 'id'>) => Expense;
   deleteExpense: (id: string) => void;
 
@@ -140,6 +143,7 @@ interface AppContextType {
     setApplied?: boolean,
     customCode?: string
   ) => LoyaltyRedemption | null;
+  deletePromoCode: (idOrCode: string) => void;
   setVoucherAppliedStatus: (code: string, status: 'active' | 'applied' | 'used') => void;
   applyVoucherCode: (code: string, subtotal: number, clientId?: string) => { valid: boolean; discountAmount: number; title: string; message: string; voucher?: LoyaltyRedemption };
   markVoucherAsUsed: (code: string, appointmentId: string) => void;
@@ -218,7 +222,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [settings, setSettings] = useState<Settings>(() => {
     const saved = localStorage.getItem(STORAGE_KEY + '_settings');
-    return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+    if (saved) {
+      try {
+        return { ...INITIAL_SETTINGS, ...JSON.parse(saved) };
+      } catch (e) {
+        return INITIAL_SETTINGS;
+      }
+    }
+    return INITIAL_SETTINGS;
   });
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -511,6 +522,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newGc;
   };
 
+  const redeemGiftCard = (code: string, amount: number) => {
+    if (!code || !code.trim()) {
+      return { success: false, message: 'Please enter a valid gift card code', remainingBalance: 0 };
+    }
+    const cleanCode = code.trim().toUpperCase();
+    const found = giftCards.find((g) => g.code.toUpperCase() === cleanCode);
+    if (!found) {
+      return { success: false, message: `Gift card "${code}" was not found`, remainingBalance: 0 };
+    }
+    if (found.balance <= 0) {
+      return { success: false, message: `Gift card ${found.code} has zero remaining balance`, remainingBalance: 0 };
+    }
+
+    const deductAmount = Math.min(found.balance, amount);
+    const newBalance = Math.round((found.balance - deductAmount) * 100) / 100;
+
+    setGiftCards((prev) =>
+      prev.map((g) => (g.id === found.id ? { ...g, balance: newBalance } : g))
+    );
+
+    showToast(
+      `Applied ${formatPrice(deductAmount)} from Gift Card ${found.code} (Remaining balance: ${formatPrice(newBalance)})`,
+      'success'
+    );
+
+    return {
+      success: true,
+      message: `Deducted ${formatPrice(deductAmount)}`,
+      remainingBalance: newBalance,
+    };
+  };
+
+  const reloadGiftCard = (id: string, additionalAmount: number) => {
+    setGiftCards((prev) =>
+      prev.map((g) => {
+        if (g.id === id) {
+          const newBal = Math.round((g.balance + additionalAmount) * 100) / 100;
+          const newTotal = Math.round((g.amount + additionalAmount) * 100) / 100;
+          return { ...g, balance: newBal, amount: newTotal };
+        }
+        return g;
+      })
+    );
+    showToast(`Added ${formatPrice(additionalAmount)} to gift card balance!`, 'success');
+  };
+
+  const deleteGiftCard = (id: string) => {
+    setGiftCards((prev) => prev.filter((g) => g.id !== id));
+    showToast('Gift card deleted', 'info');
+  };
+
   const addExpense = (expData: Omit<Expense, 'id'>) => {
     const id = 'ex_' + Date.now();
     const newExp: Expense = { id, ...expData };
@@ -739,14 +801,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { valid: false, discountAmount: 0, title: '', message: `Invalid or unassigned promo code "${code}"` };
   };
 
+  const deletePromoCode = (idOrCode: string) => {
+    setRedemptions((prev) =>
+      prev.filter(
+        (r) => r.id !== idOrCode && r.code.toUpperCase() !== idOrCode.toUpperCase()
+      )
+    );
+    showToast('Promo code removed from active rewards', 'info');
+  };
+
   const markVoucherAsUsed = (code: string, appointmentId: string) => {
     if (!code) return;
     const cleanCode = code.trim().toUpperCase();
-    setRedemptions((prev) =>
-      prev.map((r) =>
-        r.code.toUpperCase() === cleanCode ? { ...r, status: 'used', usedInAppointmentId: appointmentId, isAutoApplied: false } : r
-      )
-    );
+    // A promo code can only be used once: automatically delete it from rewards list
+    setRedemptions((prev) => prev.filter((r) => r.code.toUpperCase() !== cleanCode));
+    showToast(`Promo code ${cleanCode} applied & archived (single-use)`, 'success');
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
@@ -878,6 +947,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateInventoryItem,
         deleteInventoryItem,
         addGiftCard,
+        redeemGiftCard,
+        reloadGiftCard,
+        deleteGiftCard,
         addExpense,
         deleteExpense,
         addWaitlist,
@@ -886,6 +958,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteTransformation,
         redeemPoints,
         createPromoCode,
+        deletePromoCode,
         setVoucherAppliedStatus,
         applyVoucherCode,
         markVoucherAsUsed,

@@ -169,6 +169,9 @@ export type ColorTheme = 'terracotta' | 'emerald' | 'ocean' | 'plum' | 'coral' |
 export interface Settings {
   name: string;
   salonName?: string;
+  email?: string; // Clinic Email
+  website?: string; // Clinic Website
+  photo?: string; // Clinic Photo / Logo URL or Base64
   tagline?: string;
   address?: string;
   phone: string;

@@ -11,7 +11,16 @@ import {
   Printer,
   FileText,
   Clock,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  HeartPulse,
+  Award,
+  Phone,
+  Search,
+  User,
+  Info
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -52,6 +61,10 @@ export const DashboardView: React.FC = () => {
 
   // Toggle for Appointments card: 'today' vs 'upcoming'
   const [apptFilter, setApptFilter] = useState<'today' | 'upcoming'>('today');
+
+  // Pet Data Summary Filter & Search States
+  const [petSummaryTab, setPetSummaryTab] = useState<'all' | 'vaccine' | 'special' | 'vip'>('all');
+  const [petSummarySearch, setPetSummarySearch] = useState('');
 
   // Hover tooltip state for daily revenue matrix bar chart
   const [hoveredDay, setHoveredDay] = useState<{ day: number; dateStr: string; rev: number; count: number } | null>(null);
@@ -100,42 +113,100 @@ export const DashboardView: React.FC = () => {
   // List of appointments to show in the Appointments card
   const displayedCardAppts = apptFilter === 'today' ? todaysAppts : upcomingApptsList;
 
-  // Pets Data Summary Table List
+  // Comprehensive Pets Data Summary with Clinic, Client, and Shop Owner analytics
   const petDataSummary = React.useMemo(() => {
     const today = new Date();
     return clients.map(client => {
-      let healthStatus = 'Good';
-      let statusBg = 'bg-[#3BB221] text-white';
+      let healthStatus: 'Valid' | 'Due Soon' | 'Expired' = 'Valid';
+      let statusBg = 'bg-[#10B981] text-white';
+      let diffDays = 365;
+
       if (client.rabiesExpiry) {
         const exp = new Date(client.rabiesExpiry);
-        const diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        diffDays = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
         if (diffDays < 0) {
           healthStatus = 'Expired';
-          statusBg = 'bg-[#DC2626] text-white';
+          statusBg = 'bg-[#EF4444] text-white';
         } else if (diffDays <= 30) {
           healthStatus = 'Due Soon';
-          statusBg = 'bg-[#D97706] text-white';
+          statusBg = 'bg-[#F59E0B] text-white';
         }
       }
 
+      // Completed client appointments for lifetime stats
       const clientAppts = appointments
         .filter(a => a.clientId === client.id && a.status !== 'cancelled')
         .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
-      const nextAppt = clientAppts.find(a => a.date >= todayStr) || clientAppts[0];
+      const completedAppts = clientAppts.filter(a => a.status === 'completed');
+      const totalVisits = completedAppts.length;
+      const lifetimeSpend = completedAppts.reduce((sum, a) => sum + (a.totalAmount || (a.price + (a.retail || 0))), 0);
+
+      const nextAppt = clientAppts.find(a => a.date >= todayStr);
+      const lastAppt = completedAppts[completedAppts.length - 1];
+
       const nextApptStr = nextAppt 
-        ? `${nextAppt.date.split('-').slice(1).join('/')} ${nextAppt.start}` 
-        : 'None';
+        ? `${nextAppt.date.split('-').slice(1).join('/')} @ ${nextAppt.start}` 
+        : 'None Scheduled';
+
+      const lastVisitStr = lastAppt
+        ? `${lastAppt.date.split('-').slice(1).join('/')}`
+        : 'First Visit Pending';
+
+      const preferredService = services.find(s => s.id === client.fav) || services[0];
+      const preferredStaff = staff.find(st => st.id === client.staffId) || staff[0];
+
+      const hasSpecialCare = Boolean(
+        (client.behaviorNotes && client.behaviorNotes.length > 0) ||
+        client.sensitivities ||
+        client.allergies ||
+        client.medicalNotes
+      );
+
+      const isVip = (client.points || 0) >= 150 || totalVisits >= 3;
 
       return {
         client,
         petId: client.id.toUpperCase(),
         healthStatus,
         statusBg,
-        nextApptStr
+        diffDays,
+        totalVisits,
+        lifetimeSpend,
+        nextAppt,
+        nextApptStr,
+        lastVisitStr,
+        preferredService,
+        preferredStaff,
+        hasSpecialCare,
+        isVip,
       };
-    }).slice(0, 4);
-  }, [clients, appointments, todayStr]);
+    });
+  }, [clients, appointments, services, staff, todayStr]);
+
+  // Filtered pet data summary list based on user search & tab
+  const filteredPetSummary = React.useMemo(() => {
+    let list = petDataSummary;
+
+    if (petSummaryTab === 'vaccine') {
+      list = list.filter(p => p.healthStatus === 'Expired' || p.healthStatus === 'Due Soon');
+    } else if (petSummaryTab === 'special') {
+      list = list.filter(p => p.hasSpecialCare);
+    } else if (petSummaryTab === 'vip') {
+      list = list.filter(p => p.isVip);
+    }
+
+    if (petSummarySearch.trim()) {
+      const q = petSummarySearch.toLowerCase();
+      list = list.filter(p => 
+        p.client.name.toLowerCase().includes(q) ||
+        p.client.breed.toLowerCase().includes(q) ||
+        p.client.owner.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [petDataSummary, petSummaryTab, petSummarySearch]);
 
   // Current Month Daily Revenue Breakdown Array
   const augustDailyData = React.useMemo(() => {
@@ -491,56 +562,213 @@ export const DashboardView: React.FC = () => {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.25 }}
-          className="bg-[#E3F6D8] text-[#1D3A0E] p-6 rounded-[28px] border border-[#C5EBBA] shadow-xs space-y-4"
+          className="bg-[#E3F6D8] text-[#1D3A0E] p-6 rounded-[28px] border border-[#C5EBBA] shadow-xs space-y-4 flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-extrabold text-xl text-[#1D3A0E]">
-              Pets Data Summary
-            </h2>
-            <button 
-              onClick={() => setView('clients')}
-              className="text-xs font-bold text-[#2A6E12] hover:underline cursor-pointer"
-            >
-              Manage Pets
-            </button>
+          {/* Header */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display font-extrabold text-xl text-[#1D3A0E]">
+                  Pets Data Summary
+                </h2>
+                <p className="text-[11px] font-semibold text-[#4B7A38]">
+                  {clients.length} Registered Dogs • Clinic, Owner & Care Metrics
+                </p>
+              </div>
+              <button 
+                onClick={() => setView('clients')}
+                className="text-xs font-bold text-[#2A6E12] hover:underline cursor-pointer bg-white/70 px-2.5 py-1 rounded-full border border-[#C5EBBA] shrink-0"
+              >
+                Full Directory →
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-1 text-[11px] font-bold">
+              <button
+                onClick={() => setPetSummaryTab('all')}
+                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  petSummaryTab === 'all' 
+                    ? 'bg-[#1D3A0E] text-white shadow-2xs' 
+                    : 'bg-white/60 text-[#3C6E28] hover:bg-white'
+                }`}
+              >
+                All ({clients.length})
+              </button>
+              <button
+                onClick={() => setPetSummaryTab('vaccine')}
+                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                  petSummaryTab === 'vaccine' 
+                    ? 'bg-[#EF4444] text-white shadow-2xs' 
+                    : 'bg-white/60 text-[#B91C1C] hover:bg-white'
+                }`}
+              >
+                <ShieldAlert className="w-3 h-3" />
+                Vaccine Alerts ({petDataSummary.filter(p => p.healthStatus !== 'Valid').length})
+              </button>
+              <button
+                onClick={() => setPetSummaryTab('special')}
+                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                  petSummaryTab === 'special' 
+                    ? 'bg-[#D97706] text-white shadow-2xs' 
+                    : 'bg-white/60 text-[#B45309] hover:bg-white'
+                }`}
+              >
+                <HeartPulse className="w-3 h-3" />
+                Special Care ({petDataSummary.filter(p => p.hasSpecialCare).length})
+              </button>
+              <button
+                onClick={() => setPetSummaryTab('vip')}
+                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                  petSummaryTab === 'vip' 
+                    ? 'bg-[#2E8A81] text-white shadow-2xs' 
+                    : 'bg-white/60 text-[#173E39] hover:bg-white'
+                }`}
+              >
+                <Award className="w-3 h-3" />
+                VIP Dogs ({petDataSummary.filter(p => p.isVip).length})
+              </button>
+            </div>
+
+            {/* Quick Search */}
+            <div className="relative mt-2.5">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#4B7A38]" />
+              <input
+                type="text"
+                placeholder="Search dog, breed, or owner..."
+                value={petSummarySearch}
+                onChange={(e) => setPetSummarySearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-white/80 border border-[#C5EBBA] rounded-xl outline-none text-[#1D3A0E] placeholder:text-[#6C9658] focus:bg-white"
+              />
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-[#C5EBBA] text-[10px] font-black text-[#4B7A38] uppercase">
-                  <th className="pb-2">Name</th>
-                  <th className="pb-2">Breed</th>
-                  <th className="pb-2">Rabies Status</th>
-                  <th className="pb-2 text-right">Next Appt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#C5EBBA]/60 font-semibold">
-                {petDataSummary.map((item) => (
-                  <tr 
-                    key={item.client.id} 
-                    onClick={() => setView('clients')}
-                    className="hover:bg-white/50 transition-colors cursor-pointer"
+          {/* Dogs Data Cards List */}
+          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+            {filteredPetSummary.length === 0 ? (
+              <div className="p-6 text-center text-[#4B7A38] text-xs space-y-1 bg-white/40 rounded-2xl">
+                <p className="font-bold">No pets match this filter</p>
+                <button
+                  onClick={() => { setPetSummaryTab('all'); setPetSummarySearch(''); }}
+                  className="text-[11px] text-[#2A6E12] underline font-bold cursor-pointer"
+                >
+                  Clear Filter
+                </button>
+              </div>
+            ) : (
+              filteredPetSummary.map((item) => {
+                const avatar = item.client.photo || PET_AVATARS[item.client.id] || DEFAULT_DOG_AVATAR;
+                return (
+                  <div
+                    key={item.client.id}
+                    className="bg-white/85 hover:bg-white p-3 rounded-2xl border border-[#C5EBBA] transition-all space-y-2 shadow-2xs"
                   >
-                    <td className="py-2.5 font-bold text-[#1D3A0E]">
-                      {item.client.name}
-                      <span className="block text-[9px] font-normal text-[#4B7A38]">Owner: {item.client.owner}</span>
-                    </td>
-                    <td className="py-2.5 text-[#3C6E28] text-[11px] truncate max-w-[80px]">
-                      {item.client.breed}
-                    </td>
-                    <td className="py-2.5">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${item.statusBg}`}>
-                        {item.healthStatus}
+                    {/* Dog Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={avatar}
+                          alt={item.client.name}
+                          className="w-10 h-10 rounded-full object-cover border border-[#C5EBBA] shrink-0"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-sm text-[#1D3A0E]">
+                              {item.client.name}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#E3F6D8] text-[#2A6E12]">
+                              {item.client.size} • {item.client.weight || '15'} lbs
+                            </span>
+                            {item.isVip && (
+                              <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-[#FEF3C7] text-[#92400E] flex items-center gap-0.5">
+                                ⭐ VIP
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#4B7A38] font-medium">
+                            {item.client.breed} • Owner: <span className="font-bold text-[#1D3A0E]">{item.client.owner}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Rabies Status Badge */}
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-2xs ${item.statusBg}`}>
+                        Rabies {item.healthStatus}
                       </span>
-                    </td>
-                    <td className="py-2.5 text-right text-[10px] text-[#2A6E12] font-bold">
-                      {item.nextApptStr}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    {/* Care & Health Highlights */}
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px] bg-[#F7FBF4] p-2 rounded-xl border border-[#E3F6D8]">
+                      <div>
+                        <span className="text-[#6C9658] font-bold block">Next Appointment</span>
+                        <span className="font-extrabold text-[#1D3A0E] truncate block">
+                          {item.nextApptStr}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#6C9658] font-bold block">Visits & Spend</span>
+                        <span className="font-extrabold text-[#1D3A0E] block">
+                          {item.totalVisits} visits • {formatPrice(item.lifetimeSpend)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#6C9658] font-bold block">Preferred Stylist</span>
+                        <span className="font-semibold text-[#1D3A0E] truncate block">
+                          {item.preferredStaff?.name || 'Any Stylist'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#6C9658] font-bold block">Loyalty Balance</span>
+                        <span className="font-semibold text-[#2A6E12] block">
+                          {item.client.points || 0} pts
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sensitivities / Special Handling Tags */}
+                    {item.hasSpecialCare && (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        <span className="text-[9px] font-bold text-[#B45309] flex items-center gap-0.5">
+                          <AlertTriangle className="w-2.5 h-2.5" /> Care Notes:
+                        </span>
+                        {item.client.behaviorNotes?.map((n, i) => (
+                          <span key={i} className="text-[9px] font-bold px-1.5 py-0.2 bg-[#FEF3C7] text-[#92400E] rounded-md">
+                            {n}
+                          </span>
+                        ))}
+                        {item.client.sensitivities && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#FEE2E2] text-[#991B1B] rounded-md">
+                            {item.client.sensitivities}
+                          </span>
+                        )}
+                        {item.client.allergies && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#FEE2E2] text-[#991B1B] rounded-md">
+                            Allergies: {item.client.allergies}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Direct Pet Actions */}
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-[#C5EBBA]/50">
+                      <button
+                        onClick={() => openModal('clientHistory', { client: item.client })}
+                        className="px-2.5 py-1 bg-white hover:bg-[#E3F6D8] text-[#1D3A0E] text-[10px] font-bold rounded-lg border border-[#C5EBBA] flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <FileText className="w-3 h-3 text-[#4B7A38]" /> Full Pet Record
+                      </button>
+                      <button
+                        onClick={() => openModal('appointmentForm', { clientId: item.client.id })}
+                        className="px-2.5 py-1 bg-[#1D3A0E] hover:bg-[#2A6E12] text-white text-[10px] font-extrabold rounded-lg flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <Calendar className="w-3 h-3" /> Book Groom
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </motion.div>
 

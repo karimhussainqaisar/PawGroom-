@@ -91,8 +91,10 @@ export const INITIAL_SERVICES: Service[] = [
 ];
 
 export const INITIAL_PACKAGES: Package[] = [
-  { id: 'pk1', name: 'The Spa Day', serviceIds: ['sv2', 'sv6', 'sv9'], price: 130, duration: 160 },
-  { id: 'pk2', name: 'Puppy Starter', serviceIds: ['sv8', 'sv7'], price: 52, duration: 60 },
+  { id: 'pk1', name: 'The Royal Spa Day Luxury Bundle', serviceIds: ['sv2', 'sv6', 'sv9'], price: 125, duration: 150 },
+  { id: 'pk2', name: 'Sensitive Skin Soothing Herbal Spa', serviceIds: ['sv3', 'sv7', 'sv9'], price: 65, duration: 75 },
+  { id: 'pk3', name: 'Puppy Silk & Cuddle Starter Spa', serviceIds: ['sv8', 'sv7'], price: 48, duration: 55 },
+  { id: 'pk4', name: 'Hydro-Therapy & Shed-Defense Bundle', serviceIds: ['sv6', 'sv7', 'sv10'], price: 82, duration: 90 },
 ];
 
 export const INITIAL_CLIENTS: Client[] = [
@@ -632,6 +634,9 @@ export const INITIAL_REDEMPTIONS: LoyaltyRedemption[] = [
 export const INITIAL_SETTINGS: Settings = {
   name: 'PawBook Pro Grooming Studio',
   salonName: 'PawBook Pro Grooming Studio',
+  email: 'care@pawbookpro.com',
+  website: 'www.pawbookpro.com',
+  photo: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80',
   address: '100 Bark Avenue, Suite 4, San Francisco, CA 94107',
   phone: '(555) 123-PAWS',
   open: 8,

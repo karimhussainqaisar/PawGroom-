@@ -152,7 +152,7 @@ export const ModalContainer: React.FC = () => {
 
 // 1. Appointment Form Modal
 const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, staff, settings, addAppointment } = useApp();
+  const { clients, services, packages, staff, settings, addAppointment, formatPrice } = useApp();
 
   const getTodayISO = () => {
     const d = new Date();
@@ -162,15 +162,20 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
     return `${year}-${month}-${day}`;
   };
 
+  const initialPkg = data?.packageId ? packages.find(p => p.id === data.packageId) : null;
+
+  const [bookingType, setBookingType] = useState<'service' | 'package'>(initialPkg ? 'package' : 'service');
   const [clientId, setClientId] = useState(data?.clientId || clients[0]?.id || '');
   const [serviceId, setServiceId] = useState(data?.serviceId || services[0]?.id || '');
+  const [selectedPackageId, setSelectedPackageId] = useState<string>(initialPkg ? initialPkg.id : packages[0]?.id || '');
   const [staffId, setStaffId] = useState(data?.staffId || staff[0]?.id || '');
   const [date, setDate] = useState(data?.date || getTodayISO());
   const [start, setStart] = useState(data?.start || '10:00');
   const [retail, setRetail] = useState(0);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(data?.notes || '');
 
   const selectedSvc = services.find((s) => s.id === serviceId);
+  const selectedPkg = packages.find((p) => p.id === selectedPackageId);
 
   const openHour = settings?.open ?? 8;
   const closeHour = settings?.close ?? 18;
@@ -190,6 +195,26 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (bookingType === 'package' && selectedPkg) {
+      // Find main service or fallback
+      const primarySvcId = selectedPkg.serviceIds[0] || services[0]?.id || 'sv1';
+      addAppointment({
+        clientId,
+        serviceId: primarySvcId,
+        staffId,
+        date,
+        start,
+        duration: selectedPkg.duration,
+        price: selectedPkg.price,
+        status: 'booked',
+        retail,
+        notes: notes ? `${notes} (Spa Package: ${selectedPkg.name})` : `Spa Package: ${selectedPkg.name}`,
+      });
+      onClose();
+      return;
+    }
+
     if (!selectedSvc) return;
 
     addAppointment({
@@ -211,13 +236,35 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="font-display font-bold text-xl text-[#173E39]">Book Grooming Appointment</h3>
 
+      {/* Booking Type Toggle: Single Service vs Spa Package */}
+      <div className="flex items-center bg-[#EAE7DC] p-1 rounded-xl gap-1 text-xs font-bold">
+        <button
+          type="button"
+          onClick={() => setBookingType('service')}
+          className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+            bookingType === 'service' ? 'bg-[#173E39] text-white shadow-2xs' : 'text-[#5C716C]'
+          }`}
+        >
+          Single Service
+        </button>
+        <button
+          type="button"
+          onClick={() => setBookingType('package')}
+          className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+            bookingType === 'package' ? 'bg-[#173E39] text-white shadow-2xs' : 'text-[#5C716C]'
+          }`}
+        >
+          ✨ Spa Package Bundle ({packages.length})
+        </button>
+      </div>
+
       <div className="space-y-3 text-xs">
         <div>
           <label className="font-bold text-[#173E39]">Select Dog / Client</label>
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-xl"
+            className="w-full mt-1 p-2 border rounded-xl bg-white outline-none"
             required
           >
             {clients.map((c) => (
@@ -228,28 +275,51 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
           </select>
         </div>
 
-        <div>
-          <label className="font-bold text-[#173E39]">Grooming Service</label>
-          <select
-            value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-xl"
-            required
-          >
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} (${s.price} • {s.duration}m)
-              </option>
-            ))}
-          </select>
-        </div>
+        {bookingType === 'service' ? (
+          <div>
+            <label className="font-bold text-[#173E39]">Grooming Service</label>
+            <select
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
+              className="w-full mt-1 p-2 border rounded-xl bg-white outline-none"
+              required
+            >
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({formatPrice(s.price)} • {s.duration}m)
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="font-bold text-[#173E39]">Select Spa Package</label>
+            <select
+              value={selectedPackageId}
+              onChange={(e) => setSelectedPackageId(e.target.value)}
+              className="w-full mt-1 p-2 border rounded-xl bg-white font-bold text-[#173E39] outline-none"
+              required
+            >
+              {packages.map((pkg) => (
+                <option key={pkg.id} value={pkg.id}>
+                  {pkg.name} — {formatPrice(pkg.price)} ({pkg.duration} mins)
+                </option>
+              ))}
+            </select>
+            {selectedPkg && (
+              <p className="mt-1 text-[11px] text-[#5C716C]">
+                Includes: {selectedPkg.serviceIds.map(sid => services.find(s => s.id === sid)?.name).filter(Boolean).join(' + ')}
+              </p>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="font-bold text-[#173E39]">Assigned Stylist</label>
           <select
             value={staffId}
             onChange={(e) => setStaffId(e.target.value)}
-            className="w-full mt-1 p-2 border rounded-xl"
+            className="w-full mt-1 p-2 border rounded-xl bg-white outline-none"
             required
           >
             {staff.map((st) => (
@@ -267,7 +337,7 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full mt-1 p-2 border rounded-xl"
+              className="w-full mt-1 p-2 border rounded-xl bg-white outline-none"
               required
             />
           </div>
@@ -276,7 +346,7 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
             <select
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="w-full mt-1 p-2 border rounded-xl"
+              className="w-full mt-1 p-2 border rounded-xl bg-white outline-none"
             >
               {timeSlots.map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -291,16 +361,16 @@ const AppointmentFormModal: React.FC<{ data: any; onClose: () => void }> = ({ da
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g., #4 body, scissored teddy head..."
-            className="w-full mt-1 p-2 border rounded-xl h-16"
+            className="w-full mt-1 p-2 border rounded-xl h-16 bg-white outline-none"
           />
         </div>
       </div>
 
       <div className="pt-2 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">
+        <button type="button" onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl cursor-pointer">
           Cancel
         </button>
-        <button type="submit" className="btn-primary text-xs px-5 py-2 rounded-xl font-bold">
+        <button type="submit" className="btn-primary text-xs px-5 py-2 rounded-xl font-bold cursor-pointer shadow-md">
           Confirm Booking
         </button>
       </div>
@@ -2215,9 +2285,9 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
   );
 };
 
-// 17. Official Invoice / Receipt Modal
+// 17. Official Invoice / Receipt Modal (Minimalist Premium A4 Layout)
 const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, staff, settings } = useApp();
+  const { clients, services, staff, settings, formatPrice } = useApp();
   const appt = data?.appointment;
 
   if (!appt) return null;
@@ -2246,22 +2316,35 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
   const isPaid = appt.status === 'completed';
 
+  // Synchronized clinic data from settings
+  const clinicName = settings?.name || settings?.salonName || 'PawBook Pro Grooming Studio';
+  const clinicEmail = settings?.email || 'care@pawbookpro.com';
+  const clinicWebsite = settings?.website || 'www.pawbookpro.com';
+  const clinicPhone = settings?.phone || '(555) 123-PAWS';
+  const clinicAddress = settings?.address || '100 Bark Avenue, Suite 4, San Francisco, CA 94107';
+  const clinicPhoto = settings?.photo || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80';
+
   const handlePrint = () => {
-    triggerPrintDocument(`Invoice ${invoiceNum} - PawBook Pro`, 'printable-invoice-doc');
+    triggerPrintDocument(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc');
   };
 
   return (
-    <div className="space-y-5">
-      {/* Action Toolbar (Hidden when printing) */}
-      <div className="no-print bg-[#F8F6F0] p-3.5 sm:p-4 rounded-2xl border border-[#D8D3C4] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-[#FF6B00]/10 text-[#FF6B00] rounded-xl border border-[#FF6B00]/20 shrink-0">
-            <Receipt className="w-5 h-5" />
+    <div className="space-y-4">
+      {/* Top Action Toolbar (Hidden on print) */}
+      <div className="no-print bg-[#FAF8F5] p-3.5 sm:p-4 rounded-2xl border border-[#E6DFD5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-[#240C0B] text-white rounded-xl shadow-xs shrink-0">
+            <Receipt className="w-4 h-4 text-[#FF6B00]" />
           </div>
           <div>
-            <h3 className="font-display font-bold text-xs sm:text-sm text-[#240C0B]">Client Invoice & Receipt</h3>
-            <p className="text-[11px] text-[#5C716C]">
-              US Tax Rate: <span className="font-bold text-[#FF6B00]">{taxRate}%</span> • {discountAmount > 0 ? `Promo applied: -${discountCode || '$' + discountAmount}` : 'Standard rates'}
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-extrabold text-sm text-[#240C0B]">A4 Clinical Tax Invoice</h3>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-[#240C0B] text-white">
+                A4 Fitted
+              </span>
+            </div>
+            <p className="text-[11px] text-[#7A6865] mt-0.5">
+              US Tax: <strong className="text-[#FF6B00]">{taxRate}%</strong> • Synchronized with clinic website & contact settings
             </p>
           </div>
         </div>
@@ -2270,270 +2353,259 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           <button
             type="button"
             onClick={handlePrint}
-            className="printable-btn bg-[#FF6B00] hover:bg-[#E55C00] text-white font-bold text-xs px-4 sm:px-5 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+            className="bg-[#240C0B] hover:bg-[#180504] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
-            <Printer className="w-4 h-4" />
-            <span>Print Invoice / Save PDF</span>
+            <Printer className="w-3.5 h-3.5 text-[#FF6B00]" />
+            <span>Print A4 Invoice</span>
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-2.5 bg-white border border-[#D8D3C4] hover:bg-[#E8E1D1] text-[#240C0B] text-xs rounded-xl font-bold transition-colors cursor-pointer"
+            className="px-3.5 py-2.5 bg-white border border-[#E6DFD5] hover:bg-[#F1EEE6] text-[#240C0B] text-xs rounded-xl font-bold transition-colors cursor-pointer"
           >
             Close
           </button>
         </div>
       </div>
 
-      {/* Printable Invoice Sheet */}
-      <div 
-        id="printable-invoice-doc" 
-        className="printable-area bg-white p-4 sm:p-8 md:p-10 text-[#240C0B] space-y-6 rounded-2xl border border-[#D8D3C4] shadow-sm print:shadow-none print:border-none print:p-0 print:m-0"
-      >
-        {/* Top Accent Brand Line */}
-        <div className="h-2 w-full bg-gradient-to-r from-[#FF6B00] via-[#E8734A] to-[#2E8A81] rounded-full mb-2 print:hidden" />
-
-        {/* Header: Studio Brand & Invoice Meta */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b border-[#E8E1D1] pb-6">
-          {/* Studio Brand Info */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 bg-[#240C0B] text-white rounded-xl shadow-xs">
-                <Scissors className="w-6 h-6 text-[#FF6B00]" />
-              </div>
-              <div>
-                <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#240C0B] tracking-tight">
-                  {settings?.name || settings?.salonName || 'PawBook Pro Studio'}
+      {/* A4 Printable Document Container (Exact 210mm standard proportions) */}
+      <div className="flex justify-center overflow-x-auto p-1 bg-[#EBE7DF] rounded-2xl">
+        <div 
+          id="printable-invoice-doc" 
+          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 md:p-12 space-y-7 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
+        >
+          {/* Header Block: Studio Brand & Official Invoice Title */}
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b-2 border-[#240C0B] pb-6">
+            <div className="flex items-start gap-4">
+              <img 
+                src={clinicPhoto} 
+                alt={clinicName}
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
+              />
+              <div className="space-y-1">
+                <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#240C0B] tracking-tight leading-tight">
+                  {clinicName}
                 </h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF6B00] bg-[#FF6B00]/10 px-2 py-0.5 rounded-md">
-                    Licensed Pet Care Studio
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E8A81] bg-[#E1F0E7] px-2 py-0.5 rounded-md">
-                    US Tax Rate: {taxRate}%
-                  </span>
+                <div className="text-[11px] text-[#6E5B58] space-y-0.5 leading-snug">
+                  <p className="font-medium">{clinicAddress}</p>
+                  <p className="flex flex-wrap items-center gap-x-2">
+                    <span>Tel: <strong className="text-[#240C0B]">{clinicPhone}</strong></span>
+                    <span>•</span>
+                    <span>Email: <strong className="text-[#240C0B]">{clinicEmail}</strong></span>
+                  </p>
+                  <p className="text-[#2E8A81] font-semibold">Web: {clinicWebsite}</p>
                 </div>
               </div>
             </div>
-            
-            <div className="text-xs text-[#5C716C] space-y-0.5 pt-1 font-medium">
-              <p>{settings?.address || '100 Bark Avenue, Suite 4 • San Francisco, CA 94107'}</p>
-              <p>Phone: {settings?.phone || '(555) 123-PAWS'} • Email: billing@pawbookpro.com</p>
-              <p className="text-[11px] text-[#8C715C]">Tax ID: US-88492019-PET • License #: PB-94021</p>
-            </div>
-          </div>
 
-          {/* Invoice Document Info */}
-          <div className="text-left sm:text-right space-y-2 bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4]/80 w-full sm:w-auto min-w-[200px]">
-            <div>
-              <div className="text-[10px] font-black uppercase text-[#8C715C] tracking-widest">Official Document</div>
-              <div className="font-display font-extrabold text-2xl text-[#240C0B] tracking-tight">INVOICE</div>
-            </div>
-
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
-                <span>Number:</span>
-                <span className="font-mono font-bold text-[#240C0B]">{invoiceNum}</span>
-              </div>
-              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
-                <span>Issue Date:</span>
-                <span className="font-bold text-[#240C0B]">{appt.date}</span>
-              </div>
-              <div className="flex justify-between sm:justify-end gap-3 text-[#5C716C]">
-                <span>Service Time:</span>
-                <span className="font-bold text-[#240C0B]">{appt.start}</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
-                isPaid
-                  ? 'bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]'
-                  : 'bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${isPaid ? 'bg-[#059669]' : 'bg-[#D97706]'}`} />
-                {isPaid ? 'Paid In Full' : 'Payment Pending'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bill To & Session Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          {/* Client & Pet Card */}
-          <div className="bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4] space-y-2">
-            <div className="flex items-center gap-2 border-b border-[#E8E1D1] pb-2 text-[#FF6B00] font-bold text-[11px] uppercase tracking-wider">
-              <FileText className="w-3.5 h-3.5" />
-              <span>Billed To (Client & Pet)</span>
-            </div>
-            
-            <div className="space-y-1">
-              <div className="font-display font-bold text-base text-[#240C0B]">{client?.owner || 'Pet Parent'}</div>
-              <div className="text-[#5C716C] font-medium flex items-center gap-1.5">
-                <span className="font-bold text-[#240C0B]">Pet:</span> 
-                <span className="bg-white px-2 py-0.5 rounded-md border border-[#E8E1D1] font-bold text-[#240C0B]">
-                  🐾 {client?.name || 'Pet'} ({client?.breed || 'Dog'})
+            {/* Document Meta Pill & Status */}
+            <div className="text-left sm:text-right space-y-2 shrink-0">
+              <div>
+                <span className="text-[10px] font-black tracking-widest text-[#A08E8B] uppercase block">
+                  Original Invoice
+                </span>
+                <span className="font-display font-black text-2xl tracking-tight text-[#240C0B]">
+                  {invoiceNum}
                 </span>
               </div>
-              <div className="text-[#5C716C]">Phone: {client?.phone || 'N/A'}</div>
-              <div className="text-[#5C716C]">Email: {client?.email || 'N/A'}</div>
+              <div className="text-[11px] text-[#6E5B58] space-y-0.5 font-medium">
+                <div>Date: <strong className="text-[#240C0B]">{appt.date}</strong></div>
+                <div>Time: <strong className="text-[#240C0B]">{appt.start}</strong></div>
+              </div>
+              <div className="pt-1">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                  isPaid 
+                    ? 'bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]'
+                    : 'bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]'
+                }`}>
+                  ● {isPaid ? 'PAID IN FULL' : 'PAYMENT DUE'}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Service & Stylist Card */}
-          <div className="bg-[#F8F6F0] p-4 rounded-2xl border border-[#D8D3C4] space-y-2">
-            <div className="flex items-center gap-2 border-b border-[#E8E1D1] pb-2 text-[#2E8A81] font-bold text-[11px] uppercase tracking-wider">
-              <Scissors className="w-3.5 h-3.5" />
-              <span>Session & Stylist Info</span>
-            </div>
-
-            <div className="space-y-1">
-              <div className="font-display font-bold text-base text-[#240C0B]">{groomer?.name || 'Senior Pet Stylist'}</div>
-              <div className="text-[#5C716C]">Grooming Station: <span className="font-bold text-[#240C0B]">Station 1 • Main Studio</span></div>
-              <div className="text-[#5C716C]">Duration: <span className="font-bold text-[#240C0B]">{appt.duration} minutes</span></div>
-              <div className="text-[#5C716C]">Payment Method: <span className="font-bold text-[#240C0B]">Credit Card / Square POS</span></div>
-              {client?.sensitivities && (
-                <div className="text-[#991B1B] font-bold pt-1 text-[11px] flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Care Note: {client.sensitivities}</span>
+          {/* Minimalist 2-Column Details: Bill To & Care Session */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1">
+                Billed To Client & Patient
+              </span>
+              <div className="space-y-1">
+                <div className="font-display font-bold text-sm text-[#240C0B]">
+                  {client?.owner || 'Pet Parent'}
                 </div>
-              )}
+                <div className="text-[11px] text-[#6E5B58]">
+                  Patient: <strong className="text-[#240C0B]">🐾 {client?.name || 'Pet'}</strong> ({client?.breed || 'Canine'}, {client?.size || 'Standard'})
+                </div>
+                <div className="text-[11px] text-[#6E5B58]">
+                  Contact: {client?.phone || 'N/A'} • {client?.email || 'N/A'}
+                </div>
+                {client?.sensitivities && (
+                  <div className="text-[10px] text-[#C9503A] font-bold pt-1">
+                    Special Care: {client.sensitivities}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1">
+                Clinical Details & Groomer
+              </span>
+              <div className="space-y-1">
+                <div className="font-display font-bold text-sm text-[#240C0B]">
+                  {groomer?.name || 'Master Groomer'}
+                </div>
+                <div className="text-[11px] text-[#6E5B58]">
+                  Session Length: <strong className="text-[#240C0B]">{appt.duration} Minutes</strong>
+                </div>
+                <div className="text-[11px] text-[#6E5B58]">
+                  Sales Tax Reg: US-94028-PAW • Rate: <strong className="text-[#240C0B]">{taxRate}%</strong>
+                </div>
+                <div className="text-[11px] text-[#6E5B58]">
+                  Payment Method: Contactless POS / Card
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Itemized Billing Table */}
-        <div className="border border-[#240C0B]/10 rounded-2xl overflow-hidden shadow-2xs">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-[#240C0B] text-white font-bold">
-                <th className="p-3.5 sm:p-4">Service & Item Description</th>
-                <th className="p-3.5 sm:p-4 text-center">Duration / Qty</th>
-                <th className="p-3.5 sm:p-4 text-right">Unit Rate</th>
-                <th className="p-3.5 sm:p-4 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E8E1D1] bg-white text-[#240C0B]">
-              <tr className="hover:bg-[#F8F6F0]/50 transition-colors">
-                <td className="p-3.5 sm:p-4">
-                  <div className="font-display font-bold text-sm text-[#240C0B]">
-                    {service?.name || 'Full Pet Grooming Session'}
-                  </div>
-                  <div className="text-[11px] text-[#5C716C] mt-0.5">
-                    Includes organic bath, blowout, scissor coat styling, nail trim & sanitation for {client?.name || 'pet'}.
-                  </div>
-                </td>
-                <td className="p-3.5 sm:p-4 text-center font-semibold text-[#5C716C]">
-                  {appt.duration}m
-                </td>
-                <td className="p-3.5 sm:p-4 text-right font-medium text-[#5C716C]">
-                  ${servicePrice.toFixed(2)}
-                </td>
-                <td className="p-3.5 sm:p-4 text-right font-extrabold text-[#240C0B] text-sm">
-                  ${servicePrice.toFixed(2)}
-                </td>
-              </tr>
-
-              {retailAddon > 0 && (
-                <tr className="hover:bg-[#F8F6F0]/50 transition-colors">
-                  <td className="p-3.5 sm:p-4">
-                    <div className="font-bold text-[#240C0B]">Retail Add-on & Spa Care Products</div>
-                    <div className="text-[11px] text-[#5C716C] mt-0.5">Custom organic shampoo, leave-in conditioner & spa treat</div>
-                  </td>
-                  <td className="p-3.5 sm:p-4 text-center font-semibold text-[#5C716C]">1x</td>
-                  <td className="p-3.5 sm:p-4 text-right font-medium text-[#5C716C]">${retailAddon.toFixed(2)}</td>
-                  <td className="p-3.5 sm:p-4 text-right font-bold text-[#240C0B]">${retailAddon.toFixed(2)}</td>
+          {/* Minimalist Itemized Table */}
+          <div className="space-y-2">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b-2 border-[#240C0B] text-[#240C0B] font-bold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 pr-4">Description & Treatment</th>
+                  <th className="py-2.5 px-3 text-center">Qty / Duration</th>
+                  <th className="py-2.5 px-3 text-right">Unit Rate</th>
+                  <th className="py-2.5 pl-3 text-right">Amount</th>
                 </tr>
-              )}
+              </thead>
+              <tbody className="divide-y divide-[#E6DFD5] text-[#240C0B]">
+                <tr>
+                  <td className="py-3 pr-4">
+                    <div className="font-display font-bold text-sm text-[#240C0B]">
+                      {service?.name || 'Full Grooming & Spa Treatment'}
+                    </div>
+                    <div className="text-[11px] text-[#7A6865] mt-0.5">
+                      Hydro-massage bath, coat conditioning, hand blowout, custom scissor style & hygiene trim.
+                    </div>
+                  </td>
+                  <td className="py-3 px-3 text-center font-medium text-[#7A6865]">
+                    {appt.duration}m
+                  </td>
+                  <td className="py-3 px-3 text-right font-medium text-[#7A6865]">
+                    {formatPrice(servicePrice)}
+                  </td>
+                  <td className="py-3 pl-3 text-right font-bold text-sm text-[#240C0B]">
+                    {formatPrice(servicePrice)}
+                  </td>
+                </tr>
+
+                {retailAddon > 0 && (
+                  <tr>
+                    <td className="py-3 pr-4">
+                      <div className="font-bold text-xs text-[#240C0B]">
+                        Retail Care & Spa Treatment Add-on
+                      </div>
+                      <div className="text-[11px] text-[#7A6865] mt-0.5">
+                        Organic botanical paw balm & hypoallergenic leave-in mist.
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-center font-medium text-[#7A6865]">1x</td>
+                    <td className="py-3 px-3 text-right font-medium text-[#7A6865]">{formatPrice(retailAddon)}</td>
+                    <td className="py-3 pl-3 text-right font-bold text-[#240C0B]">{formatPrice(retailAddon)}</td>
+                  </tr>
+                )}
+
+                {discountAmount > 0 && (
+                  <tr className="bg-[#E8F5E9]/50">
+                    <td className="py-2.5 pr-4 text-[#2E7D32]">
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <Gift className="w-3.5 h-3.5" />
+                        <span>Client Promo Code Discount ({discountCode ? `${discountCode} • ` : ''}{discountTitle || 'Special Voucher'})</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-bold text-[#2E7D32]">1x</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
+                    <td className="py-2.5 pl-3 text-right font-black text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Summary & Tax Computation Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 items-start">
+            {/* Rewards & Client Notes */}
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] text-xs space-y-2">
+              <div className="flex items-center gap-1.5 font-display font-bold text-[#FF6B00]">
+                <Award className="w-4 h-4" />
+                <span>Loyalty Points Earned</span>
+              </div>
+              <p className="text-[11px] text-[#6E5B58] leading-snug">
+                {client?.name || 'Pet'} earned <strong className="text-[#240C0B]">+{pointsEarned} Paw Points</strong> on this visit. Current account total: <strong className="text-[#240C0B]">{(client?.points || 0) + pointsEarned} pts</strong>.
+              </p>
+              <div className="pt-2 border-t border-[#E6DFD5] text-[10px] text-[#7A6865]">
+                Certified Organic & Pet-Safe Products Only
+              </div>
+            </div>
+
+            {/* Calculations Breakdown */}
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between text-[#6E5B58]">
+                <span>Gross Subtotal:</span>
+                <span className="font-bold text-[#240C0B]">{formatPrice(subtotal)}</span>
+              </div>
 
               {discountAmount > 0 && (
-                <tr className="bg-[#ECFDF5]/50 text-[#065F46] font-bold">
-                  <td className="p-3.5 sm:p-4">
-                    <div className="flex items-center gap-1.5 font-display text-sm">
-                      <Gift className="w-4 h-4 text-[#10B981]" />
-                      <span>Client Promo Code Discount ({discountCode ? `${discountCode} • ` : ''}{discountTitle || 'Special Voucher'})</span>
-                    </div>
-                    <div className="text-[11px] text-[#047857] mt-0.5">
-                      Client-specific promo code automatically applied to session
-                    </div>
-                  </td>
-                  <td className="p-3.5 sm:p-4 text-center font-semibold">1x</td>
-                  <td className="p-3.5 sm:p-4 text-right font-medium">-${discountAmount.toFixed(2)}</td>
-                  <td className="p-3.5 sm:p-4 text-right font-extrabold text-sm text-[#059669]">
-                    -${discountAmount.toFixed(2)}
-                  </td>
-                </tr>
+                <div className="flex justify-between text-[#2E7D32] font-semibold">
+                  <span>Promo Code Savings:</span>
+                  <span>-{formatPrice(discountAmount)}</span>
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
 
-        {/* Totals & Paw Perks Rewards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end pt-2">
-          {/* Loyalty & Studio Assurance */}
-          <div className="bg-gradient-to-br from-[#FFFBEB] via-[#FEF3C7] to-[#FDE68A]/60 border border-[#FCD34D] p-4 rounded-2xl text-xs space-y-2">
-            <div className="flex items-center gap-2 font-display font-bold text-[#B45309]">
-              <Award className="w-4 h-4 text-[#D97706]" />
-              <span>Paw Perks™ Loyalty Rewards</span>
-            </div>
-            <p className="text-[#78350F] text-[11px] leading-relaxed">
-              {client?.name || 'Client'} earned <span className="font-extrabold text-[#B45309]">+{pointsEarned} Paw Points</span> for today's session!
-            </p>
-            <div className="pt-1 text-[11px] text-[#92400E] font-medium border-t border-[#FCD34D]/60 flex justify-between">
-              <span>Updated Loyalty Points Balance:</span>
-              <span className="font-extrabold text-[#B45309]">{(client?.points || 0) + pointsEarned} Points</span>
+              <div className="flex justify-between text-[#6E5B58] pt-1 border-t border-[#E6DFD5]">
+                <span>Taxable Amount:</span>
+                <span className="font-bold text-[#240C0B]">{formatPrice(taxableSubtotal)}</span>
+              </div>
+
+              <div className="flex justify-between text-[#6E5B58]">
+                <span>US Sales Tax ({taxRate}%):</span>
+                <span className="font-bold text-[#240C0B]">{formatPrice(tax)}</span>
+              </div>
+
+              <div className="border-t-2 border-[#240C0B] pt-2 flex justify-between items-baseline">
+                <span className="font-display font-black text-sm text-[#240C0B] uppercase tracking-wider">
+                  Total Amount:
+                </span>
+                <span className="font-display font-black text-2xl text-[#240C0B]">
+                  {formatPrice(total)}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Financial Calculation Box */}
-          <div className="bg-[#F8F6F0] p-4 sm:p-5 rounded-2xl border border-[#D8D3C4] space-y-2 text-xs">
-            <div className="flex justify-between text-[#5C716C]">
-              <span>Gross Subtotal:</span>
-              <span className="font-bold text-[#240C0B]">${subtotal.toFixed(2)}</span>
-            </div>
-
-            {discountAmount > 0 && (
-              <div className="flex justify-between text-[#059669] font-bold">
-                <span>Promo Discount ({discountCode || 'Applied'}):</span>
-                <span>-${discountAmount.toFixed(2)}</span>
+          {/* Minimalist A4 Footer */}
+          <div className="pt-8 border-t border-[#E6DFD5] space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left text-xs">
+              <div className="space-y-1">
+                <p className="font-display font-bold text-[#240C0B]">
+                  Thank you for visiting {clinicName}! 🐾
+                </p>
+                <p className="text-[11px] text-[#7A6865]">
+                  Questions or schedule follow-up? Email <strong className="text-[#240C0B]">{clinicEmail}</strong> or visit <strong className="text-[#240C0B]">{clinicWebsite}</strong>
+                </p>
               </div>
-            )}
 
-            <div className="flex justify-between text-[#5C716C] pt-1 border-t border-[#D8D3C4]/60">
-              <span>Taxable Subtotal:</span>
-              <span className="font-bold text-[#240C0B]">${taxableSubtotal.toFixed(2)}</span>
-            </div>
-
-            <div className="flex justify-between text-[#5C716C]">
-              <span>
-                US Sales Tax ({taxRate > 0 ? `${taxRate}%` : '0% - Tax Exempt'}):
-              </span>
-              <span className="font-bold text-[#240C0B]">${tax.toFixed(2)}</span>
-            </div>
-
-            <div className="border-t-2 border-[#240C0B] pt-2.5 flex justify-between items-center">
-              <div>
-                <span className="font-display font-black text-sm text-[#240C0B]">Total Payable:</span>
-                <p className="text-[10px] text-[#5C716C]">USD (All Taxes Included)</p>
+              <div className="border border-dashed border-[#A08E8B] px-4 py-2 rounded-xl text-center">
+                <span className="text-[9px] font-bold text-[#A08E8B] uppercase tracking-widest block">
+                  Signature / Stamp
+                </span>
+                <span className="font-display text-xs text-[#240C0B] font-bold">
+                  {clinicName}
+                </span>
               </div>
-              <span className="font-display font-black text-2xl text-[#FF6B00]">
-                ${total.toFixed(2)}
-              </span>
             </div>
-          </div>
-        </div>
-
-        {/* Footer & Thank You Message */}
-        <div className="pt-6 border-t border-[#E8E1D1] text-center text-xs space-y-2">
-          <p className="font-display font-bold text-[#240C0B] text-sm">
-            Thank you for trusting PawBook Pro Studio with {client?.name || 'your pet'}'s care! 🐾
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-[#5C716C]">
-            <span>Recommended Next Visit: <strong className="text-[#FF6B00]">4 to 6 weeks</strong></span>
-            <span>•</span>
-            <span>Support: billing@pawbookpro.com</span>
-            <span>•</span>
-            <span>www.pawbookpro.com</span>
           </div>
         </div>
       </div>

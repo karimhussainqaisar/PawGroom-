@@ -84,18 +84,22 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
           </button>
 
           {/* User Badge Pill - Shop & Owner Display */}
-          <div className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs">
+          <div 
+            onClick={() => setView('settings')}
+            className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs cursor-pointer hover:border-[#FF6B00] transition-colors"
+            title="Open Clinic Settings"
+          >
             <img 
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80" 
-              alt={settings.name || "Owner Profile"} 
+              src={settings.photo || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=120&q=80"} 
+              alt={settings.name || "Clinic Profile"} 
               className="w-7 h-7 rounded-full object-cover border border-[#FF6B00]"
             />
             <div className="text-left leading-tight pr-1">
-              <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider">
+              <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider truncate max-w-[120px]">
                 {settings.salonName || 'PawBook Studio'}
               </span>
-              <span className="text-xs font-extrabold text-[#240C0B] font-display">
-                {settings.name || 'FAHD ABRAR'}
+              <span className="text-xs font-extrabold text-[#240C0B] font-display truncate max-w-[120px] block">
+                {settings.name || 'PawBook Pro Studio'}
               </span>
             </div>
           </div>

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Award, Gift, Sparkles, Search, CheckCircle } from 'lucide-react';
+import { Award, Gift, Sparkles, Search, Trash2 } from 'lucide-react';
 
 export const LoyaltyView: React.FC = () => {
-  const { clients, redemptions, openModal, settings } = useApp();
+  const { clients, redemptions, openModal, settings, deletePromoCode, confirmDelete } = useApp();
   const [query, setQuery] = useState('');
 
   const rewards = [
@@ -214,24 +214,39 @@ export const LoyaltyView: React.FC = () => {
                     </p>
                   </div>
 
-                  {!isUsed && (
-                    <div className="pt-2 border-t border-[#D8D3C4]/60 flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-[#5C716C] font-semibold">
-                        {red.pts > 0 ? `${red.pts} pts redeemed` : 'Promotional Code'}
-                      </span>
-                      <div className="flex items-center gap-1.5">
+                  <div className="pt-2 border-t border-[#D8D3C4]/60 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-[#5C716C] font-semibold">
+                      {red.pts > 0 ? `${red.pts} pts redeemed` : 'Promotional Code'}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {!isUsed && (
                         <button
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(red.code);
                           }}
-                          className="text-[10px] font-extrabold px-2.5 py-1 bg-[#173E39] text-white rounded-lg hover:bg-[#2E8A81] transition-colors cursor-pointer"
+                          className="text-[10px] font-extrabold px-2 py-1 bg-[#173E39] text-white rounded-lg hover:bg-[#2E8A81] transition-colors cursor-pointer"
                         >
                           Copy
                         </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          confirmDelete({
+                            title: 'Delete Promo Code',
+                            message: `Permanently remove promo code "${red.code}" (${red.reward}) from rewards?`,
+                            confirmLabel: 'Delete Promo',
+                            onConfirm: () => deletePromoCode(red.id),
+                          });
+                        }}
+                        className="p-1 text-[#C9503A] hover:bg-[#FEF2F2] rounded-lg transition-colors cursor-pointer"
+                        title="Delete Promo Code"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}

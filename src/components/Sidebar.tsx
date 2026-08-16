@@ -135,27 +135,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
           </nav>
         </div>
 
-        {/* Bottom User Profile Section */}
+        {/* Bottom User Profile Section - Synchronized with Clinic Settings */}
         <div className="pt-4 border-t border-white/10">
-          <div className="flex items-center justify-between bg-[#180504] p-2.5 rounded-2xl border border-white/5">
+          <div 
+            onClick={() => handleNavClick('settings')}
+            className="flex items-center justify-between bg-[#180504] p-2.5 rounded-2xl border border-white/5 hover:border-[#FF6B00]/40 transition-all cursor-pointer group"
+          >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF6B00] to-[#FFA052] p-0.5 shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#FF6B00] to-[#FFA052] p-0.5 shrink-0 overflow-hidden">
                 <img 
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80" 
-                  alt="Admin Avatar"
-                  className="w-full h-full object-cover rounded-full"
+                  src={settings.photo || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=120&q=80"} 
+                  alt={settings.name || "Clinic Profile"}
+                  className="w-full h-full object-cover rounded-full group-hover:scale-105 transition-transform"
                 />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">Michael Smith</p>
-                <p className="text-[10px] text-[#A08E8B] truncate">m.smith@groom.com</p>
+                <p className="text-xs font-bold text-white truncate group-hover:text-[#FF6B00] transition-colors">
+                  {settings.name || settings.salonName || 'PawBook Pro Studio'}
+                </p>
+                <p className="text-[10px] text-[#A08E8B] truncate">
+                  {settings.email || 'care@pawbookpro.com'}
+                </p>
               </div>
             </div>
 
             <button
-              onClick={() => handleNavClick('settings')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNavClick('settings');
+              }}
               className="p-1.5 text-[#A08E8B] hover:text-white hover:bg-white/10 rounded-xl transition-all"
-              title="Shop Settings"
+              title="Clinic & Shop Settings"
             >
               <Settings className="w-4 h-4" />
             </button>
