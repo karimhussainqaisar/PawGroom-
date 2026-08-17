@@ -999,44 +999,46 @@ export const DashboardView: React.FC = () => {
           {/* Dynamic Interactive Bar Visualizer */}
           <div className="pt-2 relative">
             {hoveredDay && (
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#240C0B] text-white text-[10px] font-extrabold px-3 py-1 rounded-lg shadow-md z-20">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#240C0B] text-white text-[10px] font-extrabold px-3 py-1 rounded-lg shadow-md z-20 whitespace-nowrap">
                 {formattedMonthLabel.slice(0, 3)} {hoveredDay.day}: {formatPrice(hoveredDay.rev)} ({hoveredDay.count} grooms)
               </div>
             )}
 
-            <div className="flex gap-1 h-32 items-end justify-between">
-              {augustDailyData.days.map((item) => {
-                const heightPct = item.rev > 0 
-                  ? Math.max(12, Math.round((item.rev / augustDailyData.maxRev) * 100))
-                  : 6;
+            <div className="overflow-x-auto pb-1 -mx-2 px-2 scrollbar-none">
+              <div className="min-w-[380px] sm:min-w-0 flex gap-1 h-32 items-end justify-between">
+                {augustDailyData.days.map((item) => {
+                  const heightPct = item.rev > 0 
+                    ? Math.max(12, Math.round((item.rev / augustDailyData.maxRev) * 100))
+                    : 6;
 
-                const isToday = item.dateStr === todayStr;
+                  const isToday = item.dateStr === todayStr;
 
-                return (
-                  <div 
-                    key={item.day} 
-                    className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer"
-                    onMouseEnter={() => setHoveredDay(item)}
-                    onMouseLeave={() => setHoveredDay(null)}
-                    onClick={() => setView('revenue')}
-                  >
+                  return (
                     <div 
-                      className={`w-full rounded-md transition-all ${
-                        isToday
-                          ? 'bg-[#FF6B00] shadow-sm ring-1 ring-[#FF6B00]/40'
-                          : item.rev > 0
-                          ? 'bg-[#3B1F70] group-hover:bg-[#FF6B00]'
-                          : 'bg-[#F1EEE6]'
-                      }`} 
-                      style={{ height: `${heightPct}%` }}
-                      title={`${formattedMonthLabel.slice(0, 3)} ${item.day}: ${formatPrice(item.rev)}`}
-                    />
-                    <span className={`text-[7.5px] font-extrabold ${isToday ? 'text-[#FF6B00]' : 'text-[#A08E8B]'}`}>
-                      {item.day}
-                    </span>
-                  </div>
-                );
-              })}
+                      key={item.day} 
+                      className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer"
+                      onMouseEnter={() => setHoveredDay(item)}
+                      onMouseLeave={() => setHoveredDay(null)}
+                      onClick={() => setView('revenue')}
+                    >
+                      <div 
+                        className={`w-full rounded-md transition-all ${
+                          isToday
+                            ? 'bg-[#FF6B00] shadow-sm ring-1 ring-[#FF6B00]/40'
+                            : item.rev > 0
+                            ? 'bg-[#3B1F70] group-hover:bg-[#FF6B00]'
+                            : 'bg-[#F1EEE6]'
+                        }`} 
+                        style={{ height: `${heightPct}%` }}
+                        title={`${formattedMonthLabel.slice(0, 3)} ${item.day}: ${formatPrice(item.rev)}`}
+                      />
+                      <span className={`text-[7.5px] font-extrabold ${isToday ? 'text-[#FF6B00]' : 'text-[#A08E8B]'}`}>
+                        {item.day}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </motion.div>

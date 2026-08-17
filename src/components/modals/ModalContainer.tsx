@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles } from 'lucide-react';
+import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 
 export const ModalContainer: React.FC = () => {
   const { 
@@ -420,6 +421,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
   const { 
     clients, 
     services, 
+    packages,
     staff, 
     inventory, 
     redemptions,
@@ -443,6 +445,11 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
   const service = services.find((s) => s.id === appt.serviceId);
   const groomer = staff.find((st) => st.id === appt.staffId);
 
+  // Look up spa package if selected
+  const pkg = appt.packageId 
+    ? packages.find((p) => p.id === appt.packageId)
+    : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : null);
+
   const [retailAddon, setRetailAddon] = useState(appt.retail || 0);
 
   // Filter promo codes strictly for THIS specific client or dog
@@ -465,7 +472,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
   const [newPromoType, setNewPromoType] = useState<'percent' | 'fixed'>('percent');
   const [newPromoVal, setNewPromoVal] = useState<number>(15);
 
-  const servicePrice = service?.price || appt.price || 0;
+  const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
   const grossSubtotal = servicePrice + retailAddon;
 
   // Selected promo calculation
@@ -514,6 +521,8 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       taxRate,
       taxAmount,
       totalAmount: finalTotal,
+      packageId: pkg?.id || appt.packageId,
+      packageName: pkg?.name || appt.packageName,
     });
 
     if (activeVoucher) {
@@ -527,6 +536,33 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       'success'
     );
     onClose();
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!client) return;
+    const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
+    const ok = openWhatsAppInvoice({
+      invoiceNum,
+      client,
+      appointment: { ...appt, retail: retailAddon },
+      clinicSettings: settings,
+      serviceName: service?.name,
+      packageName: pkg?.name || appt.packageName,
+      groomerName: groomer?.name,
+      servicePrice,
+      retailAddon,
+      discountAmount,
+      discountCode: activeVoucher ? activeVoucher.code : undefined,
+      discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+      taxRate,
+      tax: taxAmount,
+      total: finalTotal,
+      pointsEarned: Math.floor(finalTotal),
+      isPaid: appt.status === 'completed'
+    });
+    if (ok) {
+      showToast(`Redirecting to WhatsApp for ${client.owner}...`, 'success');
+    }
   };
 
   const handleDelete = () => {
@@ -568,12 +604,16 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
             <span>{client?.owner} • {client?.phone}</span>
           </div>
           <div>
-            <span className="font-bold text-[#173E39]">Service: </span>
-            <span className="font-semibold text-[#173E39]">{service?.name} (${service?.price})</span>
+            <span className="font-bold text-[#173E39]">Service / Package: </span>
+            {pkg ? (
+              <span className="font-bold text-[#FF6B00]">✨ {pkg.name} ({formatPrice(pkg.price)})</span>
+            ) : (
+              <span className="font-semibold text-[#173E39]">{service?.name} ({formatPrice(service?.price || appt.price)})</span>
+            )}
           </div>
           <div>
             <span className="font-bold text-[#173E39]">Stylist: </span>
-            <span>{groomer?.name}</span>
+            <span>{groomer?.name || 'Assigned Stylist'}</span>
           </div>
           <div>
             <span className="font-bold text-[#173E39]">Date & Time: </span>
@@ -584,6 +624,13 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
             <span className="font-bold text-[#FF6B00]">{client?.points || 0} pts</span>
           </div>
         </div>
+
+        {pkg && (
+          <div className="p-2.5 rounded-xl bg-[#FFF8E7] border border-[#FFE7B3] text-[11px] text-[#331D00]">
+            <span className="font-bold block text-[#FF6B00]">✨ Luxury Spa Package Bundle:</span>
+            <span>Includes: {pkg.serviceIds.map(sid => services.find(s => s.id === sid)?.name).filter(Boolean).join(' + ')}</span>
+          </div>
+        )}
 
         {client?.sensitivities && (
           <div className="bg-[#FEF2F2] p-2 rounded-xl text-[#991B1B] font-semibold flex items-center gap-1.5">
@@ -747,7 +794,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           </div>
 
           <div className="flex justify-between text-[#5C716C]">
-            <span>Grooming Service ({service?.name || 'Service'}):</span>
+            <span>{pkg ? `Spa Package (${pkg.name}):` : `Grooming Service (${service?.name || 'Service'}):`}</span>
             <span className="font-bold text-[#173E39]">{formatPrice(servicePrice)}</span>
           </div>
 
@@ -803,6 +850,17 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Share on WhatsApp Button */}
+          <button
+            type="button"
+            onClick={handleShareWhatsApp}
+            className="px-3.5 py-2 bg-[#25D366] hover:bg-[#1EBE5D] text-white text-xs font-extrabold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Share receipt directly to client on WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4 fill-current" />
+            <span>WhatsApp</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -816,11 +874,15 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
                   taxRate,
                   taxAmount,
                   totalAmount: finalTotal,
+                  packageId: pkg?.id || appt.packageId,
+                  packageName: pkg?.name || appt.packageName,
                 }, 
                 retailAddon,
                 discountAmount,
                 discountCode: activeVoucher ? activeVoucher.code : undefined,
                 discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+                packageId: pkg?.id || appt.packageId,
+                packageName: pkg?.name || appt.packageName,
               });
             }}
             className="btn-ghost text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 hover:bg-[#EAE7DC] text-[#173E39] cursor-pointer"
@@ -2043,9 +2105,13 @@ const triggerPrintDocument = (title: string, containerId: string) => {
             <title>${title}</title>
             <meta charset="utf-8" />
             <style>
+              @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+              }
               body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                color: #173E39;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                color: #240C0B;
                 padding: 24px;
                 margin: 0;
                 background: #ffffff;
@@ -2053,19 +2119,48 @@ const triggerPrintDocument = (title: string, containerId: string) => {
                 print-color-adjust: exact;
               }
               .no-print { display: none !important; }
-              table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-              th, td { border: 1px solid #D8D3C4; padding: 10px 12px; text-align: left; font-size: 12px; }
-              th { background-color: #173E39 !important; color: #ffffff !important; font-weight: bold; }
-              tr:nth-child(even) { background-color: #F8F6F0; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
+              th, td { border-bottom: 1px solid #E6DFD5; padding: 12px 14px; text-align: left; font-size: 12px; }
+              th { border-bottom: 2px solid #240C0B !important; color: #240C0B !important; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+              tr:nth-child(even) { background-color: #FAF8F5; }
               .bg-white { background-color: #ffffff; }
-              .bg-[#F1EEE6] { background-color: #F1EEE6; }
-              .border { border: 1px solid #D8D3C4; }
+              .bg-\\[\\#FAF8F5\\] { background-color: #FAF8F5; }
+              .bg-\\[\\#E8F5E9\\] { background-color: #E8F5E9; }
+              .border { border: 1px solid #E6DFD5; }
+              .border-b-2 { border-bottom: 2px solid #240C0B; }
+              .border-t-2 { border-top: 2px solid #240C0B; }
               .rounded-2xl { border-radius: 16px; }
+              .rounded-xl { border-radius: 12px; }
               .font-bold { font-weight: 700; }
+              .font-black { font-weight: 900; }
               .text-right { text-align: right; }
               .text-center { text-align: center; }
+              .text-sm { font-size: 14px; }
+              .text-xs { font-size: 12px; }
+              .text-2xl { font-size: 24px; }
+              .text-xl { font-size: 20px; }
+              .text-\\[\\#FF6B00\\] { color: #FF6B00; }
+              .text-\\[\\#240C0B\\] { color: #240C0B; }
+              .text-\\[\\#2E7D32\\] { color: #2E7D32; }
+              .text-\\[\\#6E5B58\\] { color: #6E5B58; }
+              .text-\\[\\#7A6865\\] { color: #7A6865; }
+              .space-y-4 > * + * { margin-top: 16px; }
+              .space-y-6 > * + * { margin-top: 24px; }
+              .space-y-8 > * + * { margin-top: 32px; }
+              .grid { display: grid; }
+              .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+              .gap-4 { gap: 16px; }
+              .gap-6 { gap: 24px; }
+              .p-4 { padding: 16px; }
+              .p-6 { padding: 24px; }
+              .pb-6 { padding-bottom: 24px; }
+              .pt-6 { padding-top: 24px; }
+              .pt-8 { padding-top: 32px; }
+              .flex { display: flex; }
+              .justify-between { justify-content: space-between; }
+              .items-center { align-items: center; }
+              .items-start { align-items: flex-start; }
             </style>
-            <link rel="stylesheet" href="${window.location.origin}/src/index.css" />
           </head>
           <body>
             <div>${containerEl.innerHTML}</div>
@@ -2324,7 +2419,7 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
 
 // 17. Official Invoice / Receipt Modal (Minimalist Premium A4 Layout)
 const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, staff, settings, formatPrice } = useApp();
+  const { clients, services, packages, staff, settings, showToast, formatPrice } = useApp();
   const appt = data?.appointment;
 
   if (!appt) return null;
@@ -2333,8 +2428,13 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const service = services.find((s) => s.id === appt.serviceId);
   const groomer = staff.find((st) => st.id === appt.staffId);
 
+  // Look up spa package if selected
+  const pkg = appt.packageId 
+    ? packages.find((p) => p.id === appt.packageId)
+    : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : (data?.packageId ? packages.find(p => p.id === data.packageId) : null));
+
   const retailAddon = data?.retailAddon !== undefined ? data.retailAddon : appt.retail || 0;
-  const servicePrice = service?.price || appt.price || 0;
+  const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
   const subtotal = servicePrice + retailAddon;
 
   // Read client/dog promo code discount if applied
@@ -2365,36 +2465,112 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     triggerPrintDocument(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc');
   };
 
+  const handleWhatsAppShare = () => {
+    if (!client) {
+      showToast('Client details not found', 'error');
+      return;
+    }
+    const ok = openWhatsAppInvoice({
+      invoiceNum,
+      client,
+      appointment: { ...appt, retail: retailAddon },
+      clinicSettings: settings,
+      serviceName: service?.name,
+      packageName: pkg?.name || appt.packageName,
+      groomerName: groomer?.name,
+      servicePrice,
+      retailAddon,
+      discountAmount,
+      discountCode,
+      discountTitle,
+      taxRate,
+      tax,
+      total,
+      pointsEarned,
+      isPaid
+    });
+    if (ok) {
+      showToast(`Redirecting to WhatsApp for ${client.owner}...`, 'success');
+    }
+  };
+
+  const handleCopyTextReceipt = () => {
+    if (!client) return;
+    const text = generateWhatsAppInvoiceText({
+      invoiceNum,
+      client,
+      appointment: { ...appt, retail: retailAddon },
+      clinicSettings: settings,
+      serviceName: service?.name,
+      packageName: pkg?.name || appt.packageName,
+      groomerName: groomer?.name,
+      servicePrice,
+      retailAddon,
+      discountAmount,
+      discountCode,
+      discountTitle,
+      taxRate,
+      tax,
+      total,
+      pointsEarned,
+      isPaid
+    });
+    navigator.clipboard.writeText(text);
+    showToast('Invoice summary copied to clipboard!', 'success');
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Action Toolbar (Hidden on print) */}
       <div className="no-print bg-[#FAF8F5] p-3.5 sm:p-4 rounded-2xl border border-[#E6DFD5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#240C0B] text-white rounded-xl shadow-xs shrink-0">
-            <Receipt className="w-4 h-4 text-[#FF6B00]" />
+          <div className="p-2.5 bg-[#240C0B] text-white rounded-xl shadow-xs shrink-0">
+            <Receipt className="w-5 h-5 text-[#FF6B00]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-extrabold text-sm text-[#240C0B]">A4 Clinical Tax Invoice</h3>
+              <h3 className="font-display font-extrabold text-sm text-[#240C0B]">Official Invoice & Receipt</h3>
               <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-[#240C0B] text-white">
-                A4 Fitted
+                A4 Standard
               </span>
             </div>
             <p className="text-[11px] text-[#7A6865] mt-0.5">
-              US Tax: <strong className="text-[#FF6B00]">{taxRate}%</strong> • Synchronized with clinic website & contact settings
+              US Sales Tax: <strong className="text-[#FF6B00]">{taxRate}%</strong> • Client: <strong className="text-[#240C0B]">{client?.owner}</strong> ({client?.phone || 'No phone'})
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+          {/* WhatsApp Direct Share Button */}
+          <button
+            type="button"
+            onClick={handleWhatsAppShare}
+            className="bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+            title="Share invoice directly to client on WhatsApp"
+          >
+            <MessageCircle className="w-4 h-4 fill-current" />
+            <span>Share via WhatsApp</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyTextReceipt}
+            className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] text-[#240C0B] font-bold text-xs px-3 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Copy formatted text message"
+          >
+            <Share2 className="w-3.5 h-3.5 text-[#2E8A81]" />
+            <span className="hidden sm:inline">Copy Text</span>
+          </button>
+
           <button
             type="button"
             onClick={handlePrint}
             className="bg-[#240C0B] hover:bg-[#180504] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
             <Printer className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Print A4 Invoice</span>
+            <span>Print Invoice</span>
           </button>
+
           <button
             type="button"
             onClick={onClose}
@@ -2405,27 +2581,27 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
         </div>
       </div>
 
-      {/* A4 Printable Document Container (Exact 210mm standard proportions) */}
-      <div className="flex justify-center overflow-x-auto p-1 bg-[#EBE7DF] rounded-2xl">
+      {/* A4 Printable Document Container (Exact 210mm standard proportions with spacious layout) */}
+      <div className="flex justify-center overflow-x-auto p-2 sm:p-4 bg-[#EBE7DF] rounded-2xl">
         <div 
           id="printable-invoice-doc" 
-          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 md:p-12 space-y-7 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
+          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-8 sm:p-12 md:p-14 space-y-9 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
         >
-          {/* Header Block: Studio Brand & Official Invoice Title */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-b-2 border-[#240C0B] pb-6">
-            <div className="flex items-start gap-4">
+          {/* Header Block: Studio Brand & Official Invoice Title (Spacious) */}
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-8 border-b-2 border-[#240C0B] pb-8">
+            <div className="flex items-start gap-5">
               <img 
                 src={clinicPhoto} 
                 alt={clinicName}
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
               />
-              <div className="space-y-1">
-                <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#240C0B] tracking-tight leading-tight">
+              <div className="space-y-1.5">
+                <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#240C0B] tracking-tight leading-tight">
                   {clinicName}
                 </h1>
-                <div className="text-[11px] text-[#6E5B58] space-y-0.5 leading-snug">
+                <div className="text-xs text-[#6E5B58] space-y-1 leading-relaxed">
                   <p className="font-medium">{clinicAddress}</p>
-                  <p className="flex flex-wrap items-center gap-x-2">
+                  <p className="flex flex-wrap items-center gap-x-2.5">
                     <span>Tel: <strong className="text-[#240C0B]">{clinicPhone}</strong></span>
                     <span>•</span>
                     <span>Email: <strong className="text-[#240C0B]">{clinicEmail}</strong></span>
@@ -2435,22 +2611,22 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
               </div>
             </div>
 
-            {/* Document Meta Pill & Status */}
-            <div className="text-left sm:text-right space-y-2 shrink-0">
+            {/* Document Meta & Status Pill */}
+            <div className="text-left sm:text-right space-y-2.5 shrink-0">
               <div>
                 <span className="text-[10px] font-black tracking-widest text-[#A08E8B] uppercase block">
-                  Original Invoice
+                  Original Tax Invoice
                 </span>
-                <span className="font-display font-black text-2xl tracking-tight text-[#240C0B]">
+                <span className="font-display font-black text-2xl sm:text-3xl tracking-tight text-[#240C0B]">
                   {invoiceNum}
                 </span>
               </div>
-              <div className="text-[11px] text-[#6E5B58] space-y-0.5 font-medium">
+              <div className="text-xs text-[#6E5B58] space-y-1 font-medium">
                 <div>Date: <strong className="text-[#240C0B]">{appt.date}</strong></div>
                 <div>Time: <strong className="text-[#240C0B]">{appt.start}</strong></div>
               </div>
-              <div className="pt-1">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+              <div className="pt-1.5">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
                   isPaid 
                     ? 'bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]'
                     : 'bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]'
@@ -2461,134 +2637,147 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
             </div>
           </div>
 
-          {/* Minimalist 2-Column Details: Bill To & Care Session */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1">
+          {/* Minimalist 2-Column Details: Bill To & Care Session with Generous Spacing */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1.5">
                 Billed To Client & Patient
               </span>
-              <div className="space-y-1">
-                <div className="font-display font-bold text-sm text-[#240C0B]">
+              <div className="space-y-1.5">
+                <div className="font-display font-bold text-base text-[#240C0B]">
                   {client?.owner || 'Pet Parent'}
                 </div>
-                <div className="text-[11px] text-[#6E5B58]">
+                <div className="text-xs text-[#6E5B58]">
                   Patient: <strong className="text-[#240C0B]">🐾 {client?.name || 'Pet'}</strong> ({client?.breed || 'Canine'}, {client?.size || 'Standard'})
                 </div>
-                <div className="text-[11px] text-[#6E5B58]">
-                  Contact: {client?.phone || 'N/A'} • {client?.email || 'N/A'}
+                <div className="text-xs text-[#6E5B58]">
+                  Contact: <strong className="text-[#240C0B]">{client?.phone || 'N/A'}</strong> • {client?.email || 'N/A'}
                 </div>
                 {client?.sensitivities && (
-                  <div className="text-[10px] text-[#C9503A] font-bold pt-1">
-                    Special Care: {client.sensitivities}
+                  <div className="text-[11px] text-[#C9503A] font-bold pt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Special Care: {client.sensitivities}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1">
-                Clinical Details & Groomer
+            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1.5">
+                Clinical Details & Stylist
               </span>
-              <div className="space-y-1">
-                <div className="font-display font-bold text-sm text-[#240C0B]">
-                  {groomer?.name || 'Master Groomer'}
+              <div className="space-y-1.5">
+                <div className="font-display font-bold text-base text-[#240C0B]">
+                  {groomer?.name || 'Master Pet Stylist'}
                 </div>
-                <div className="text-[11px] text-[#6E5B58]">
+                <div className="text-xs text-[#6E5B58]">
                   Session Length: <strong className="text-[#240C0B]">{appt.duration} Minutes</strong>
                 </div>
-                <div className="text-[11px] text-[#6E5B58]">
+                <div className="text-xs text-[#6E5B58]">
                   Sales Tax Reg: US-94028-PAW • Rate: <strong className="text-[#240C0B]">{taxRate}%</strong>
                 </div>
-                <div className="text-[11px] text-[#6E5B58]">
-                  Payment Method: Contactless POS / Card
+                <div className="text-xs text-[#6E5B58]">
+                  Payment Method: Contactless POS / Card / Cash
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Minimalist Itemized Table */}
-          <div className="space-y-2">
+          {/* Itemized Table with Modern Spacing */}
+          <div className="space-y-4 pt-2">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b-2 border-[#240C0B] text-[#240C0B] font-bold text-[11px] uppercase tracking-wider">
-                  <th className="py-2.5 pr-4">Description & Treatment</th>
-                  <th className="py-2.5 px-3 text-center">Qty / Duration</th>
-                  <th className="py-2.5 px-3 text-right">Unit Rate</th>
-                  <th className="py-2.5 pl-3 text-right">Amount</th>
+                <tr className="border-b-2 border-[#240C0B] text-[#240C0B] font-bold text-xs uppercase tracking-wider">
+                  <th className="py-3.5 pr-4">Description & Treatment</th>
+                  <th className="py-3.5 px-3 text-center">Qty / Duration</th>
+                  <th className="py-3.5 px-3 text-right">Unit Rate</th>
+                  <th className="py-3.5 pl-3 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E6DFD5] text-[#240C0B]">
+                {/* Main Service or Spa Package */}
                 <tr>
-                  <td className="py-3 pr-4">
-                    <div className="font-display font-bold text-sm text-[#240C0B]">
-                      {service?.name || 'Full Grooming & Spa Treatment'}
+                  <td className="py-4 pr-4">
+                    <div className="font-display font-bold text-sm sm:text-base text-[#240C0B]">
+                      {pkg ? `✨ ${pkg.name} (Spa Package Bundle)` : (service?.name || 'Full Grooming & Spa Treatment')}
                     </div>
-                    <div className="text-[11px] text-[#7A6865] mt-0.5">
-                      Hydro-massage bath, coat conditioning, hand blowout, custom scissor style & hygiene trim.
+                    <div className="text-xs text-[#7A6865] mt-1 leading-relaxed">
+                      {pkg ? (
+                        <span>
+                          Includes complete bundled care treatments: {pkg.serviceIds.map(sid => services.find(s => s.id === sid)?.name).filter(Boolean).join(' + ')}. Hand blowout, coat conditioning, & luxury styling.
+                        </span>
+                      ) : (
+                        <span>
+                          Hydro-massage bath, coat conditioning, hand blowout, custom scissor style & hygiene trim.
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td className="py-3 px-3 text-center font-medium text-[#7A6865]">
-                    {appt.duration}m
+                  <td className="py-4 px-3 text-center font-medium text-[#7A6865]">
+                    {pkg ? `${pkg.duration}m` : `${appt.duration}m`}
                   </td>
-                  <td className="py-3 px-3 text-right font-medium text-[#7A6865]">
+                  <td className="py-4 px-3 text-right font-medium text-[#7A6865]">
                     {formatPrice(servicePrice)}
                   </td>
-                  <td className="py-3 pl-3 text-right font-bold text-sm text-[#240C0B]">
+                  <td className="py-4 pl-3 text-right font-bold text-base text-[#240C0B]">
                     {formatPrice(servicePrice)}
                   </td>
                 </tr>
 
+                {/* Retail Addon */}
                 {retailAddon > 0 && (
                   <tr>
-                    <td className="py-3 pr-4">
-                      <div className="font-bold text-xs text-[#240C0B]">
+                    <td className="py-3.5 pr-4">
+                      <div className="font-bold text-xs sm:text-sm text-[#240C0B]">
                         Retail Care & Spa Treatment Add-on
                       </div>
-                      <div className="text-[11px] text-[#7A6865] mt-0.5">
+                      <div className="text-xs text-[#7A6865] mt-0.5">
                         Organic botanical paw balm & hypoallergenic leave-in mist.
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-center font-medium text-[#7A6865]">1x</td>
-                    <td className="py-3 px-3 text-right font-medium text-[#7A6865]">{formatPrice(retailAddon)}</td>
-                    <td className="py-3 pl-3 text-right font-bold text-[#240C0B]">{formatPrice(retailAddon)}</td>
+                    <td className="py-3.5 px-3 text-center font-medium text-[#7A6865]">1x</td>
+                    <td className="py-3.5 px-3 text-right font-medium text-[#7A6865]">{formatPrice(retailAddon)}</td>
+                    <td className="py-3.5 pl-3 text-right font-bold text-[#240C0B]">{formatPrice(retailAddon)}</td>
                   </tr>
                 )}
 
+                {/* Promo Code Discount */}
                 {discountAmount > 0 && (
-                  <tr className="bg-[#E8F5E9]/50">
-                    <td className="py-2.5 pr-4 text-[#2E7D32]">
-                      <div className="font-bold text-xs flex items-center gap-1.5">
-                        <Gift className="w-3.5 h-3.5" />
+                  <tr className="bg-[#E8F5E9]/60">
+                    <td className="py-3 pr-4 text-[#2E7D32]">
+                      <div className="font-bold text-xs sm:text-sm flex items-center gap-1.5">
+                        <Gift className="w-4 h-4 shrink-0" />
                         <span>Client Promo Code Discount ({discountCode ? `${discountCode} • ` : ''}{discountTitle || 'Special Voucher'})</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 text-center font-bold text-[#2E7D32]">1x</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
-                    <td className="py-2.5 pl-3 text-right font-black text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
+                    <td className="py-3 px-3 text-center font-bold text-[#2E7D32]">1x</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
+                    <td className="py-3 pl-3 text-right font-black text-sm text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          {/* Summary & Tax Computation Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 items-start">
+          {/* Summary & Tax Computation Row with Generous Spacing */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 items-start border-t border-[#E6DFD5]">
             {/* Rewards & Client Notes */}
-            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] text-xs space-y-2">
-              <div className="flex items-center gap-1.5 font-display font-bold text-[#FF6B00]">
+            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] text-xs space-y-2.5">
+              <div className="flex items-center gap-1.5 font-display font-bold text-[#FF6B00] text-sm">
                 <Award className="w-4 h-4" />
                 <span>Loyalty Points Earned</span>
               </div>
-              <p className="text-[11px] text-[#6E5B58] leading-snug">
+              <p className="text-xs text-[#6E5B58] leading-relaxed">
                 {client?.name || 'Pet'} earned <strong className="text-[#240C0B]">+{pointsEarned} Paw Points</strong> on this visit. Current account total: <strong className="text-[#240C0B]">{(client?.points || 0) + pointsEarned} pts</strong>.
               </p>
-              <div className="pt-2 border-t border-[#E6DFD5] text-[10px] text-[#7A6865]">
-                Certified Organic & Pet-Safe Products Only
+              <div className="pt-2.5 border-t border-[#E6DFD5] text-[11px] text-[#7A6865] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#2E8A81]" />
+                <span>Certified Organic & Hypoallergenic Grooming Care</span>
               </div>
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-2 text-xs">
               <div className="flex justify-between text-[#6E5B58]">
                 <span>Gross Subtotal:</span>
                 <span className="font-bold text-[#240C0B]">{formatPrice(subtotal)}</span>
@@ -2601,44 +2790,44 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                 </div>
               )}
 
-              <div className="flex justify-between text-[#6E5B58] pt-1 border-t border-[#E6DFD5]">
+              <div className="flex justify-between text-[#6E5B58] pt-1.5 border-t border-[#E6DFD5]">
                 <span>Taxable Amount:</span>
                 <span className="font-bold text-[#240C0B]">{formatPrice(taxableSubtotal)}</span>
               </div>
 
               <div className="flex justify-between text-[#6E5B58]">
                 <span>US Sales Tax ({taxRate}%):</span>
-                <span className="font-bold text-[#240C0B]">{formatPrice(tax)}</span>
+                <span className="font-bold text-[#FF6B00]">+{formatPrice(tax)}</span>
               </div>
 
-              <div className="border-t-2 border-[#240C0B] pt-2 flex justify-between items-baseline">
-                <span className="font-display font-black text-sm text-[#240C0B] uppercase tracking-wider">
+              <div className="border-t-2 border-[#240C0B] pt-3 flex justify-between items-baseline">
+                <span className="font-display font-black text-sm sm:text-base text-[#240C0B] uppercase tracking-wider">
                   Total Amount:
                 </span>
-                <span className="font-display font-black text-2xl text-[#240C0B]">
+                <span className="font-display font-black text-2xl sm:text-3xl text-[#240C0B]">
                   {formatPrice(total)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Minimalist A4 Footer */}
-          <div className="pt-8 border-t border-[#E6DFD5] space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left text-xs">
-              <div className="space-y-1">
-                <p className="font-display font-bold text-[#240C0B]">
+          {/* Minimalist A4 Footer with Signature and Clinic Note */}
+          <div className="pt-10 border-t-2 border-[#240C0B] space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-6 text-center sm:text-left text-xs">
+              <div className="space-y-1.5">
+                <p className="font-display font-bold text-sm text-[#240C0B]">
                   Thank you for visiting {clinicName}! 🐾
                 </p>
-                <p className="text-[11px] text-[#7A6865]">
+                <p className="text-xs text-[#7A6865]">
                   Questions or schedule follow-up? Email <strong className="text-[#240C0B]">{clinicEmail}</strong> or visit <strong className="text-[#240C0B]">{clinicWebsite}</strong>
                 </p>
               </div>
 
-              <div className="border border-dashed border-[#A08E8B] px-4 py-2 rounded-xl text-center">
-                <span className="text-[9px] font-bold text-[#A08E8B] uppercase tracking-widest block">
-                  Signature / Stamp
+              <div className="border border-dashed border-[#A08E8B] px-5 py-3 rounded-xl text-center shrink-0">
+                <span className="text-[10px] font-bold text-[#A08E8B] uppercase tracking-widest block">
+                  Authorized Signature / Stamp
                 </span>
-                <span className="font-display text-xs text-[#240C0B] font-bold">
+                <span className="font-display text-sm text-[#240C0B] font-bold">
                   {clinicName}
                 </span>
               </div>
