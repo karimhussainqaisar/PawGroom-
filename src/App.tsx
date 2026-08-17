@@ -84,7 +84,8 @@ const MainLayout: React.FC = () => {
 
       {/* Main Floating Studio Card Frame */}
       <div 
-        className="w-full max-w-[1600px] min-h-[92vh] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative transition-colors duration-300"
+        id="main-app-container"
+        className="w-full max-w-[1600px] min-h-[92vh] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative transition-colors duration-300 print:hidden"
         style={{ backgroundColor: 'var(--app-bg, #FAF8F5)' }}
       >
         {/* Side Navigation Bar */}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw } from 'lucide-react';
+import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw, Download } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 
@@ -2441,164 +2441,393 @@ const ConfirmModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   );
 };
 
-// Helper to reliably trigger printing or popup print window (for iframe compatibility & Save PDF)
+// Standalone print and PDF styling sheet for popup windows & downloads
+const STANDALONE_PRINT_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&family=Nunito+Sans:wght@400;500;600;700;800;900&display=swap');
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+
+  body {
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #240C0B;
+    background: #ffffff;
+    padding: 16px;
+    margin: 0 auto;
+    max-width: 800px;
+    line-height: 1.45;
+    font-size: 12px;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: "Fredoka", "Nunito Sans", sans-serif;
+  }
+
+  .no-print { display: none !important; }
+
+  /* Layout Primitives */
+  .flex { display: flex !important; }
+  .flex-col { flex-direction: column !important; }
+  .flex-row { flex-direction: row !important; }
+  .justify-between { justify-content: space-between !important; }
+  .justify-end { justify-content: flex-end !important; }
+  .items-start { align-items: flex-start !important; }
+  .items-center { align-items: center !important; }
+  .items-baseline { align-items: baseline !important; }
+  .shrink-0 { flex-shrink: 0 !important; }
+  .min-w-0 { min-width: 0 !important; }
+  .flex-1 { flex: 1 1 0% !important; }
+  .w-full { width: 100% !important; }
+  .max-w-\\[62\\%\\] { max-width: 62% !important; }
+  .max-w-\\[60\\%\\] { max-width: 60% !important; }
+
+  .grid { display: flex !important; flex-wrap: wrap !important; gap: 16px !important; }
+  .grid-cols-1 { width: 100% !important; }
+  .grid-cols-2 > div, .grid-cols-1 > div { flex: 1 1 calc(50% - 16px) !important; min-width: 220px !important; }
+  
+  .gap-1 { gap: 4px !important; }
+  .gap-1\\.5 { gap: 6px !important; }
+  .gap-2 { gap: 8px !important; }
+  .gap-2\\.5 { gap: 10px !important; }
+  .gap-3 { gap: 12px !important; }
+  .gap-3\\.5 { gap: 14px !important; }
+  .gap-4 { gap: 16px !important; }
+  .gap-5 { gap: 20px !important; }
+  .gap-6 { gap: 24px !important; }
+  .gap-8 { gap: 32px !important; }
+
+  .block { display: block !important; }
+  .inline-block { display: inline-block !important; }
+  .inline-flex { display: inline-flex !important; }
+
+  .text-left { text-align: left !important; }
+  .text-center { text-align: center !important; }
+  .text-right { text-align: right !important; }
+
+  .font-medium { font-weight: 500 !important; }
+  .font-semibold { font-weight: 600 !important; }
+  .font-bold { font-weight: 700 !important; }
+  .font-extrabold { font-weight: 800 !important; }
+  .font-black { font-weight: 900 !important; }
+
+  .text-\\[9px\\] { font-size: 9px !important; }
+  .text-\\[10px\\] { font-size: 10px !important; }
+  .text-\\[11px\\] { font-size: 11px !important; }
+  .text-xs { font-size: 11.5px !important; }
+  .text-sm { font-size: 13.5px !important; }
+  .text-base { font-size: 15px !important; }
+  .text-lg { font-size: 17px !important; }
+  .text-xl { font-size: 20px !important; }
+  .text-2xl { font-size: 24px !important; }
+  .text-3xl { font-size: 28px !important; }
+
+  .text-\\[\\#240C0B\\] { color: #240C0B !important; }
+  .text-\\[\\#FF6B00\\] { color: #FF6B00 !important; }
+  .text-\\[\\#2E7D32\\] { color: #2E7D32 !important; }
+  .text-\\[\\#6E5B58\\] { color: #6E5B58 !important; }
+  .text-\\[\\#7A6865\\] { color: #7A6865 !important; }
+  .text-\\[\\#A08E8B\\] { color: #A08E8B !important; }
+  .text-\\[\\#C9503A\\] { color: #C9503A !important; }
+  .text-\\[\\#2E8A81\\] { color: #2E8A81 !important; }
+
+  .bg-white { background-color: #ffffff !important; }
+  .bg-\\[\\#FAF8F5\\] { background-color: #FAF8F5 !important; }
+  .bg-\\[\\#E8F5E9\\] { background-color: #E8F5E9 !important; }
+  .bg-\\[\\#FFF3E0\\] { background-color: #FFF3E0 !important; }
+  .bg-\\[\\#240C0B\\] { background-color: #240C0B !important; }
+  .bg-\\[\\#E8F5E9\\]\\/60 { background-color: #F1F8F3 !important; }
+
+  .border { border: 1px solid #E6DFD5 !important; }
+  .border-b { border-bottom: 1px solid #E6DFD5 !important; }
+  .border-b-2 { border-bottom: 2px solid #240C0B !important; }
+  .border-t { border-top: 1px solid #E6DFD5 !important; }
+  .border-t-2 { border-top: 2px solid #240C0B !important; }
+  .border-dashed { border-style: dashed !important; }
+  .border-\\[\\#240C0B\\] { border-color: #240C0B !important; }
+  .border-\\[\\#E6DFD5\\] { border-color: #E6DFD5 !important; }
+  .border-\\[\\#A08E8B\\] { border-color: #A08E8B !important; }
+  .border-\\[\\#C8E6C9\\] { border-color: #C8E6C9 !important; }
+  .border-\\[\\#FFE0B2\\] { border-color: #FFE0B2 !important; }
+
+  .rounded-3xl { border-radius: 20px !important; }
+  .rounded-2xl { border-radius: 14px !important; }
+  .rounded-xl { border-radius: 10px !important; }
+  .rounded-lg { border-radius: 8px !important; }
+  .rounded-md { border-radius: 6px !important; }
+  .rounded-full { border-radius: 9999px !important; }
+
+  .p-2 { padding: 8px !important; }
+  .p-2\\.5 { padding: 10px !important; }
+  .p-3 { padding: 12px !important; }
+  .p-3\\.5 { padding: 14px !important; }
+  .p-4 { padding: 16px !important; }
+  .p-5 { padding: 20px !important; }
+  .p-6 { padding: 24px !important; }
+  .p-8 { padding: 32px !important; }
+  .px-2 { padding-left: 8px !important; padding-right: 8px !important; }
+  .px-2\\.5 { padding-left: 10px !important; padding-right: 10px !important; }
+  .px-3 { padding-left: 12px !important; padding-right: 12px !important; }
+  .px-3\\.5 { padding-left: 14px !important; padding-right: 14px !important; }
+  .px-4 { padding-left: 16px !important; padding-right: 16px !important; }
+  .px-5 { padding-left: 20px !important; padding-right: 20px !important; }
+  .py-0\\.5 { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .py-1 { padding-top: 4px !important; padding-bottom: 4px !important; }
+  .py-1\\.5 { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .py-2 { padding-top: 8px !important; padding-bottom: 8px !important; }
+  .py-2\\.5 { padding-top: 10px !important; padding-bottom: 10px !important; }
+  .py-3 { padding-top: 12px !important; padding-bottom: 12px !important; }
+  .py-3\\.5 { padding-top: 14px !important; padding-bottom: 14px !important; }
+  .py-4 { padding-top: 16px !important; padding-bottom: 16px !important; }
+  .pb-0\\.5 { padding-bottom: 2px !important; }
+  .pb-1 { padding-bottom: 4px !important; }
+  .pb-1\\.5 { padding-bottom: 6px !important; }
+  .pb-2 { padding-bottom: 8px !important; }
+  .pb-3 { padding-bottom: 12px !important; }
+  .pb-4 { padding-bottom: 16px !important; }
+  .pb-5 { padding-bottom: 20px !important; }
+  .pb-6 { padding-bottom: 24px !important; }
+  .pb-8 { padding-bottom: 32px !important; }
+  .pt-0\\.5 { padding-top: 2px !important; }
+  .pt-1 { padding-top: 4px !important; }
+  .pt-1\\.5 { padding-top: 6px !important; }
+  .pt-2 { padding-top: 8px !important; }
+  .pt-2\\.5 { padding-top: 10px !important; }
+  .pt-3 { padding-top: 12px !important; }
+  .pt-4 { padding-top: 16px !important; }
+  .pt-5 { padding-top: 20px !important; }
+  .pt-6 { padding-top: 24px !important; }
+  .pt-8 { padding-top: 32px !important; }
+  .pt-10 { padding-top: 40px !important; }
+
+  .space-y-0\\.5 > * + * { margin-top: 2px !important; }
+  .space-y-1 > * + * { margin-top: 4px !important; }
+  .space-y-1\\.5 > * + * { margin-top: 6px !important; }
+  .space-y-2 > * + * { margin-top: 8px !important; }
+  .space-y-2\\.5 > * + * { margin-top: 10px !important; }
+  .space-y-3 > * + * { margin-top: 12px !important; }
+  .space-y-4 > * + * { margin-top: 16px !important; }
+  .space-y-5 > * + * { margin-top: 20px !important; }
+  .space-y-6 > * + * { margin-top: 24px !important; }
+  .space-y-7 > * + * { margin-top: 28px !important; }
+  .space-y-8 > * + * { margin-top: 32px !important; }
+
+  .uppercase { text-transform: uppercase !important; }
+  .tracking-tight { letter-spacing: -0.02em !important; }
+  .tracking-wider { letter-spacing: 0.05em !important; }
+  .tracking-widest { letter-spacing: 0.1em !important; }
+  .leading-tight { line-height: 1.25 !important; }
+  .leading-relaxed { line-height: 1.55 !important; }
+
+  img {
+    width: 56px !important;
+    height: 56px !important;
+    max-width: 56px !important;
+    max-height: 56px !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+    border: 2px solid #240C0B !important;
+    display: block !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  thead tr {
+    border-top: 2px solid #240C0B !important;
+    border-bottom: 2px solid #240C0B !important;
+  }
+
+  th {
+    padding: 10px 8px !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #240C0B !important;
+  }
+
+  td {
+    border-bottom: 1px solid #E6DFD5 !important;
+    padding: 12px 8px !important;
+    font-size: 11.5px !important;
+    vertical-align: top !important;
+  }
+
+  tr, td, th, div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+`;
+
+// Helper to reliably trigger printing across all browsers, mobile devices, and iframe environments
 const triggerPrintDocument = (title: string, containerId: string) => {
+  const containerEl = document.getElementById(containerId);
+  const isIframe = window.self !== window.top;
+
+  // 1. Direct browser print (works instantly on desktop & mobile tabs where @media print handles isolation)
   try {
     window.focus();
-  } catch (e) {
-    // ignore
+    window.print();
+  } catch (err) {
+    console.warn('Direct window.print() call warning:', err);
   }
 
-  const containerEl = document.getElementById(containerId);
-
-  // If running inside an iframe (like AI Studio preview), open print popup window so browser allows print dialog
-  const isIframe = window.self !== window.top;
+  // 2. If running inside an iframe (like AI Studio preview), also launch a dedicated print window
   if (isIframe && containerEl) {
-    const printWin = window.open('', '_blank', 'width=850,height=1100');
-    if (printWin) {
-      printWin.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${title}</title>
-            <meta charset="utf-8" />
-            <style>
-              * {
-                box-sizing: border-box;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              @page {
-                size: A4 portrait;
-                margin: 8mm 12mm;
-              }
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                color: #240C0B;
-                padding: 16px;
-                margin: 0 auto;
-                max-width: 800px;
-                background: #ffffff;
-                line-height: 1.4;
-              }
-              .no-print { display: none !important; }
-              
-              /* Strict Image Sizing so photos never stretch across pages */
-              img {
-                width: 56px !important;
-                height: 56px !important;
-                max-width: 56px !important;
-                max-height: 56px !important;
-                object-fit: cover !important;
-                border-radius: 12px !important;
-                display: block !important;
-              }
-              .w-14, .w-16, .w-12 { width: 56px !important; }
-              .h-14, .h-16, .h-12 { height: 56px !important; }
-
-              /* Table Styles */
-              table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 14px; }
-              th, td { border-bottom: 1px solid #E6DFD5; padding: 8px 10px; text-align: left; font-size: 11px; }
-              th { border-bottom: 2px solid #240C0B !important; color: #240C0B !important; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
-              tr:nth-child(even) { background-color: #FAF8F5; }
-              tr, table, div { break-inside: avoid; page-break-inside: avoid; }
-
-              /* Layout Styles */
-              .grid { display: grid; }
-              .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-              .gap-2 { gap: 8px; }
-              .gap-3 { gap: 12px; }
-              .gap-4 { gap: 14px; }
-              .gap-6 { gap: 20px; }
-              
-              .flex { display: flex; }
-              .flex-col { flex-direction: column; }
-              .justify-between { justify-content: space-between; }
-              .justify-end { justify-content: flex-end; }
-              .items-center { align-items: center; }
-              .items-start { align-items: flex-start; }
-              .shrink-0 { flex-shrink: 0; }
-              
-              .space-y-2 > * + * { margin-top: 8px; }
-              .space-y-3 > * + * { margin-top: 10px; }
-              .space-y-4 > * + * { margin-top: 14px; }
-              .space-y-6 > * + * { margin-top: 18px; }
-              
-              .p-3 { padding: 12px; }
-              .p-4 { padding: 14px; }
-              .p-6 { padding: 18px; }
-              .pb-4 { padding-bottom: 14px; }
-              .pb-6 { padding-bottom: 18px; }
-              .pt-3 { padding-top: 10px; }
-              .pt-4 { padding-top: 14px; }
-              .pt-6 { padding-top: 18px; }
-              
-              .bg-white { background-color: #ffffff; }
-              .bg-\\[\\#FAF8F5\\] { background-color: #FAF8F5; }
-              .bg-\\[\\#E8F5E9\\] { background-color: #E8F5E9; }
-              .bg-\\[\\#FFF3EB\\] { background-color: #FFF3EB; }
-              .bg-\\[\\#240C0B\\] { background-color: #240C0B; }
-              
-              .border { border: 1px solid #E6DFD5; }
-              .border-b { border-bottom: 1px solid #E6DFD5; }
-              .border-b-2 { border-bottom: 2px solid #240C0B; }
-              .border-t-2 { border-top: 2px solid #240C0B; }
-              .border-dashed { border-style: dashed; }
-              
-              .rounded-3xl { border-radius: 20px; }
-              .rounded-2xl { border-radius: 14px; }
-              .rounded-xl { border-radius: 10px; }
-              .rounded-lg { border-radius: 8px; }
-              .rounded-full { border-radius: 9999px; }
-              
-              .font-bold { font-weight: 700; }
-              .font-extrabold { font-weight: 800; }
-              .font-black { font-weight: 900; }
-              
-              .text-right { text-align: right; }
-              .text-center { text-align: center; }
-              .text-\\[10px\\] { font-size: 10px; }
-              .text-\\[11px\\] { font-size: 11px; }
-              .text-xs { font-size: 11px; }
-              .text-sm { font-size: 13px; }
-              .text-base { font-size: 14px; }
-              .text-xl { font-size: 18px; }
-              .text-2xl { font-size: 22px; }
-              .text-3xl { font-size: 26px; }
-              
-              .text-\\[\\#FF6B00\\] { color: #FF6B00; }
-              .text-\\[\\#240C0B\\] { color: #240C0B; }
-              .text-\\[\\#2E7D32\\] { color: #2E7D32; }
-              .text-\\[\\#6E5B58\\] { color: #6E5B58; }
-              .text-\\[\\#7A6865\\] { color: #7A6865; }
-              .text-\\[\\#059669\\] { color: #059669; }
-              .uppercase { text-transform: uppercase; }
-              .tracking-widest { letter-spacing: 0.1em; }
-              .tracking-wider { letter-spacing: 0.05em; }
-            </style>
-          </head>
-          <body>
-            <div class="printable-area">${containerEl.innerHTML}</div>
-            <script>
-              window.onload = function() {
-                window.focus();
-                setTimeout(function() {
-                  window.print();
-                }, 300);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      printWin.document.close();
-      return;
+    try {
+      const printWin = window.open('', '_blank', 'width=880,height=1050');
+      if (printWin) {
+        printWin.document.open();
+        printWin.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${title}</title>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <script src="https://cdn.tailwindcss.com"></script>
+              <script>
+                tailwind.config = {
+                  theme: {
+                    extend: {
+                      fontFamily: {
+                        display: ['Fredoka', 'Nunito Sans', 'sans-serif'],
+                        sans: ['Nunito Sans', 'sans-serif']
+                      }
+                    }
+                  }
+                }
+              </script>
+              <style>
+                ${STANDALONE_PRINT_STYLES}
+                .print-banner {
+                  background: #240C0B;
+                  color: #ffffff;
+                  padding: 12px 18px;
+                  border-radius: 14px;
+                  margin-bottom: 20px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 12px;
+                  font-family: "Nunito Sans", system-ui, -apple-system, sans-serif;
+                }
+                .print-action-btn {
+                  background: #FF6B00;
+                  color: #ffffff;
+                  border: none;
+                  font-weight: 800;
+                  font-size: 13px;
+                  padding: 8px 18px;
+                  border-radius: 10px;
+                  cursor: pointer;
+                  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                }
+                .close-action-btn {
+                  background: rgba(255,255,255,0.15);
+                  color: #ffffff;
+                  border: none;
+                  font-weight: 700;
+                  font-size: 12px;
+                  padding: 8px 14px;
+                  border-radius: 10px;
+                  cursor: pointer;
+                  margin-left: 8px;
+                }
+                @media print {
+                  .print-banner { display: none !important; }
+                }
+              </style>
+            </head>
+            <body class="bg-[#FAF8F5] p-4 sm:p-8">
+              <div class="print-banner no-print max-w-[800px] mx-auto">
+                <div style="font-size: 13px; font-weight: 700;">
+                  🖨️ <span>Print or Save as PDF</span>
+                </div>
+                <div>
+                  <button class="print-action-btn" onclick="window.print()">Print Now</button>
+                  <button class="close-action-btn" onclick="window.close()">Close</button>
+                </div>
+              </div>
+              <div class="printable-area max-w-[800px] mx-auto bg-white p-8 rounded-2xl shadow-sm border border-[#D8D3C4]">${containerEl.innerHTML}</div>
+              <script>
+                window.onload = function() {
+                  setTimeout(function() {
+                    window.focus();
+                    window.print();
+                  }, 300);
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWin.document.close();
+      }
+    } catch (popupErr) {
+      console.warn('Popup print fallback warning:', popupErr);
     }
   }
+};
 
-  // Fallback: direct window.print()
-  setTimeout(() => {
-    window.print();
-  }, 100);
+// Helper to directly download a standalone printable HTML document for instant offline saving
+const downloadPrintableHTML = (title: string, containerId: string, filename: string) => {
+  const containerEl = document.getElementById(containerId);
+  if (!containerEl) return;
+
+  const htmlContent = `<!DOCTYPE html>
+<html>
+  <head>
+    <title>${title}</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Fredoka', 'Nunito Sans', 'sans-serif'],
+              sans: ['Nunito Sans', 'sans-serif']
+            }
+          }
+        }
+      }
+    </script>
+    <style>${STANDALONE_PRINT_STYLES}</style>
+  </head>
+  <body class="bg-[#FAF8F5] p-4 sm:p-8">
+    <div class="printable-area max-w-[800px] mx-auto bg-white p-8 sm:p-10 rounded-2xl shadow-sm border border-[#D8D3C4]">${containerEl.innerHTML}</div>
+    <script>
+      window.onload = function() {
+        window.print();
+      };
+    </script>
+  </body>
+</html>`;
+
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.html') ? filename : `${filename}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 // 16. Print Daily Schedule Modal
@@ -2630,6 +2859,10 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
 
   const handlePrint = () => {
     triggerPrintDocument(`Daily Schedule (${dateISO}) - PawBook Pro`, 'printable-schedule-doc');
+  };
+
+  const handleDownload = () => {
+    downloadPrintableHTML(`Daily Schedule (${dateISO}) - PawBook Pro`, 'printable-schedule-doc', `Daily_Schedule_${dateISO}.html`);
   };
 
   return (
@@ -2667,8 +2900,17 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleDownload}
+            className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] text-[#173E39] font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Download offline HTML schedule"
+          >
+            <Download className="w-3.5 h-3.5 text-[#2E8A81]" />
+            <span className="hidden sm:inline">Save File</span>
+          </button>
+          <button
+            type="button"
             onClick={handlePrint}
-            className="printable-btn bg-[#2E8A81] hover:bg-[#1F6660] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="printable-btn bg-[#2E8A81] hover:bg-[#1F6660] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
           >
             <Printer className="w-4 h-4" />
             <span>Print Schedule / Save PDF</span>
@@ -2686,7 +2928,7 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
       {/* Printable Schedule Document Container */}
       <div id="printable-schedule-doc" className="printable-area bg-white p-2 sm:p-4 text-[#173E39] space-y-6">
         {/* Document Header */}
-        <div className="border-b-2 border-[#173E39] pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="border-b-2 border-[#173E39] pb-4 flex flex-row items-start justify-between gap-4 w-full">
           <div>
             <div className="flex items-center gap-2">
               <Scissors className="w-6 h-6 text-[#E8734A]" />
@@ -2880,6 +3122,11 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     triggerPrintDocument(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc');
   };
 
+  const handleDownload = () => {
+    downloadPrintableHTML(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc', `${invoiceNum}_${client?.name || 'Pet'}_Invoice.html`);
+    showToast('Printable invoice downloaded successfully!', 'success');
+  };
+
   const handleWhatsAppShare = () => {
     if (!client) {
       showToast('Client details not found', 'error');
@@ -2979,8 +3226,19 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
 
           <button
             type="button"
+            onClick={handleDownload}
+            className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] text-[#240C0B] font-bold text-xs px-3 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Download offline printable HTML invoice"
+          >
+            <Download className="w-3.5 h-3.5 text-[#FF6B00]" />
+            <span className="hidden sm:inline">Save File</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handlePrint}
             className="bg-[#240C0B] hover:bg-[#180504] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+            title="Print or Save PDF"
           >
             <Printer className="w-3.5 h-3.5 text-[#FF6B00]" />
             <span>Print Invoice</span>
@@ -3000,23 +3258,24 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
       <div className="flex justify-center overflow-x-auto p-2 sm:p-4 bg-[#EBE7DF] rounded-2xl">
         <div 
           id="printable-invoice-doc" 
-          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-8 sm:p-12 md:p-14 space-y-9 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
+          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 md:p-12 space-y-7 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
         >
-          {/* Header Block: Studio Brand & Official Invoice Title (Spacious) */}
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-8 border-b-2 border-[#240C0B] pb-8">
-            <div className="flex items-start gap-5">
+          {/* Header Block: Studio Brand & Official Invoice Title (Strictly Side-by-Side in the Same Line) */}
+          <div className="flex flex-row justify-between items-start gap-4 border-b-2 border-[#240C0B] pb-5 w-full">
+            {/* Left: Clinic Brand & Info */}
+            <div className="flex items-start gap-3.5 max-w-[62%]">
               <img 
                 src={clinicPhoto} 
                 alt={clinicName}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
+                className="w-14 h-14 rounded-xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
               />
-              <div className="space-y-1.5">
-                <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#240C0B] tracking-tight leading-tight">
+              <div className="space-y-1 min-w-0">
+                <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#240C0B] tracking-tight leading-tight">
                   {clinicName}
                 </h1>
-                <div className="text-xs text-[#6E5B58] space-y-1 leading-relaxed">
-                  <p className="font-medium">{clinicAddress}</p>
-                  <p className="flex flex-wrap items-center gap-x-2.5">
+                <div className="text-[11px] text-[#6E5B58] space-y-0.5 leading-relaxed font-medium">
+                  <p className="truncate">{clinicAddress}</p>
+                  <p className="flex flex-wrap items-center gap-x-2">
                     <span>Tel: <strong className="text-[#240C0B]">{clinicPhone}</strong></span>
                     <span>•</span>
                     <span>Email: <strong className="text-[#240C0B]">{clinicEmail}</strong></span>
@@ -3026,22 +3285,22 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
               </div>
             </div>
 
-            {/* Document Meta & Status Pill */}
-            <div className="text-left sm:text-right space-y-2.5 shrink-0">
+            {/* Right: Official Tax Invoice & Meta (Aligned Right Top in Same Row) */}
+            <div className="text-right space-y-1 shrink-0">
               <div>
-                <span className="text-[10px] font-black tracking-widest text-[#A08E8B] uppercase block">
+                <p className="text-[9px] sm:text-[10px] font-black tracking-widest text-[#7A6865] uppercase">
                   Original Tax Invoice
-                </span>
-                <span className="font-display font-black text-2xl sm:text-3xl tracking-tight text-[#240C0B]">
+                </p>
+                <p className="font-display font-black text-xl sm:text-2xl tracking-tight text-[#240C0B] leading-tight">
                   {invoiceNum}
-                </span>
+                </p>
               </div>
-              <div className="text-xs text-[#6E5B58] space-y-1 font-medium">
-                <div>Date: <strong className="text-[#240C0B]">{appt.date}</strong></div>
-                <div>Time: <strong className="text-[#240C0B]">{appt.start}</strong></div>
+              <div className="text-[11px] text-[#6E5B58] space-y-0.5 font-medium">
+                <p>Date: <strong className="text-[#240C0B]">{appt.date}</strong></p>
+                <p>Time: <strong className="text-[#240C0B]">{appt.start}</strong></p>
               </div>
-              <div className="pt-1.5">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+              <div className="pt-0.5">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                   isPaid 
                     ? 'bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]'
                     : 'bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2]'
@@ -3052,71 +3311,71 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
             </div>
           </div>
 
-          {/* Minimalist 2-Column Details: Bill To & Care Session with Generous Spacing */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1.5">
+          {/* Minimalist 2-Column Details: Bill To & Care Session with Clean Side-by-Side Cards */}
+          <div className="flex flex-row gap-4 text-xs w-full">
+            <div className="flex-1 p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#7A6865] border-b border-[#E6DFD5] pb-1">
                 Billed To Client & Patient
-              </span>
-              <div className="space-y-1.5">
-                <div className="font-display font-bold text-base text-[#240C0B]">
+              </p>
+              <div className="space-y-1">
+                <p className="font-display font-bold text-sm text-[#240C0B]">
                   {client?.owner || 'Pet Parent'}
-                </div>
-                <div className="text-xs text-[#6E5B58]">
+                </p>
+                <p className="text-[11px] text-[#6E5B58]">
                   Patient: <strong className="text-[#240C0B]">🐾 {client?.name || 'Pet'}</strong> ({client?.breed || 'Canine'}, {client?.size || 'Standard'})
-                </div>
-                <div className="text-xs text-[#6E5B58]">
+                </p>
+                <p className="text-[11px] text-[#6E5B58]">
                   Contact: <strong className="text-[#240C0B]">{client?.phone || 'N/A'}</strong> • {client?.email || 'N/A'}
-                </div>
+                </p>
                 {client?.sensitivities && (
-                  <div className="text-[11px] text-[#C9503A] font-bold pt-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <p className="text-[10px] text-[#C9503A] font-bold pt-0.5 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
                     <span>Special Care: {client.sensitivities}</span>
-                  </div>
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#A08E8B] block border-b border-[#E6DFD5] pb-1.5">
+            <div className="flex-1 p-4 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#7A6865] border-b border-[#E6DFD5] pb-1">
                 Clinical Details & Stylist
-              </span>
-              <div className="space-y-1.5">
-                <div className="font-display font-bold text-base text-[#240C0B]">
+              </p>
+              <div className="space-y-1">
+                <p className="font-display font-bold text-sm text-[#240C0B]">
                   {groomer?.name || 'Master Pet Stylist'}
-                </div>
-                <div className="text-xs text-[#6E5B58]">
+                </p>
+                <p className="text-[11px] text-[#6E5B58]">
                   Session Length: <strong className="text-[#240C0B]">{appt.duration} Minutes</strong>
-                </div>
-                <div className="text-xs text-[#6E5B58]">
+                </p>
+                <p className="text-[11px] text-[#6E5B58]">
                   Sales Tax Reg: US-94028-PAW • Rate: <strong className="text-[#240C0B]">{taxRate}%</strong>
-                </div>
-                <div className="text-xs text-[#6E5B58]">
+                </p>
+                <p className="text-[11px] text-[#6E5B58]">
                   Payment Method: Contactless POS / Card / Cash
-                </div>
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Itemized Table with Modern Spacing */}
-          <div className="space-y-4 pt-2">
+          {/* Itemized Table with Modern Refined Spacing */}
+          <div className="space-y-2 pt-1 w-full">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b-2 border-[#240C0B] text-[#240C0B] font-bold text-xs uppercase tracking-wider">
-                  <th className="py-3.5 pr-4">Description & Treatment</th>
-                  <th className="py-3.5 px-3 text-center">Qty / Duration</th>
-                  <th className="py-3.5 px-3 text-right">Unit Rate</th>
-                  <th className="py-3.5 pl-3 text-right">Amount</th>
+                <tr className="border-t-2 border-b-2 border-[#240C0B] text-[#240C0B] font-bold text-[11px] uppercase tracking-wider">
+                  <th className="py-2.5 pr-3 text-left">Description & Treatment</th>
+                  <th className="py-2.5 px-2 text-center">Qty / Duration</th>
+                  <th className="py-2.5 px-2 text-right">Unit Rate</th>
+                  <th className="py-2.5 pl-2 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E6DFD5] text-[#240C0B]">
                 {/* Main Service or Spa Package */}
                 <tr>
-                  <td className="py-4 pr-4">
-                    <div className="font-display font-bold text-sm sm:text-base text-[#240C0B]">
+                  <td className="py-3 pr-3">
+                    <div className="font-display font-bold text-sm text-[#240C0B]">
                       {pkg ? `✨ ${pkg.name} (Spa Package Bundle)` : (service?.name || 'Full Grooming & Spa Treatment')}
                     </div>
-                    <div className="text-xs text-[#7A6865] mt-1 leading-relaxed">
+                    <div className="text-[11px] text-[#7A6865] mt-0.5 leading-relaxed">
                       {pkg ? (
                         <span>
                           Includes complete bundled care treatments: {pkg.serviceIds.map(sid => services.find(s => s.id === sid)?.name).filter(Boolean).join(' + ')}. Hand blowout, coat conditioning, & luxury styling.
@@ -3128,13 +3387,13 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                       )}
                     </div>
                   </td>
-                  <td className="py-4 px-3 text-center font-medium text-[#7A6865]">
+                  <td className="py-3 px-2 text-center font-medium text-[#7A6865] text-[11px]">
                     {pkg ? `${pkg.duration}m` : `${appt.duration}m`}
                   </td>
-                  <td className="py-4 px-3 text-right font-medium text-[#7A6865]">
+                  <td className="py-3 px-2 text-right font-medium text-[#7A6865] text-[11px]">
                     {formatPrice(servicePrice)}
                   </td>
-                  <td className="py-4 pl-3 text-right font-bold text-base text-[#240C0B]">
+                  <td className="py-3 pl-2 text-right font-bold text-sm text-[#240C0B]">
                     {formatPrice(servicePrice)}
                   </td>
                 </tr>
@@ -3142,57 +3401,57 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                 {/* Retail Addon */}
                 {retailAddon > 0 && (
                   <tr>
-                    <td className="py-3.5 pr-4">
-                      <div className="font-bold text-xs sm:text-sm text-[#240C0B]">
+                    <td className="py-2.5 pr-3">
+                      <div className="font-bold text-xs text-[#240C0B]">
                         Retail Care & Spa Treatment Add-on
                       </div>
-                      <div className="text-xs text-[#7A6865] mt-0.5">
+                      <div className="text-[11px] text-[#7A6865] mt-0.5">
                         Organic botanical paw balm & hypoallergenic leave-in mist.
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 text-center font-medium text-[#7A6865]">1x</td>
-                    <td className="py-3.5 px-3 text-right font-medium text-[#7A6865]">{formatPrice(retailAddon)}</td>
-                    <td className="py-3.5 pl-3 text-right font-bold text-[#240C0B]">{formatPrice(retailAddon)}</td>
+                    <td className="py-2.5 px-2 text-center font-medium text-[#7A6865] text-[11px]">1x</td>
+                    <td className="py-2.5 px-2 text-right font-medium text-[#7A6865] text-[11px]">{formatPrice(retailAddon)}</td>
+                    <td className="py-2.5 pl-2 text-right font-bold text-xs text-[#240C0B]">{formatPrice(retailAddon)}</td>
                   </tr>
                 )}
 
                 {/* Promo Code Discount */}
                 {discountAmount > 0 && (
                   <tr className="bg-[#E8F5E9]/60">
-                    <td className="py-3 pr-4 text-[#2E7D32]">
-                      <div className="font-bold text-xs sm:text-sm flex items-center gap-1.5">
-                        <Gift className="w-4 h-4 shrink-0" />
+                    <td className="py-2.5 pr-3 text-[#2E7D32]">
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <Gift className="w-3.5 h-3.5 shrink-0" />
                         <span>Client Promo Code Discount ({discountCode ? `${discountCode} • ` : ''}{discountTitle || 'Special Voucher'})</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-center font-bold text-[#2E7D32]">1x</td>
-                    <td className="py-3 px-3 text-right font-bold text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
-                    <td className="py-3 pl-3 text-right font-black text-sm text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
+                    <td className="py-2.5 px-2 text-center font-bold text-[#2E7D32] text-[11px]">1x</td>
+                    <td className="py-2.5 px-2 text-right font-bold text-[#2E7D32] text-[11px]">-{formatPrice(discountAmount)}</td>
+                    <td className="py-2.5 pl-2 text-right font-black text-xs text-[#2E7D32]">-{formatPrice(discountAmount)}</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          {/* Summary & Tax Computation Row with Generous Spacing */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-4 items-start border-t border-[#E6DFD5]">
+          {/* Summary & Tax Computation Row with 2 Columns */}
+          <div className="flex flex-row gap-5 pt-3 items-start border-t border-[#E6DFD5] w-full">
             {/* Rewards & Client Notes */}
-            <div className="p-5 rounded-2xl bg-[#FAF8F5] border border-[#E6DFD5] text-xs space-y-2.5">
-              <div className="flex items-center gap-1.5 font-display font-bold text-[#FF6B00] text-sm">
-                <Award className="w-4 h-4" />
+            <div className="flex-1 p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E6DFD5] text-xs space-y-2">
+              <div className="flex items-center gap-1.5 font-display font-bold text-[#FF6B00] text-xs">
+                <Award className="w-3.5 h-3.5" />
                 <span>Loyalty Points Earned</span>
               </div>
-              <p className="text-xs text-[#6E5B58] leading-relaxed">
+              <p className="text-[11px] text-[#6E5B58] leading-relaxed">
                 {client?.name || 'Pet'} earned <strong className="text-[#240C0B]">+{pointsEarned} Paw Points</strong> on this visit. Current account total: <strong className="text-[#240C0B]">{(client?.points || 0) + pointsEarned} pts</strong>.
               </p>
-              <div className="pt-2.5 border-t border-[#E6DFD5] text-[11px] text-[#7A6865] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#2E8A81]" />
+              <div className="pt-2 border-t border-[#E6DFD5] text-[10px] text-[#7A6865] flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-[#2E8A81]" />
                 <span>Certified Organic & Hypoallergenic Grooming Care</span>
               </div>
             </div>
 
             {/* Calculations Breakdown */}
-            <div className="space-y-2 text-xs">
+            <div className="flex-1 space-y-1.5 text-xs">
               <div className="flex justify-between text-[#6E5B58]">
                 <span>Gross Subtotal:</span>
                 <span className="font-bold text-[#240C0B]">{formatPrice(subtotal)}</span>
@@ -3205,7 +3464,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                 </div>
               )}
 
-              <div className="flex justify-between text-[#6E5B58] pt-1.5 border-t border-[#E6DFD5]">
+              <div className="flex justify-between text-[#6E5B58] pt-1 border-t border-[#E6DFD5]">
                 <span>Taxable Amount:</span>
                 <span className="font-bold text-[#240C0B]">{formatPrice(taxableSubtotal)}</span>
               </div>
@@ -3215,11 +3474,11 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                 <span className="font-bold text-[#FF6B00]">+{formatPrice(tax)}</span>
               </div>
 
-              <div className="border-t-2 border-[#240C0B] pt-3 flex justify-between items-baseline">
-                <span className="font-display font-black text-sm sm:text-base text-[#240C0B] uppercase tracking-wider">
+              <div className="border-t-2 border-[#240C0B] pt-2 flex justify-between items-baseline">
+                <span className="font-display font-black text-xs text-[#240C0B] uppercase tracking-wider">
                   Total Amount:
                 </span>
-                <span className="font-display font-black text-2xl sm:text-3xl text-[#240C0B]">
+                <span className="font-display font-black text-2xl text-[#240C0B]">
                   {formatPrice(total)}
                 </span>
               </div>
@@ -3227,24 +3486,24 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           </div>
 
           {/* Minimalist A4 Footer with Signature and Clinic Note */}
-          <div className="pt-10 border-t-2 border-[#240C0B] space-y-5">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-6 text-center sm:text-left text-xs">
-              <div className="space-y-1.5">
-                <p className="font-display font-bold text-sm text-[#240C0B]">
+          <div className="pt-5 border-t-2 border-[#240C0B] space-y-3 w-full">
+            <div className="flex flex-row justify-between items-center gap-4 text-left text-xs">
+              <div className="space-y-0.5">
+                <p className="font-display font-bold text-xs text-[#240C0B]">
                   Thank you for visiting {clinicName}! 🐾
                 </p>
-                <p className="text-xs text-[#7A6865]">
+                <p className="text-[11px] text-[#7A6865]">
                   Questions or schedule follow-up? Email <strong className="text-[#240C0B]">{clinicEmail}</strong> or visit <strong className="text-[#240C0B]">{clinicWebsite}</strong>
                 </p>
               </div>
 
-              <div className="border border-dashed border-[#A08E8B] px-5 py-3 rounded-xl text-center shrink-0">
-                <span className="text-[10px] font-bold text-[#A08E8B] uppercase tracking-widest block">
+              <div className="border border-dashed border-[#A08E8B] px-3.5 py-1.5 rounded-lg text-center shrink-0">
+                <p className="text-[9px] font-bold text-[#7A6865] uppercase tracking-widest">
                   Authorized Signature / Stamp
-                </span>
-                <span className="font-display text-sm text-[#240C0B] font-bold">
+                </p>
+                <p className="font-display text-xs text-[#240C0B] font-bold mt-0.5">
                   {clinicName}
-                </span>
+                </p>
               </div>
             </div>
           </div>

@@ -179,23 +179,26 @@
 /* Print Styles - Isolate only the printable invoice and hide everything else */
 @media print {
   @page {
-    size: A4 portrait;
-    margin: 10mm 12mm;
+    size: auto;
+    margin: 8mm 10mm;
   }
 
   html, body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #240C0B !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     height: auto !important;
+    min-height: 100% !important;
     overflow: visible !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide entire page elements by default */
+  /* Completely hide the background application, sidebars, headers, toasts, and controls */
+  #main-app-container,
   aside,
   nav,
   header,
@@ -204,45 +207,81 @@
   button,
   input,
   select,
-  textarea {
+  textarea,
+  .toast-container,
+  [role="dialog"] > button {
     display: none !important;
     visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
   }
 
-  /* When modal is open during print, hide modal chrome, backdrop, close buttons */
-  .fixed.inset-0.bg-black\/60,
-  .fixed.inset-0.bg-black\/50,
-  .fixed.inset-0.bg-black\/40 {
+  /* Reset modal backdrop */
+  .modal-overlay,
+  .fixed.inset-0 {
     background: transparent !important;
     position: static !important;
     padding: 0 !important;
     margin: 0 !important;
+    display: block !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Force display of printable document container only */
+  .modal-box {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Display ONLY the active printable document container */
   #printable-invoice-doc,
+  #printable-schedule-doc,
   .printable-area {
     display: block !important;
     visibility: visible !important;
-    position: relative !important;
+    position: static !important;
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    padding: 12px !important;
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
     color: #240C0B !important;
-    page-break-after: avoid;
-    page-break-inside: avoid;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   #printable-invoice-doc *,
+  #printable-schedule-doc *,
   .printable-area * {
     visibility: visible !important;
   }
 
+  #printable-invoice-doc .flex-row,
+  #printable-schedule-doc .flex-row {
+    display: flex !important;
+    flex-direction: row !important;
+  }
+
+  #printable-invoice-doc .flex-1,
+  #printable-schedule-doc .flex-1 {
+    flex: 1 1 0% !important;
+  }
+
+  /* Image constraints */
   #printable-invoice-doc img,
+  #printable-schedule-doc img,
   .printable-area img {
     width: 60px !important;
     height: 60px !important;
@@ -251,5 +290,21 @@
     object-fit: cover !important;
     border-radius: 12px !important;
     display: block !important;
+  }
+
+  /* Table styling */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead tr {
+    border-top: 2px solid #240C0B !important;
+    border-bottom: 2px solid #240C0B !important;
+  }
+
+  tr, td, th {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
