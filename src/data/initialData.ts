@@ -475,7 +475,22 @@ export const INITIAL_CLIENTS: Client[] = [
 
 export const INITIAL_APPOINTMENTS: Appointment[] = [
   // Today's appointments (2026-08-12)
-  { id: 'ap101', clientId: 'cl1', serviceId: 'sv6', staffId: 'st1', date: dDays(0), start: '09:00', duration: 60, price: 60, status: 'completed', retail: 16, notes: 'Oatmeal shampoo used' },
+  { 
+    id: 'ap101', 
+    clientId: 'cl1', 
+    serviceId: 'sv6', 
+    staffId: 'st1', 
+    date: dDays(0), 
+    start: '09:00', 
+    duration: 60, 
+    price: 60, 
+    status: 'completed', 
+    retail: 16, 
+    discountAmount: 11.4, 
+    discountCode: 'BELLA-15', 
+    discountTitle: '15% Off VIP Full Grooming',
+    notes: 'Oatmeal shampoo used' 
+  },
   { id: 'ap102', clientId: 'cl5', serviceId: 'sv2', staffId: 'st1', date: dDays(0), start: '10:00', duration: 90, price: 70, status: 'completed', retail: 0 },
   { id: 'ap103', clientId: 'cl9', serviceId: 'sv1', staffId: 'st1', date: dDays(0), start: '11:30', duration: 75, price: 55, status: 'completed', retail: 12 },
   { id: 'ap104', clientId: 'cl1', serviceId: 'sv1', staffId: 'st1', date: dDays(0), start: '13:30', duration: 75, price: 55, status: 'confirmed', notes: 'Owner requested extra paw balm' },

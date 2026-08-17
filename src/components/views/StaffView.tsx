@@ -82,7 +82,7 @@ export const StaffView: React.FC = () => {
                   <div>
                     <div className="text-[#5C716C] font-semibold">Est. Payout</div>
                     <div className="font-display font-bold text-base text-[#3E9B6E]">
-                      ${commissionPayout.toFixed(0)}
+                      ${Number(commissionPayout || 0).toFixed(0)}
                     </div>
                   </div>
                 </div>

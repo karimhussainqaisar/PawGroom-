@@ -34,6 +34,7 @@ import {
   formatISO
 } from '../data/initialData';
 import { formatPrice as formatPriceUtil, getCurrencySymbol } from '../utils/format';
+import { formatShortInvoiceNumber } from '../utils/invoice';
 
 export interface ToastMessage {
   id: string;
@@ -331,7 +332,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // CRUD Functions
   const addAppointment = (apptData: Omit<Appointment, 'id'>) => {
     const id = 'ap_' + Date.now();
-    const newAppt: Appointment = { id, ...apptData };
+    const newAppt: Appointment = { 
+      id, 
+      ...apptData,
+      invoiceNumber: apptData.invoiceNumber || formatShortInvoiceNumber({ id, ...apptData })
+    };
     setAppointments((prev) => [newAppt, ...prev]);
 
     // Automatically add loyalty points if completed

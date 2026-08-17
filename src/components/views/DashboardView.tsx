@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatISO } from '../../data/initialData';
+import { calculateAppointmentInvoice } from '../../utils/invoice';
 import { 
   Calendar, 
   DollarSign, 
@@ -48,8 +49,10 @@ export const DashboardView: React.FC = () => {
     clients, 
     appointments, 
     services, 
+    packages,
     staff, 
     transformations,
+    redemptions,
     updateAppointmentStatus, 
     openModal, 
     setView, 
@@ -584,9 +587,15 @@ export const DashboardView: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-[10px] text-[#A08E8B] font-bold block uppercase">Total Amount</span>
-                        <span className="font-black text-sm text-[#FF6B00] block">
-                          {formatPrice(item.price + (item.retail || 0))}
-                        </span>
+                        {(() => {
+                          const itemInv = calculateAppointmentInvoice(item, { services, packages, settings, redemptions });
+                          return (
+                            <span className="font-black text-sm text-[#FF6B00] block">
+                              {formatPrice(itemInv.totalAmount)}
+                              <span className="text-[10px] font-normal text-[#A08E8B] ml-1">(incl. tax)</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -601,7 +610,15 @@ export const DashboardView: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            openModal('invoiceModal', { appointment: item });
+                            openModal('invoiceModal', { 
+                              appointment: item,
+                              retailAddon: item.retail || 0,
+                              discountAmount: item.discountAmount || 0,
+                              discountCode: item.discountCode,
+                              discountTitle: item.discountTitle,
+                              packageId: item.packageId,
+                              packageName: item.packageName,
+                            });
                           }}
                           className="px-3 py-1.5 bg-[#FFF3EB] hover:bg-[#FFE0CD] text-[#FF6B00] border border-[#FFD0B3] text-xs font-extrabold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
                           title="Print A4 Invoice or Share on WhatsApp"

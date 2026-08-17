@@ -1,6 +1,7 @@
 export type ViewMode = 
   | 'dashboard' 
   | 'calendar' 
+  | 'invoices'
   | 'clients' 
   | 'services' 
   | 'staff' 
@@ -102,6 +103,12 @@ export interface Appointment {
   discountAmount?: number;
   discountCode?: string;
   discountTitle?: string;
+  discountType?: 'percent' | 'fixed' | 'free_service';
+  discountValue?: number;
+  taxRate?: number;
+  taxAmount?: number;
+  totalAmount?: number;
+  invoiceNumber?: string;
 }
 
 export interface InventoryItem {

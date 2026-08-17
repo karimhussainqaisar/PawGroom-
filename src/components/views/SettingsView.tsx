@@ -530,10 +530,10 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center gap-3 font-mono font-bold">
                 <span className="text-[#173E39]">Subtotal: $100.00</span>
                 <span className="text-[#7A6865]">+</span>
-                <span className="text-[#FF6B00]">US Tax ({formData.taxRate}%): ${(100 * (formData.taxRate / 100)).toFixed(2)}</span>
+                <span className="text-[#FF6B00]">US Tax ({formData.taxRate || 0}%): ${(100 * (Number(formData.taxRate || 0) / 100)).toFixed(2)}</span>
                 <span className="text-[#7A6865]">=</span>
                 <span className="text-[#240C0B] bg-[#FFF3EB] px-2 py-0.5 rounded-md border border-[#FFD0B3]">
-                  Total: ${(100 * (1 + formData.taxRate / 100)).toFixed(2)}
+                  Total: ${(100 * (1 + Number(formData.taxRate || 0) / 100)).toFixed(2)}
                 </span>
               </div>
             </div>

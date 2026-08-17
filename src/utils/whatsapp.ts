@@ -48,7 +48,7 @@ export function generateWhatsAppInvoiceText(data: WhatsAppInvoiceData): string {
   const clinicAddress = clinicSettings?.address || '100 Bark Avenue, Suite 4, San Francisco, CA 94107';
 
   const currencySymbol = clinicSettings?.currency === 'EUR' ? '€' : clinicSettings?.currency === 'GBP' ? '£' : '$';
-  const fmt = (n: number) => `${currencySymbol}${n.toFixed(2)}`;
+  const fmt = (n?: number | null) => `${currencySymbol}${Number(n ?? 0).toFixed(2)}`;
 
   const lines: string[] = [
     `🐾 *${clinicName.toUpperCase()}* 🐾`,

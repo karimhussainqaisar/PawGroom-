@@ -4,6 +4,7 @@ import { ViewMode } from '../types';
 import { 
   LayoutDashboard, 
   Calendar, 
+  Receipt,
   Dog, 
   Scissors, 
   UserCheck, 
@@ -39,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
   const navItems: { id: ViewMode; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'calendar', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+    { id: 'invoices', label: 'Invoices & QR', icon: <Receipt className="w-4 h-4" /> },
     { id: 'clients', label: 'My Pets', icon: <Dog className="w-4 h-4" /> },
     { id: 'services', label: 'Grooming', icon: <Scissors className="w-4 h-4" /> },
     { id: 'alerts', label: 'Health & Vaccine', icon: <AlertTriangle className="w-4 h-4" />, badge: alertCount },

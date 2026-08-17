@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw, Download } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
+import { formatShortInvoiceNumber, calculateAppointmentInvoice } from '../../utils/invoice';
+import { InvoiceQRCode } from '../common/InvoiceQRCode';
 
 export const ModalContainer: React.FC = () => {
   const { 
@@ -135,7 +137,7 @@ export const ModalContainer: React.FC = () => {
           )}
 
           {/* Modal 17: Official Invoice / Receipt Modal */}
-          {activeModal === 'invoiceModal' && (
+          {(activeModal === 'invoiceModal' || activeModal === 'invoice') && (
             <InvoiceModal data={modalData} onClose={closeModal} />
           )}
 
@@ -466,7 +468,9 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     return clientPromoCodes.find((r) => r.status === 'applied' || r.isAutoApplied) || null;
   }, [clientPromoCodes, appt.discountCode]);
 
-  const [selectedPromoCode, setSelectedPromoCode] = useState<string>(defaultPromo ? defaultPromo.code : '');
+  const [selectedPromoCode, setSelectedPromoCode] = useState<string>(
+    defaultPromo ? defaultPromo.code : (appt.discountCode || '')
+  );
   const [showCreatePromo, setShowCreatePromo] = useState(false);
   const [newPromoTitle, setNewPromoTitle] = useState('15% Off VIP Session');
   const [newPromoType, setNewPromoType] = useState<'percent' | 'fixed'>('percent');
@@ -487,9 +491,23 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     } else {
       discountAmount = Math.min(grossSubtotal, activeVoucher.discountValue);
     }
+  } else if (selectedPromoCode && (selectedPromoCode === appt.discountCode || !clientPromoCodes.length)) {
+    // If the promo was already applied to this appointment (and archived from active rewards)
+    discountTitle = appt.discountTitle || 'Applied Promo Voucher';
+    if (appt.discountAmount !== undefined && appt.discountAmount > 0) {
+      discountAmount = appt.discountAmount;
+    } else if (appt.discountValue) {
+      discountAmount = appt.discountType === 'percent'
+        ? Math.round(grossSubtotal * (appt.discountValue / 100) * 100) / 100
+        : Math.min(grossSubtotal, appt.discountValue);
+    }
   }
 
-  const taxableSubtotal = Math.max(0, grossSubtotal - discountAmount);
+  const chosenCode = selectedPromoCode ? (activeVoucher ? activeVoucher.code : (appt.discountCode || selectedPromoCode)) : undefined;
+  const chosenTitle = selectedPromoCode ? (activeVoucher ? activeVoucher.rewardTitle : (discountTitle || appt.discountTitle)) : undefined;
+  const chosenDiscAmount = selectedPromoCode ? discountAmount : 0;
+
+  const taxableSubtotal = Math.max(0, grossSubtotal - chosenDiscAmount);
   const taxRate = settings.taxRate !== undefined ? settings.taxRate : 8.5;
   const taxAmount = Math.round(taxableSubtotal * (taxRate / 100) * 100) / 100;
   const finalTotal = taxableSubtotal + taxAmount;
@@ -515,9 +533,9 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     // Save invoice and discount details to appointment
     updateAppointment(appt.id, {
       retail: retailAddon,
-      discountAmount,
-      discountCode: activeVoucher ? activeVoucher.code : undefined,
-      discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+      discountAmount: chosenDiscAmount,
+      discountCode: chosenCode,
+      discountTitle: chosenTitle,
       taxRate,
       taxAmount,
       totalAmount: finalTotal,
@@ -532,7 +550,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     updateAppointmentStatus(appt.id, 'completed', retailAddon);
     confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     showToast(
-      `Appointment completed! Total: ${formatPrice(finalTotal)} (Tax: ${taxRate}%${discountAmount > 0 ? `, Promo: -${formatPrice(discountAmount)}` : ''})`,
+      `Appointment completed! Total: ${formatPrice(finalTotal)} (Tax: ${taxRate}%${chosenDiscAmount > 0 ? `, Promo: -${formatPrice(chosenDiscAmount)}` : ''})`,
       'success'
     );
     onClose();
@@ -540,20 +558,26 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
 
   const handleShareWhatsApp = () => {
     if (!client) return;
-    const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
+    const invoiceNum = formatShortInvoiceNumber(appt);
     const ok = openWhatsAppInvoice({
       invoiceNum,
       client,
-      appointment: { ...appt, retail: retailAddon },
+      appointment: { 
+        ...appt, 
+        retail: retailAddon,
+        discountAmount: chosenDiscAmount,
+        discountCode: chosenCode,
+        discountTitle: chosenTitle,
+      },
       clinicSettings: settings,
       serviceName: service?.name,
       packageName: pkg?.name || appt.packageName,
       groomerName: groomer?.name,
       servicePrice,
       retailAddon,
-      discountAmount,
-      discountCode: activeVoucher ? activeVoucher.code : undefined,
-      discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+      discountAmount: chosenDiscAmount,
+      discountCode: chosenCode,
+      discountTitle: chosenTitle,
       taxRate,
       tax: taxAmount,
       total: finalTotal,
@@ -649,8 +673,8 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           >
             <option value={0}>None ($0.00)</option>
             {inventory.map((i) => (
-              <option key={i.id} value={i.price}>
-                {i.name} (+${i.price.toFixed(2)})
+              <option key={i.id} value={i.price || 0}>
+                {i.name} (+${Number(i.price || 0).toFixed(2)})
               </option>
             ))}
           </select>
@@ -724,14 +748,14 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           )}
 
           {/* List/Select Promo Codes Specific to this Client */}
-          {clientPromoCodes.length === 0 ? (
+          {clientPromoCodes.length === 0 && !appt.discountCode ? (
             <div className="text-[11px] text-[#7A6865] bg-[#FAF8F5] p-2.5 rounded-xl border border-dashed border-[#D8D3C4]">
               No active promo codes issued for {client?.name}. Click "+ Create Promo" above to generate a client-specific code.
             </div>
           ) : (
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-[#7A6865]">
-                Available Promo Codes for {client?.name} (Only specific to this pet/client):
+                Promo Codes for {client?.name} (Client-specific voucher discounts):
               </label>
               <div className="grid grid-cols-1 gap-1.5">
                 <div
@@ -745,6 +769,37 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
                   <span>No promo code applied</span>
                   {!selectedPromoCode && <Check className="w-3.5 h-3.5 text-[#240C0B]" />}
                 </div>
+
+                {/* Previously applied promo code for this invoice (e.g. single-use redeemed) */}
+                {appt.discountCode && !clientPromoCodes.some((p) => p.code.toUpperCase() === appt.discountCode?.toUpperCase()) && (
+                  <div
+                    onClick={() => setSelectedPromoCode(appt.discountCode!)}
+                    className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                      selectedPromoCode === appt.discountCode
+                        ? 'bg-[#ECFDF5] border-[#10B981] ring-1 ring-[#10B981] text-[#065F46] font-bold shadow-xs'
+                        : 'bg-white border-[#D8D3C4] text-[#173E39] hover:bg-[#FAF8F5]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-xs bg-white px-2 py-0.5 rounded-md border border-[#D8D3C4]">
+                        {appt.discountCode}
+                      </span>
+                      <div>
+                        <div className="font-bold text-xs">{appt.discountTitle || 'Applied Promo Voucher'}</div>
+                        <div className="text-[10px] text-[#5C716C]">
+                          Applied to this invoice {appt.discountAmount ? `(-${formatPrice(appt.discountAmount)})` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-[#10B981] text-white rounded-full">
+                        Applied
+                      </span>
+                      {selectedPromoCode === appt.discountCode && <Check className="w-4 h-4 text-[#10B981]" />}
+                    </div>
+                  </div>
+                )}
 
                 {clientPromoCodes.map((promo) => {
                   const isSelected = selectedPromoCode === promo.code;
@@ -810,13 +865,13 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
             <span className="font-bold text-[#173E39]">{formatPrice(grossSubtotal)}</span>
           </div>
 
-          {discountAmount > 0 && (
+          {chosenDiscAmount > 0 && (
             <div className="flex justify-between text-[#059669] font-bold">
               <span className="flex items-center gap-1">
                 <Gift className="w-3 h-3" />
-                Promo Discount ({activeVoucher?.code || 'Promo'} - {activeVoucher?.discountType === 'percent' ? `${activeVoucher.discountValue}%` : `$${activeVoucher?.discountValue}`}):
+                Promo Discount ({chosenCode || 'Promo'} - {chosenTitle || 'Promo Voucher'}):
               </span>
-              <span>-{formatPrice(discountAmount)}</span>
+              <span>-{formatPrice(chosenDiscAmount)}</span>
             </div>
           )}
 
@@ -864,13 +919,30 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           <button
             type="button"
             onClick={() => {
+              // Persist invoice & promo code data to appointment state so reopening always has it!
+              updateAppointment(appt.id, {
+                retail: retailAddon,
+                discountAmount: chosenDiscAmount,
+                discountCode: chosenCode,
+                discountTitle: chosenTitle,
+                taxRate,
+                taxAmount,
+                totalAmount: finalTotal,
+                packageId: pkg?.id || appt.packageId,
+                packageName: pkg?.name || appt.packageName,
+              });
+
+              if (activeVoucher) {
+                markVoucherAsUsed(activeVoucher.code, appt.id);
+              }
+
               openModal('invoiceModal', { 
                 appointment: {
                   ...appt,
                   retail: retailAddon,
-                  discountAmount,
-                  discountCode: activeVoucher ? activeVoucher.code : undefined,
-                  discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+                  discountAmount: chosenDiscAmount,
+                  discountCode: chosenCode,
+                  discountTitle: chosenTitle,
                   taxRate,
                   taxAmount,
                   totalAmount: finalTotal,
@@ -878,9 +950,9 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
                   packageName: pkg?.name || appt.packageName,
                 }, 
                 retailAddon,
-                discountAmount,
-                discountCode: activeVoucher ? activeVoucher.code : undefined,
-                discountTitle: activeVoucher ? activeVoucher.rewardTitle : undefined,
+                discountAmount: chosenDiscAmount,
+                discountCode: chosenCode,
+                discountTitle: chosenTitle,
                 packageId: pkg?.id || appt.packageId,
                 packageName: pkg?.name || appt.packageName,
               });
@@ -1110,7 +1182,7 @@ const ClientFormModal: React.FC<{ data: any; onClose: () => void }> = ({ data, o
 
 // 4. Client Grooming History Modal
 const ClientHistoryModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { appointments, services, staff, settings, openModal } = useApp();
+  const { appointments, services, packages, staff, settings, redemptions, openModal, formatPrice } = useApp();
   const client = data?.client;
   if (!client) return null;
 
@@ -1177,16 +1249,17 @@ const ClientHistoryModal: React.FC<{ data: any; onClose: () => void }> = ({ data
         ) : (
           <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-[#D8D3C4]">
             {history.map((a) => {
-              const svc = services.find((s) => s.id === a.serviceId);
+              const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
               const st = staff.find((s) => s.id === a.staffId);
               return (
                 <div key={a.id} className="pt-2.5 flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 font-bold text-[#240C0B]">
                       <span>{a.date} @ {a.start}</span>
-                      <span className="text-[#FF6B00]">${a.price + (a.retail || 0)}</span>
+                      <span className="text-[#FF6B00] font-black">{formatPrice(inv.totalAmount)}</span>
+                      <span className="text-[10px] text-[#A08E8B] font-medium">(incl. {inv.taxRate}% tax)</span>
                     </div>
-                    <div className="text-[#5C716C] mt-0.5">{svc?.name} • Stylist: {st?.name}</div>
+                    <div className="text-[#5C716C] mt-0.5">{inv.serviceOrPackageName} • Stylist: {st?.name || 'Assigned Stylist'}</div>
                     {a.notes && <div className="text-[#5C716C] italic mt-0.5">"{a.notes}"</div>}
                   </div>
 
@@ -2628,7 +2701,7 @@ const STANDALONE_PRINT_STYLES = `
   .leading-tight { line-height: 1.25 !important; }
   .leading-relaxed { line-height: 1.55 !important; }
 
-  img {
+  img.clinic-logo-img, .clinic-logo-img {
     width: 56px !important;
     height: 56px !important;
     max-width: 56px !important;
@@ -2637,6 +2710,31 @@ const STANDALONE_PRINT_STYLES = `
     border-radius: 12px !important;
     border: 2px solid #240C0B !important;
     display: block !important;
+  }
+
+  img.qr-code-img, .qr-code-img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border: none !important;
+    border-radius: 0px !important;
+    object-fit: contain !important;
+    image-rendering: pixelated !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .qr-code-box {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    padding: 2px !important;
+    border: 1px solid #D8D3C4 !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
   }
 
   table {
@@ -2832,7 +2930,7 @@ const downloadPrintableHTML = (title: string, containerId: string, filename: str
 
 // 16. Print Daily Schedule Modal
 const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { appointments, clients, services, staff, settings } = useApp();
+  const { appointments, clients, services, packages, staff, settings, redemptions, formatPrice } = useApp();
 
   const [dateISO, setDateISO] = useState<string>(data?.dateISO || '2026-08-12');
   const [staffId, setStaffId] = useState<string>(data?.staffId || 'all');
@@ -2854,7 +2952,10 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
     year: 'numeric',
   });
 
-  const totalRev = dailyAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
+  const totalRev = dailyAppts.reduce((sum, a) => {
+    const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
+    return sum + inv.totalAmount;
+  }, 0);
   const completedCount = dailyAppts.filter((a) => a.status === 'completed').length;
 
   const handlePrint = () => {
@@ -3019,10 +3120,17 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
 
                       {/* Service Details */}
                       <td className="p-3 border-r border-[#D8D3C4]">
-                        <div className="font-bold text-[#173E39]">{service?.name || 'Grooming'}</div>
-                        <div className="text-[10px] text-[#5C716C] mt-0.5">
-                          ${a.price} {a.retail ? `+ $${a.retail} retail` : ''}
-                        </div>
+                        {(() => {
+                          const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
+                          return (
+                            <>
+                              <div className="font-bold text-[#173E39]">{inv.serviceOrPackageName}</div>
+                              <div className="text-[10px] text-[#5C716C] mt-0.5 font-medium">
+                                Total: <span className="font-bold text-[#FF6B00]">{formatPrice(inv.totalAmount)}</span> <span className="text-[9px] text-[#A08E8B]">(incl. {inv.taxRate}% tax)</span>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </td>
 
                       {/* Stylist */}
@@ -3076,8 +3184,8 @@ const PrintScheduleModal: React.FC<{ data: any; onClose: () => void }> = ({ data
 
 // 17. Official Invoice / Receipt Modal (Minimalist Premium A4 Layout)
 const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onClose }) => {
-  const { clients, services, packages, staff, settings, showToast, formatPrice } = useApp();
-  const appt = data?.appointment;
+  const { clients, services, packages, staff, settings, redemptions, showToast, formatPrice } = useApp();
+  const appt = data?.appointment || (data?.clientId ? data : null);
 
   if (!appt) return null;
 
@@ -3090,14 +3198,31 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     ? packages.find((p) => p.id === appt.packageId)
     : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : (data?.packageId ? packages.find(p => p.id === data.packageId) : null));
 
-  const retailAddon = data?.retailAddon !== undefined ? data.retailAddon : appt.retail || 0;
+  const retailAddon = data?.retailAddon !== undefined ? data.retailAddon : (appt.retail || 0);
   const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
   const subtotal = servicePrice + retailAddon;
 
   // Read client/dog promo code discount if applied
-  const discountAmount = data?.discountAmount !== undefined ? data.discountAmount : appt.discountAmount || 0;
-  const discountCode = data?.discountCode || appt.discountCode || '';
-  const discountTitle = data?.discountTitle || appt.discountTitle || '';
+  let discountAmount = data?.discountAmount !== undefined ? data.discountAmount : (appt.discountAmount || 0);
+  let discountCode = data?.discountCode || appt.discountCode || '';
+  let discountTitle = data?.discountTitle || appt.discountTitle || '';
+
+  // If promo code exists but discount amount was 0, resolve from redemptions or appointment value
+  if (discountCode && (!discountAmount || discountAmount === 0)) {
+    const voucher = redemptions?.find((r) => r.code.toUpperCase() === discountCode.toUpperCase());
+    if (voucher) {
+      discountTitle = discountTitle || voucher.rewardTitle;
+      if (voucher.discountType === 'percent') {
+        discountAmount = Math.round(subtotal * (voucher.discountValue / 100) * 100) / 100;
+      } else {
+        discountAmount = Math.min(subtotal, voucher.discountValue);
+      }
+    } else if (appt.discountValue) {
+      discountAmount = appt.discountType === 'percent'
+        ? Math.round(subtotal * (appt.discountValue / 100) * 100) / 100
+        : Math.min(subtotal, appt.discountValue);
+    }
+  }
 
   const taxableSubtotal = Math.max(0, subtotal - discountAmount);
 
@@ -3107,7 +3232,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const total = taxableSubtotal + tax;
   const pointsEarned = Math.floor(total);
 
-  const invoiceNum = `INV-${appt.date.replace(/-/g, '')}-${appt.id.replace(/\D/g, '') || '101'}`;
+  const invoiceNum = formatShortInvoiceNumber(appt);
   const isPaid = appt.status === 'completed';
 
   // Synchronized clinic data from settings
@@ -3267,7 +3392,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
               <img 
                 src={clinicPhoto} 
                 alt={clinicName}
-                className="w-14 h-14 rounded-xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
+                className="clinic-logo-img w-14 h-14 rounded-xl object-cover border-2 border-[#240C0B] shadow-xs shrink-0"
               />
               <div className="space-y-1 min-w-0">
                 <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#240C0B] tracking-tight leading-tight">
@@ -3485,8 +3610,27 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
             </div>
           </div>
 
+          {/* Scannable Invoice QR Code Component at Bottom */}
+          <div className="pt-2 w-full">
+            <InvoiceQRCode
+              invoiceNum={invoiceNum}
+              date={appt.date}
+              clientName={client?.name}
+              ownerName={client?.owner}
+              serviceOrPackage={pkg ? pkg.name : service?.name}
+              subtotal={taxableSubtotal}
+              taxRate={taxRate}
+              taxAmount={tax}
+              totalAmount={total}
+              isPaid={isPaid}
+              clinicName={clinicName}
+              size={120}
+              className="w-full"
+            />
+          </div>
+
           {/* Minimalist A4 Footer with Signature and Clinic Note */}
-          <div className="pt-5 border-t-2 border-[#240C0B] space-y-3 w-full">
+          <div className="pt-4 border-t-2 border-[#240C0B] space-y-3 w-full">
             <div className="flex flex-row justify-between items-center gap-4 text-left text-xs">
               <div className="space-y-0.5">
                 <p className="font-display font-bold text-xs text-[#240C0B]">

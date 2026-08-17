@@ -14,6 +14,7 @@ import { StaffView } from './components/views/StaffView';
 import { LoyaltyView } from './components/views/LoyaltyView';
 import { AlertsView } from './components/views/AlertsView';
 import { RevenueView } from './components/views/RevenueView';
+import { InvoicesView } from './components/views/InvoicesView';
 import { BusinessView } from './components/views/BusinessView';
 import { GalleryView } from './components/views/GalleryView';
 import { SettingsView } from './components/views/SettingsView';
@@ -50,6 +51,8 @@ const MainLayout: React.FC = () => {
         return <DashboardView />;
       case 'calendar':
         return <CalendarView />;
+      case 'invoices':
+        return <InvoicesView />;
       case 'clients':
         return <ClientsView />;
       case 'services':
