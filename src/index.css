@@ -241,4 +241,15 @@
   .printable-area * {
     visibility: visible !important;
   }
+
+  #printable-invoice-doc img,
+  .printable-area img {
+    width: 60px !important;
+    height: 60px !important;
+    max-width: 60px !important;
+    max-height: 60px !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+    display: block !important;
+  }
 }

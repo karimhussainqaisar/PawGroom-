@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle } from 'lucide-react';
+import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 
@@ -36,7 +36,7 @@ export const ModalContainer: React.FC = () => {
 
   if (!activeModal) return null;
 
-  const isWideModal = activeModal === 'printScheduleModal' || activeModal === 'invoiceModal' || activeModal === 'clientHistory';
+  const isWideModal = activeModal === 'printScheduleModal' || activeModal === 'invoiceModal' || activeModal === 'clientHistory' || activeModal === 'transformationForm';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-2 sm:p-4 md:p-6 flex items-start sm:items-center justify-center min-h-screen modal-overlay print:bg-white print:p-0 print:static print:block">
@@ -1733,52 +1733,410 @@ const WaitlistFormModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   );
 };
 
-// 12. Transformation Gallery Form Modal
-const TransformationFormModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { addTransformation, staff } = useApp();
-  const [petName, setPetName] = useState('');
-  const [breed, setBreed] = useState('Cockapoo');
-  const [ownerName, setOwnerName] = useState('');
-  const [styleNotes, setStyleNotes] = useState('');
+// 12. Transformation Gallery Form Modal (Dual Real Image Upload: Before & After)
+const TransformationFormModal: React.FC<{ data?: any; onClose: () => void }> = ({ data, onClose }) => {
+  const { addTransformation, staff, clients, services, showToast } = useApp();
+  
+  const [selectedClientId, setSelectedClientId] = useState<string>(data?.clientId || '');
+  const [petName, setPetName] = useState(data?.petName || '');
+  const [breed, setBreed] = useState(data?.breed || 'Cockapoo');
+  const [ownerName, setOwnerName] = useState(data?.ownerName || '');
+  const [serviceName, setServiceName] = useState(data?.serviceName || 'Full Grooming & Spa Treatment');
+  const [groomerName, setGroomerName] = useState(data?.groomerName || staff[0]?.name || 'Dani Brooks');
+  const [styleNotes, setStyleNotes] = useState(data?.styleNotes || '#4F body cut, scissored teddy bear head, fluffy legs & clean sanitary trim');
+  const [date, setDate] = useState(data?.date || new Date().toISOString().split('T')[0]);
+
+  // Dual Image states (Data URL or Image URL)
+  const [beforeImg, setBeforeImg] = useState<string>(
+    data?.beforeImg || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80'
+  );
+  const [afterImg, setAfterImg] = useState<string>(
+    data?.afterImg || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80'
+  );
+
+  // Handle client selection change to auto-fill
+  const handleClientSelect = (clientId: string) => {
+    setSelectedClientId(clientId);
+    if (!clientId) return;
+    const cl = clients.find(c => c.id === clientId);
+    if (cl) {
+      setPetName(cl.name);
+      setBreed(cl.breed);
+      setOwnerName(cl.owner);
+      if (cl.lastCut) {
+        setStyleNotes(cl.lastCut);
+      }
+    }
+  };
+
+  // Convert uploaded file to base64 DataURL
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (PNG, JPG, WEBP)', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        if (target === 'before') {
+          setBeforeImg(result);
+          showToast('Uploaded Before Transformation photo!', 'success');
+        } else {
+          setAfterImg(result);
+          showToast('Uploaded After Groom photo!', 'success');
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Realistic Pre-packaged Dog Transformation Presets
+  const PRESETS = [
+    {
+      name: 'Cockapoo Teddy Cut',
+      breed: 'Cockapoo',
+      before: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80',
+      after: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80',
+      notes: '#4F body, round teddy bear scissored face, fluffy bevelled paws',
+    },
+    {
+      name: 'Shih Tzu Topknot & Silk',
+      breed: 'Shih Tzu',
+      before: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=600&q=80',
+      after: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=600&q=80',
+      notes: '#7 body, hand-blended face, red silk ribbon topknot, ear fringe tidy',
+    },
+    {
+      name: 'Golden Retriever De-shed',
+      breed: 'Golden Retriever',
+      before: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=600&q=80',
+      after: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?auto=format&fit=crop&w=600&q=80',
+      notes: 'High-velocity undercoat blowout, foot feather trimming, coat conditioning',
+    },
+    {
+      name: 'Frenchie Skin & Fold Spa',
+      breed: 'French Bulldog',
+      before: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=600&q=80',
+      after: 'https://images.unsplash.com/photo-1583512603805-3cc6b41f3edb?auto=format&fit=crop&w=600&q=80',
+      notes: 'Hypoallergenic fold treatment, organic nose balm, dremel nail grind',
+    }
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!petName || !ownerName) {
+      showToast('Please provide the pet name and owner name', 'error');
+      return;
+    }
     addTransformation({
       petName,
       breed,
       ownerName,
-      serviceName: 'Full Grooming',
-      date: '2026-08-12',
-      groomerName: staff[0]?.name || 'Dani Brooks',
+      serviceName,
+      date,
+      groomerName,
       styleNotes,
+      beforeImg,
+      afterImg,
     });
     onClose();
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-      <h3 className="font-display font-bold text-xl text-[#173E39]">Add Transformation Photo</h3>
-      <div className="grid grid-cols-2 gap-2">
+    <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      {/* Modal Header */}
+      <div className="border-b border-[#E6DFD5] pb-3 flex items-start justify-between">
         <div>
-          <label className="font-bold text-[#173E39]">Pet Name</label>
-          <input type="text" value={petName} onChange={(e) => setPetName(e.target.value)} required className="w-full mt-1 p-2 border rounded-xl" />
+          <h3 className="font-display font-black text-xl sm:text-2xl text-[#240C0B] flex items-center gap-2">
+            <Scissors className="w-5 h-5 text-[#FF6B00]" />
+            <span>Upload Dog Transformation</span>
+          </h3>
+          <p className="text-xs text-[#6E5B58] mt-0.5">
+            Upload genuine Before and After dog grooming photos to showcase real styling craftsmanship.
+          </p>
         </div>
+      </div>
+
+      {/* Dual Image Upload Section */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="font-bold text-xs text-[#240C0B] flex items-center gap-1.5">
+            <Camera className="w-4 h-4 text-[#FF6B00]" />
+            <span>Transformation Photos (Before & After)</span>
+          </label>
+          <span className="text-[11px] text-[#A08E8B]">Click or Drag & Drop to Upload</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 1. BEFORE Transformation Box */}
+          <div className="p-3.5 bg-[#FAF8F5] rounded-2xl border-2 border-dashed border-[#D8D3C4] hover:border-[#FF6B00] transition-all space-y-2.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md bg-[#240C0B] text-white">
+                1. Before Grooming
+              </span>
+              <label className="text-[11px] text-[#FF6B00] hover:underline font-bold cursor-pointer flex items-center gap-1">
+                <Upload className="w-3 h-3" /> Change File
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => handleFileUpload(e, 'before')} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+
+            <div className="relative aspect-4/3 w-full rounded-xl overflow-hidden bg-[#EAE7DC] border border-[#D8D3C4] group">
+              {beforeImg ? (
+                <>
+                  <img 
+                    src={beforeImg} 
+                    alt="Before grooming" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <label className="px-3 py-1.5 bg-white text-[#240C0B] text-xs font-extrabold rounded-lg shadow-md cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3.5 h-3.5 text-[#FF6B00]" /> Replace Photo
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleFileUpload(e, 'before')} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <label className="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer text-center text-[#7A6865]">
+                  <Upload className="w-8 h-8 text-[#A08E8B] mb-2" />
+                  <span className="font-bold text-xs text-[#240C0B]">Upload Before Photo</span>
+                  <span className="text-[10px] text-[#A08E8B] mt-0.5">Supports PNG, JPG, WebP</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleFileUpload(e, 'before')} 
+                    className="hidden" 
+                  />
+                </label>
+              )}
+            </div>
+
+            <input 
+              type="text" 
+              placeholder="Or paste image URL..." 
+              value={beforeImg} 
+              onChange={(e) => setBeforeImg(e.target.value)} 
+              className="w-full text-[11px] p-2 bg-white border border-[#D8D3C4] rounded-lg outline-none"
+            />
+          </div>
+
+          {/* 2. AFTER Transformation Box */}
+          <div className="p-3.5 bg-[#F4F9F6] rounded-2xl border-2 border-dashed border-[#A7F3D0] hover:border-[#059669] transition-all space-y-2.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md bg-[#059669] text-white">
+                2. After Transformation
+              </span>
+              <label className="text-[11px] text-[#059669] hover:underline font-bold cursor-pointer flex items-center gap-1">
+                <Upload className="w-3 h-3" /> Change File
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => handleFileUpload(e, 'after')} 
+                  className="hidden" 
+                />
+              </label>
+            </div>
+
+            <div className="relative aspect-4/3 w-full rounded-xl overflow-hidden bg-[#D1FAE5] border border-[#A7F3D0] group">
+              {afterImg ? (
+                <>
+                  <img 
+                    src={afterImg} 
+                    alt="After grooming" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <label className="px-3 py-1.5 bg-white text-[#240C0B] text-xs font-extrabold rounded-lg shadow-md cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3.5 h-3.5 text-[#059669]" /> Replace Photo
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleFileUpload(e, 'after')} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <label className="w-full h-full flex flex-col items-center justify-center p-4 cursor-pointer text-center text-[#065F46]">
+                  <Upload className="w-8 h-8 text-[#059669] mb-2" />
+                  <span className="font-bold text-xs text-[#065F46]">Upload After Photo</span>
+                  <span className="text-[10px] text-[#059669]/70 mt-0.5">Supports PNG, JPG, WebP</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => handleFileUpload(e, 'after')} 
+                    className="hidden" 
+                  />
+                </label>
+              )}
+            </div>
+
+            <input 
+              type="text" 
+              placeholder="Or paste image URL..." 
+              value={afterImg} 
+              onChange={(e) => setAfterImg(e.target.value)} 
+              className="w-full text-[11px] p-2 bg-white border border-[#A7F3D0] rounded-lg outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Quick Transformation Sample Presets */}
+        <div className="pt-1">
+          <span className="text-[10px] font-bold text-[#6E5B58] block mb-1">Quick Realistic Dog Presets:</span>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESETS.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => {
+                  setBreed(p.breed);
+                  setBeforeImg(p.before);
+                  setAfterImg(p.after);
+                  setStyleNotes(p.notes);
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-[#FAF8F5] border border-[#D8D3C4] rounded-lg text-[10px] font-bold text-[#240C0B] transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+              >
+                <span>🐕 {p.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Pet & Owner Information */}
+      <div className="p-3.5 bg-[#FAF8F5] rounded-2xl border border-[#E6DFD5] space-y-3">
         <div>
-          <label className="font-bold text-[#173E39]">Breed</label>
-          <input type="text" value={breed} onChange={(e) => setBreed(e.target.value)} required className="w-full mt-1 p-2 border rounded-xl" />
+          <label className="font-bold text-[#240C0B] block mb-1">Select Registered Dog (Optional)</label>
+          <select 
+            value={selectedClientId} 
+            onChange={(e) => handleClientSelect(e.target.value)}
+            className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none font-bold"
+          >
+            <option value="">-- Choose from Registered Clients or Enter Below --</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.breed}) • Owner: {c.owner}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Pet Name</label>
+            <input 
+              type="text" 
+              value={petName} 
+              onChange={(e) => setPetName(e.target.value)} 
+              placeholder="e.g. Bella" 
+              required 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none" 
+            />
+          </div>
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Breed</label>
+            <input 
+              type="text" 
+              value={breed} 
+              onChange={(e) => setBreed(e.target.value)} 
+              placeholder="e.g. Cockapoo" 
+              required 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none" 
+            />
+          </div>
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Owner Name</label>
+            <input 
+              type="text" 
+              value={ownerName} 
+              onChange={(e) => setOwnerName(e.target.value)} 
+              placeholder="e.g. Emma Clark" 
+              required 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none" 
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Groomer / Stylist</label>
+            <select 
+              value={groomerName} 
+              onChange={(e) => setGroomerName(e.target.value)} 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none font-bold"
+            >
+              {staff.map((s) => (
+                <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Service Treatment</label>
+            <select 
+              value={serviceName} 
+              onChange={(e) => setServiceName(e.target.value)} 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none"
+            >
+              {services.map((s) => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="font-bold text-[#240C0B] block mb-0.5">Date Completed</label>
+            <input 
+              type="date" 
+              value={date} 
+              onChange={(e) => setDate(e.target.value)} 
+              className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none font-bold" 
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-bold text-[#240C0B] block mb-0.5">Style Cut & Blade Length Notes</label>
+          <textarea 
+            value={styleNotes} 
+            onChange={(e) => setStyleNotes(e.target.value)} 
+            placeholder="e.g. #4F reverse body, hand-scissored teddy bear head, round paws, berry facial wash..." 
+            rows={2} 
+            className="w-full p-2 bg-white border border-[#D8D3C4] rounded-xl text-xs outline-none" 
+          />
         </div>
       </div>
-      <div>
-        <label className="font-bold text-[#173E39]">Owner Name</label>
-        <input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required className="w-full mt-1 p-2 border rounded-xl" />
-      </div>
-      <div>
-        <label className="font-bold text-[#173E39]">Style Cut Notes</label>
-        <textarea value={styleNotes} onChange={(e) => setStyleNotes(e.target.value)} placeholder="e.g. #4 body, scissored teddy face..." className="w-full mt-1 p-2 border rounded-xl h-16" />
-      </div>
-      <div className="pt-2 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="btn-ghost text-xs px-4 py-2 rounded-xl">Cancel</button>
-        <button type="submit" className="btn-primary text-xs px-5 py-2 rounded-xl font-bold">Publish Entry</button>
+
+      {/* Action Buttons */}
+      <div className="pt-2 flex justify-end gap-2 border-t border-[#E6DFD5]">
+        <button 
+          type="button" 
+          onClick={onClose} 
+          className="btn-ghost text-xs px-4 py-2.5 rounded-xl font-bold cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button 
+          type="submit" 
+          className="btn-primary text-xs px-6 py-2.5 rounded-xl font-black shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+        >
+          <Sparkles className="w-4 h-4 text-white" />
+          <span>Publish Dog Transformation</span>
+        </button>
       </div>
     </form>
   );
@@ -2105,65 +2463,122 @@ const triggerPrintDocument = (title: string, containerId: string) => {
             <title>${title}</title>
             <meta charset="utf-8" />
             <style>
+              * {
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
               @page {
                 size: A4 portrait;
-                margin: 12mm 15mm;
+                margin: 8mm 12mm;
               }
               body {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                 color: #240C0B;
-                padding: 24px;
-                margin: 0;
+                padding: 16px;
+                margin: 0 auto;
+                max-width: 800px;
                 background: #ffffff;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                line-height: 1.4;
               }
               .no-print { display: none !important; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 20px; }
-              th, td { border-bottom: 1px solid #E6DFD5; padding: 12px 14px; text-align: left; font-size: 12px; }
-              th { border-bottom: 2px solid #240C0B !important; color: #240C0B !important; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+              
+              /* Strict Image Sizing so photos never stretch across pages */
+              img {
+                width: 56px !important;
+                height: 56px !important;
+                max-width: 56px !important;
+                max-height: 56px !important;
+                object-fit: cover !important;
+                border-radius: 12px !important;
+                display: block !important;
+              }
+              .w-14, .w-16, .w-12 { width: 56px !important; }
+              .h-14, .h-16, .h-12 { height: 56px !important; }
+
+              /* Table Styles */
+              table { width: 100%; border-collapse: collapse; margin-top: 14px; margin-bottom: 14px; }
+              th, td { border-bottom: 1px solid #E6DFD5; padding: 8px 10px; text-align: left; font-size: 11px; }
+              th { border-bottom: 2px solid #240C0B !important; color: #240C0B !important; font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
               tr:nth-child(even) { background-color: #FAF8F5; }
+              tr, table, div { break-inside: avoid; page-break-inside: avoid; }
+
+              /* Layout Styles */
+              .grid { display: grid; }
+              .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+              .gap-2 { gap: 8px; }
+              .gap-3 { gap: 12px; }
+              .gap-4 { gap: 14px; }
+              .gap-6 { gap: 20px; }
+              
+              .flex { display: flex; }
+              .flex-col { flex-direction: column; }
+              .justify-between { justify-content: space-between; }
+              .justify-end { justify-content: flex-end; }
+              .items-center { align-items: center; }
+              .items-start { align-items: flex-start; }
+              .shrink-0 { flex-shrink: 0; }
+              
+              .space-y-2 > * + * { margin-top: 8px; }
+              .space-y-3 > * + * { margin-top: 10px; }
+              .space-y-4 > * + * { margin-top: 14px; }
+              .space-y-6 > * + * { margin-top: 18px; }
+              
+              .p-3 { padding: 12px; }
+              .p-4 { padding: 14px; }
+              .p-6 { padding: 18px; }
+              .pb-4 { padding-bottom: 14px; }
+              .pb-6 { padding-bottom: 18px; }
+              .pt-3 { padding-top: 10px; }
+              .pt-4 { padding-top: 14px; }
+              .pt-6 { padding-top: 18px; }
+              
               .bg-white { background-color: #ffffff; }
               .bg-\\[\\#FAF8F5\\] { background-color: #FAF8F5; }
               .bg-\\[\\#E8F5E9\\] { background-color: #E8F5E9; }
+              .bg-\\[\\#FFF3EB\\] { background-color: #FFF3EB; }
+              .bg-\\[\\#240C0B\\] { background-color: #240C0B; }
+              
               .border { border: 1px solid #E6DFD5; }
+              .border-b { border-bottom: 1px solid #E6DFD5; }
               .border-b-2 { border-bottom: 2px solid #240C0B; }
               .border-t-2 { border-top: 2px solid #240C0B; }
-              .rounded-2xl { border-radius: 16px; }
-              .rounded-xl { border-radius: 12px; }
+              .border-dashed { border-style: dashed; }
+              
+              .rounded-3xl { border-radius: 20px; }
+              .rounded-2xl { border-radius: 14px; }
+              .rounded-xl { border-radius: 10px; }
+              .rounded-lg { border-radius: 8px; }
+              .rounded-full { border-radius: 9999px; }
+              
               .font-bold { font-weight: 700; }
+              .font-extrabold { font-weight: 800; }
               .font-black { font-weight: 900; }
+              
               .text-right { text-align: right; }
               .text-center { text-align: center; }
-              .text-sm { font-size: 14px; }
-              .text-xs { font-size: 12px; }
-              .text-2xl { font-size: 24px; }
-              .text-xl { font-size: 20px; }
+              .text-\\[10px\\] { font-size: 10px; }
+              .text-\\[11px\\] { font-size: 11px; }
+              .text-xs { font-size: 11px; }
+              .text-sm { font-size: 13px; }
+              .text-base { font-size: 14px; }
+              .text-xl { font-size: 18px; }
+              .text-2xl { font-size: 22px; }
+              .text-3xl { font-size: 26px; }
+              
               .text-\\[\\#FF6B00\\] { color: #FF6B00; }
               .text-\\[\\#240C0B\\] { color: #240C0B; }
               .text-\\[\\#2E7D32\\] { color: #2E7D32; }
               .text-\\[\\#6E5B58\\] { color: #6E5B58; }
               .text-\\[\\#7A6865\\] { color: #7A6865; }
-              .space-y-4 > * + * { margin-top: 16px; }
-              .space-y-6 > * + * { margin-top: 24px; }
-              .space-y-8 > * + * { margin-top: 32px; }
-              .grid { display: grid; }
-              .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-              .gap-4 { gap: 16px; }
-              .gap-6 { gap: 24px; }
-              .p-4 { padding: 16px; }
-              .p-6 { padding: 24px; }
-              .pb-6 { padding-bottom: 24px; }
-              .pt-6 { padding-top: 24px; }
-              .pt-8 { padding-top: 32px; }
-              .flex { display: flex; }
-              .justify-between { justify-content: space-between; }
-              .items-center { align-items: center; }
-              .items-start { align-items: flex-start; }
+              .text-\\[\\#059669\\] { color: #059669; }
+              .uppercase { text-transform: uppercase; }
+              .tracking-widest { letter-spacing: 0.1em; }
+              .tracking-wider { letter-spacing: 0.05em; }
             </style>
           </head>
           <body>
-            <div>${containerEl.innerHTML}</div>
+            <div class="printable-area">${containerEl.innerHTML}</div>
             <script>
               window.onload = function() {
                 window.focus();

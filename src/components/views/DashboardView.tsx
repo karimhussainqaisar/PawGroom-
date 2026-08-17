@@ -20,6 +20,11 @@ import {
   Phone,
   Search,
   User,
+  Scissors,
+  Camera,
+  Layers,
+  ArrowRight,
+  CheckCircle2,
   Info
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -44,9 +49,10 @@ export const DashboardView: React.FC = () => {
     appointments, 
     services, 
     staff, 
+    transformations,
     updateAppointmentStatus, 
     openModal, 
-    setView,
+    setView, 
     showToast,
     formatPrice,
     settings
@@ -59,8 +65,8 @@ export const DashboardView: React.FC = () => {
   const formattedMonthLabel = today.toLocaleDateString('en-US', { month: 'long' });
   const currentYear = today.getFullYear();
 
-  // Toggle for Appointments card: 'today' vs 'upcoming'
-  const [apptFilter, setApptFilter] = useState<'today' | 'upcoming'>('today');
+  // Toggle for Appointments operations: 'today' vs 'upcoming' vs 'completed'
+  const [apptFilter, setApptFilter] = useState<'today' | 'upcoming' | 'completed'>('today');
 
   // Pet Data Summary Filter & Search States
   const [petSummaryTab, setPetSummaryTab] = useState<'all' | 'vaccine' | 'special' | 'vip'>('all');
@@ -76,12 +82,12 @@ export const DashboardView: React.FC = () => {
       .sort((a, b) => a.start.localeCompare(b.start));
   }, [appointments, todayStr]);
 
-  // Today's revenue (Sum of all active appointments scheduled today)
+  // Today's revenue
   const todayRevenue = React.useMemo(() => {
     return todaysAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
   }, [todaysAppts]);
 
-  // Month-To-Date Revenue across all valid appointments
+  // Month-To-Date Revenue
   const mtdRevenue = React.useMemo(() => {
     return appointments
       .filter((a) => a.status !== 'cancelled' && a.date.startsWith(currentMonthStr))
@@ -103,15 +109,26 @@ export const DashboardView: React.FC = () => {
     return 'your pet clients';
   }, [todaysAppts, clients]);
 
-  // Upcoming Appointments List (strictly dates after today)
+  // Upcoming Appointments List (dates after today)
   const upcomingApptsList = React.useMemo(() => {
     return appointments
       .filter(a => a.status !== 'cancelled' && a.date > todayStr)
       .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   }, [appointments, todayStr]);
 
-  // List of appointments to show in the Appointments card
-  const displayedCardAppts = apptFilter === 'today' ? todaysAppts : upcomingApptsList;
+  // Completed Appointments today
+  const completedApptsList = React.useMemo(() => {
+    return appointments
+      .filter(a => a.status === 'completed')
+      .sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start));
+  }, [appointments]);
+
+  // List of appointments to display in the main floor
+  const displayedCardAppts = React.useMemo(() => {
+    if (apptFilter === 'today') return todaysAppts;
+    if (apptFilter === 'upcoming') return upcomingApptsList;
+    return completedApptsList;
+  }, [apptFilter, todaysAppts, upcomingApptsList, completedApptsList]);
 
   // Comprehensive Pets Data Summary with Clinic, Client, and Shop Owner analytics
   const petDataSummary = React.useMemo(() => {
@@ -133,7 +150,6 @@ export const DashboardView: React.FC = () => {
         }
       }
 
-      // Completed client appointments for lifetime stats
       const clientAppts = appointments
         .filter(a => a.clientId === client.id && a.status !== 'cancelled')
         .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
@@ -273,24 +289,33 @@ export const DashboardView: React.FC = () => {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
       >
         <div>
-          <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#240C0B] tracking-tight flex items-center gap-2">
+          <h1 className="font-display font-black text-3xl sm:text-4xl text-[#240C0B] tracking-tight flex items-center gap-2">
             GOOD MORNING GUYS <span className="text-3xl sm:text-4xl">🐕</span>
           </h1>
           <p className="text-xs sm:text-sm text-[#7A6865] font-semibold mt-1">
-            here's today's overview for <span className="text-[#FF6B00] font-bold">{featuredPetsText}</span>.
+            Salon operations overview for <span className="text-[#FF6B00] font-bold">{featuredPetsText}</span>.
           </p>
         </div>
 
-        <button
-          onClick={() => openModal('appointmentForm', { date: todayStr })}
-          className="self-start sm:self-center px-5 py-2.5 bg-[#240C0B] hover:bg-[#381514] text-white rounded-full text-xs font-extrabold shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4 text-[#FF6B00]" />
-          <span>New Booking</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => openModal('transformationForm')}
+            className="px-4 py-2.5 bg-white hover:bg-[#FAF8F5] text-[#240C0B] border border-[#D8D3C4] rounded-full text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+          >
+            <Camera className="w-3.5 h-3.5 text-[#FF6B00]" />
+            <span>Add Transformation</span>
+          </button>
+          <button
+            onClick={() => openModal('appointmentForm', { date: todayStr })}
+            className="px-5 py-2.5 bg-[#240C0B] hover:bg-[#381514] text-white rounded-full text-xs font-extrabold shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4 text-[#FF6B00]" />
+            <span>New Booking</span>
+          </button>
+        </div>
       </motion.div>
 
-      {/* Top Row: 3 Premium Pastel Metric Cards */}
+      {/* Top Row: 3 Premium Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: Total Appointments Today (Lavender) */}
         <motion.div 
@@ -306,9 +331,9 @@ export const DashboardView: React.FC = () => {
               <div className="w-6 h-6 rounded-full bg-[#321360] text-white flex items-center justify-center">
                 <Calendar className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Total Appointments Today</span>
+              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Appointments Today</span>
             </div>
-            <div className="font-display font-extrabold text-4xl tracking-tight text-[#321360]">
+            <div className="font-display font-black text-4xl tracking-tight text-[#321360]">
               {todaysAppts.length}
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#321360] rounded-full shadow-2xs">
@@ -317,7 +342,6 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* 3D Paw Graphic Motif */}
           <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-12 pointer-events-none">
             <svg viewBox="0 0 100 100" className="w-full h-full fill-[#A885EE]">
               <ellipse cx="50" cy="65" rx="22" ry="18" />
@@ -342,9 +366,9 @@ export const DashboardView: React.FC = () => {
               <div className="w-6 h-6 rounded-full bg-[#541900] text-white flex items-center justify-center">
                 <DollarSign className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Total Revenue Today</span>
+              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Revenue Today</span>
             </div>
-            <div className="font-display font-extrabold text-4xl tracking-tight text-[#541900]">
+            <div className="font-display font-black text-4xl tracking-tight text-[#541900]">
               {formatPrice(todayRevenue)}
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#541900] rounded-full shadow-2xs">
@@ -353,7 +377,6 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* Pet Bowl Graphic Motif */}
           <div className="w-20 h-20 opacity-90 shrink-0 transform -rotate-6 pointer-events-none">
             <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E27C44]">
               <path d="M 15 50 Q 50 85 85 50 Z" />
@@ -377,9 +400,9 @@ export const DashboardView: React.FC = () => {
               <div className="w-6 h-6 rounded-full bg-[#560A38] text-white flex items-center justify-center">
                 <Users className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Active Clients / Pets</span>
+              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Registered Dogs & Clients</span>
             </div>
-            <div className="font-display font-extrabold text-4xl tracking-tight text-[#560A38]">
+            <div className="font-display font-black text-4xl tracking-tight text-[#560A38]">
               {clients.length}
             </div>
             <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#560A38] rounded-full shadow-2xs">
@@ -388,7 +411,6 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          {/* Food Bag Motif */}
           <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-6 pointer-events-none">
             <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E25C9E]">
               <path d="M 25 35 L 75 35 L 80 80 Q 80 85 75 85 L 25 85 Q 20 85 20 80 Z" />
@@ -399,65 +421,81 @@ export const DashboardView: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Middle Row: Appointments, Pets Summary, Grooming Schedule */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Col 1: Soft Yellow Appointments Card with Options for Booking & Printing Invoice */}
+      {/* Center Operational Hub: Cohesive 2-Column Balanced Architecture */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Col (7 of 12 cols): Today's Grooming Operations & Live Queue */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-[#FFF8E7] text-[#331D00] p-6 rounded-[28px] border border-[#FFE7B3] shadow-xs space-y-4"
+          className="lg:col-span-7 bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-5 flex flex-col justify-between"
         >
-          {/* Header & Quick Booking Action */}
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="font-display font-extrabold text-xl text-[#331D00] flex items-center gap-1.5">
-                Appointments
-              </h2>
-              <p className="text-[11px] font-semibold text-[#8C6D38]">
-                {apptFilter === 'today' ? `Today (${todaysAppts.length} scheduled)` : 'All Upcoming'}
-              </p>
-            </div>
+          {/* Header & Filter Switcher */}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E6DFD5]">
+              <div>
+                <h2 className="font-display font-black text-xl text-[#240C0B] flex items-center gap-2">
+                  <Scissors className="w-5 h-5 text-[#FF6B00]" />
+                  <span>Grooming Floor Operations</span>
+                </h2>
+                <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
+                  Live appointments, instant checkout, and WhatsApp invoice dispatch.
+                </p>
+              </div>
 
-            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => openModal('appointmentForm', { date: todayStr })}
-                className="px-2.5 py-1 bg-[#FF6B00] hover:bg-[#E55C00] text-white text-[11px] font-extrabold rounded-full shadow-2xs flex items-center gap-1 cursor-pointer transition-all"
-                title="Book New Appointment"
+                className="self-start sm:self-center px-3.5 py-1.5 bg-[#FF6B00] hover:bg-[#E55C00] text-white text-xs font-black rounded-full shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
               >
-                <Plus className="w-3.5 h-3.5" /> Book
+                <Plus className="w-3.5 h-3.5" /> Book Groom
+              </button>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 mt-3 bg-[#FAF8F5] p-1 rounded-2xl border border-[#E6DFD5]">
+              <button
+                onClick={() => setApptFilter('today')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center ${
+                  apptFilter === 'today' 
+                    ? 'bg-[#240C0B] text-white shadow-xs' 
+                    : 'text-[#7A6865] hover:text-[#240C0B]'
+                }`}
+              >
+                Today ({todaysAppts.length})
+              </button>
+              <button
+                onClick={() => setApptFilter('upcoming')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center ${
+                  apptFilter === 'upcoming' 
+                    ? 'bg-[#240C0B] text-white shadow-xs' 
+                    : 'text-[#7A6865] hover:text-[#240C0B]'
+                }`}
+              >
+                Upcoming ({upcomingApptsList.length})
+              </button>
+              <button
+                onClick={() => setApptFilter('completed')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center ${
+                  apptFilter === 'completed' 
+                    ? 'bg-[#240C0B] text-white shadow-xs' 
+                    : 'text-[#7A6865] hover:text-[#240C0B]'
+                }`}
+              >
+                Completed ({completedApptsList.length})
               </button>
             </div>
           </div>
 
-          {/* Sub-toggle: Today vs Upcoming */}
-          <div className="flex items-center justify-between bg-[#F7ECCE] p-1 rounded-xl text-xs font-bold">
-            <button
-              onClick={() => setApptFilter('today')}
-              className={`flex-1 py-1 rounded-lg transition-all cursor-pointer text-center ${
-                apptFilter === 'today' ? 'bg-[#331D00] text-white shadow-2xs' : 'text-[#8C6D38] hover:text-[#331D00]'
-              }`}
-            >
-              Today ({formattedTodayLabel})
-            </button>
-            <button
-              onClick={() => setApptFilter('upcoming')}
-              className={`flex-1 py-1 rounded-lg transition-all cursor-pointer text-center ${
-                apptFilter === 'upcoming' ? 'bg-[#331D00] text-white shadow-2xs' : 'text-[#8C6D38] hover:text-[#331D00]'
-              }`}
-            >
-              Upcoming ({upcomingApptsList.length})
-            </button>
-          </div>
-
-          {/* Appointment Items List */}
-          <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+          {/* Session Cards List */}
+          <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
             {displayedCardAppts.length === 0 ? (
-              <div className="p-6 text-center text-[#8C6D38] text-xs space-y-2 bg-white/60 rounded-2xl border border-[#FFEBBF]">
-                <p>No appointments found for this view.</p>
+              <div className="p-8 text-center text-[#7A6865] text-xs space-y-3 bg-[#FAF8F5] rounded-2xl border border-[#E6DFD5]">
+                <p className="font-bold text-sm text-[#240C0B]">No appointments in this view</p>
+                <p className="text-xs text-[#7A6865]">Create a new appointment to schedule pet styling.</p>
                 <button
                   onClick={() => openModal('appointmentForm', { date: todayStr })}
-                  className="px-3 py-1.5 bg-[#FF6B00] text-white text-xs font-extrabold rounded-full shadow-2xs"
+                  className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white text-xs font-black rounded-full shadow-sm"
                 >
                   Book Appointment
                 </button>
@@ -466,85 +504,134 @@ export const DashboardView: React.FC = () => {
               displayedCardAppts.map((item) => {
                 const client = clients.find(c => c.id === item.clientId);
                 const service = services.find(s => s.id === item.serviceId);
-                const petAvatar = PET_AVATARS[item.clientId] || DEFAULT_DOG_AVATAR;
+                const stylist = staff.find(st => st.id === item.staffId);
+                const petAvatar = client?.photo || PET_AVATARS[item.clientId] || DEFAULT_DOG_AVATAR;
                 const isCompleted = item.status === 'completed';
 
-                let tagBg = 'bg-[#FF6B00] text-white';
-                if (isCompleted) tagBg = 'bg-[#3BB221] text-white';
-                else if (item.status === 'confirmed') tagBg = 'bg-[#240C0B] text-white';
-                else if (item.status === 'booked') tagBg = 'bg-[#FF9F00] text-white';
+                let statusBadgeStyle = 'bg-[#FFF3EB] text-[#FF6B00] border border-[#FFD0B3]';
+                if (isCompleted) {
+                  statusBadgeStyle = 'bg-[#E8F5E9] text-[#2E7D32] border border-[#C8E6C9]';
+                } else if (item.status === 'confirmed') {
+                  statusBadgeStyle = 'bg-[#ECE5FF] text-[#3B1F70] border border-[#D3C0FF]';
+                }
 
                 return (
                   <div 
                     key={item.id}
-                    className="bg-white/95 hover:bg-white p-3 rounded-2xl border border-[#FFEBBF] shadow-2xs transition-all space-y-2"
+                    className="p-4 rounded-2xl bg-[#FAF8F5] hover:bg-white border border-[#E6DFD5] hover:border-[#D8D3C4] hover:shadow-xs transition-all space-y-3"
                   >
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Pet & Owner Details */}
                       <div 
                         onClick={() => openModal('appointmentForm', { appointment: item })}
-                        className="flex items-center gap-2.5 min-w-0 cursor-pointer"
+                        className="flex items-center gap-3 cursor-pointer min-w-0"
                       >
-                        <img 
-                          src={petAvatar} 
-                          alt={client?.name || 'Pet'} 
-                          className="w-9 h-9 rounded-full object-cover border border-[#FF6B00] shrink-0"
-                        />
+                        <div className="relative shrink-0">
+                          <img 
+                            src={petAvatar} 
+                            alt={client?.name || 'Pet'} 
+                            className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-xs"
+                          />
+                          {isCompleted ? (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#10B981] text-white flex items-center justify-center text-[9px]">
+                              ✓
+                            </div>
+                          ) : (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#FF6B00] border-2 border-white" />
+                          )}
+                        </div>
+
                         <div className="min-w-0">
-                          <h3 className="font-display font-extrabold text-sm text-[#331D00] truncate">
-                            {client?.name || 'Unknown Pet'}
-                          </h3>
-                          <p className="text-[10px] text-[#8C6D38] font-bold truncate flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-[#FF6B00]" />
-                            {item.date === todayStr ? 'Today' : item.date.split('-').slice(1).join('/')} {item.start} • {service?.name || 'Grooming'}
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-display font-black text-base text-[#240C0B] truncate">
+                              {client?.name || 'Unknown Pet'}
+                            </h3>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#7A6865] border border-[#E6DFD5] shrink-0">
+                              {client?.breed || 'Dog'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#6E5B58] font-medium truncate mt-0.5">
+                            Owner: <strong className="text-[#240C0B]">{client?.owner || 'Client'}</strong> • {client?.phone || '(555) 019-2831'}
                           </p>
                         </div>
                       </div>
 
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase shrink-0 ${tagBg}`}>
-                        {item.status}
-                      </span>
+                      {/* Status & Timing Chip */}
+                      <div className="text-right shrink-0">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusBadgeStyle}`}>
+                          {item.status}
+                        </span>
+                        <div className="text-[11px] font-extrabold text-[#240C0B] mt-1 flex items-center gap-1 justify-end">
+                          <Clock className="w-3 h-3 text-[#FF6B00]" />
+                          <span>{item.date === todayStr ? 'Today' : item.date.slice(5)} @ {item.start}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Quick Options Bar: Invoice, Complete, Details */}
-                    <div className="pt-1.5 border-t border-[#FFEBBF]/60 flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-[#331D00] text-xs">
-                        {formatPrice(item.price + (item.retail || 0))}
-                      </span>
+                    {/* Service & Groomer Highlights */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-white rounded-xl border border-[#E6DFD5] text-xs">
+                      <div>
+                        <span className="text-[10px] text-[#A08E8B] font-bold block uppercase">Treatment</span>
+                        <span className="font-extrabold text-[#240C0B] truncate block">
+                          {item.packageName || service?.name || 'Full Grooming'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#A08E8B] font-bold block uppercase">Assigned Stylist</span>
+                        <span className="font-extrabold text-[#240C0B] truncate block">
+                          {stylist?.name || 'Dani Brooks'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#A08E8B] font-bold block uppercase">Total Amount</span>
+                        <span className="font-black text-sm text-[#FF6B00] block">
+                          {formatPrice(item.price + (item.retail || 0))}
+                        </span>
+                      </div>
+                    </div>
 
-                      <div className="flex items-center gap-1.5">
-                        {/* Print Invoice Button */}
+                    {/* Interactive Action Controls */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="text-[11px] text-[#7A6865] font-semibold">
+                        {item.duration} min session
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* 1-Click Invoice Modal */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openModal('invoiceModal', { appointment: item });
                           }}
-                          className="px-2 py-1 bg-[#FFF3EB] hover:bg-[#FFE0CD] text-[#FF6B00] text-[10px] font-bold rounded-lg border border-[#FFD0B3] flex items-center gap-1 transition-colors cursor-pointer"
-                          title="Print / View Invoice"
+                          className="px-3 py-1.5 bg-[#FFF3EB] hover:bg-[#FFE0CD] text-[#FF6B00] border border-[#FFD0B3] text-xs font-extrabold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="Print A4 Invoice or Share on WhatsApp"
                         >
-                          <Printer className="w-3 h-3" /> Invoice
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Invoice & WhatsApp</span>
                         </button>
 
-                        {/* Mark Done Button */}
+                        {/* Complete Groom Button */}
                         {!isCompleted && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleComplete(item.id, client?.name || 'Pet');
                             }}
-                            className="px-2 py-1 bg-[#10B981] hover:bg-[#0D9668] text-white text-[10px] font-extrabold rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Mark Completed"
+                            className="px-3 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-black rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+                            title="Complete and Award Loyalty Points"
                           >
-                            <Check className="w-3 h-3" /> Done
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Done</span>
                           </button>
                         )}
 
-                        {/* Edit Booking Button */}
+                        {/* Edit Button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openModal('appointmentForm', { appointment: item });
                           }}
-                          className="px-2 py-1 bg-[#331D00]/5 hover:bg-[#331D00]/10 text-[#331D00] text-[10px] font-bold rounded-lg transition-colors cursor-pointer"
+                          className="px-2.5 py-1.5 bg-white hover:bg-[#FAF8F5] text-[#240C0B] border border-[#D8D3C4] text-xs font-bold rounded-xl transition-all cursor-pointer"
                         >
                           Edit
                         </button>
@@ -557,29 +644,30 @@ export const DashboardView: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Col 2: Pistachio Green Pets Data Summary */}
+        {/* Right Col (5 of 12 cols): Pet Health & VIP Directory */}
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.25 }}
-          className="bg-[#E3F6D8] text-[#1D3A0E] p-6 rounded-[28px] border border-[#C5EBBA] shadow-xs space-y-4 flex flex-col justify-between"
+          className="lg:col-span-5 bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-4 flex flex-col justify-between"
         >
           {/* Header */}
           <div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#E6DFD5]">
               <div>
-                <h2 className="font-display font-extrabold text-xl text-[#1D3A0E]">
-                  Pets Data Summary
+                <h2 className="font-display font-black text-xl text-[#240C0B]">
+                  Pet Health & VIP Dogs
                 </h2>
-                <p className="text-[11px] font-semibold text-[#4B7A38]">
-                  {clients.length} Registered Dogs • Clinic, Owner & Care Metrics
+                <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
+                  {clients.length} Registered Dogs • Vaccine & Care Status
                 </p>
               </div>
+
               <button 
                 onClick={() => setView('clients')}
-                className="text-xs font-bold text-[#2A6E12] hover:underline cursor-pointer bg-white/70 px-2.5 py-1 rounded-full border border-[#C5EBBA] shrink-0"
+                className="text-xs font-bold text-[#FF6B00] hover:underline cursor-pointer bg-[#FFF3EB] px-3 py-1 rounded-full border border-[#FFD0B3] shrink-0"
               >
-                Full Directory →
+                Directory →
               </button>
             </div>
 
@@ -587,70 +675,70 @@ export const DashboardView: React.FC = () => {
             <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-1 text-[11px] font-bold">
               <button
                 onClick={() => setPetSummaryTab('all')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap ${
                   petSummaryTab === 'all' 
-                    ? 'bg-[#1D3A0E] text-white shadow-2xs' 
-                    : 'bg-white/60 text-[#3C6E28] hover:bg-white'
+                    ? 'bg-[#240C0B] text-white shadow-2xs' 
+                    : 'bg-[#FAF8F5] text-[#7A6865] hover:bg-[#E6DFD5]'
                 }`}
               >
                 All ({clients.length})
               </button>
               <button
                 onClick={() => setPetSummaryTab('vaccine')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                   petSummaryTab === 'vaccine' 
                     ? 'bg-[#EF4444] text-white shadow-2xs' 
-                    : 'bg-white/60 text-[#B91C1C] hover:bg-white'
+                    : 'bg-[#FEF2F2] text-[#DC2626] hover:bg-[#FEE2E2]'
                 }`}
               >
                 <ShieldAlert className="w-3 h-3" />
-                Vaccine Alerts ({petDataSummary.filter(p => p.healthStatus !== 'Valid').length})
+                Vaccines ({petDataSummary.filter(p => p.healthStatus !== 'Valid').length})
               </button>
               <button
                 onClick={() => setPetSummaryTab('special')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                   petSummaryTab === 'special' 
                     ? 'bg-[#D97706] text-white shadow-2xs' 
-                    : 'bg-white/60 text-[#B45309] hover:bg-white'
+                    : 'bg-[#FFFBEB] text-[#D97706] hover:bg-[#FEF3C7]'
                 }`}
               >
                 <HeartPulse className="w-3 h-3" />
-                Special Care ({petDataSummary.filter(p => p.hasSpecialCare).length})
+                Care Notes ({petDataSummary.filter(p => p.hasSpecialCare).length})
               </button>
               <button
                 onClick={() => setPetSummaryTab('vip')}
-                className={`px-2.5 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-full transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                   petSummaryTab === 'vip' 
-                    ? 'bg-[#2E8A81] text-white shadow-2xs' 
-                    : 'bg-white/60 text-[#173E39] hover:bg-white'
+                    ? 'bg-[#3B1F70] text-white shadow-2xs' 
+                    : 'bg-[#ECE5FF] text-[#3B1F70] hover:bg-[#E1D4FF]'
                 }`}
               >
                 <Award className="w-3 h-3" />
-                VIP Dogs ({petDataSummary.filter(p => p.isVip).length})
+                VIP ({petDataSummary.filter(p => p.isVip).length})
               </button>
             </div>
 
             {/* Quick Search */}
             <div className="relative mt-2.5">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#4B7A38]" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#A08E8B]" />
               <input
                 type="text"
                 placeholder="Search dog, breed, or owner..."
                 value={petSummarySearch}
                 onChange={(e) => setPetSummarySearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-white/80 border border-[#C5EBBA] rounded-xl outline-none text-[#1D3A0E] placeholder:text-[#6C9658] focus:bg-white"
+                className="w-full pl-8 pr-3 py-2 text-xs bg-[#FAF8F5] border border-[#E6DFD5] rounded-xl outline-none text-[#240C0B] placeholder:text-[#A08E8B] focus:bg-white focus:border-[#FF6B00]"
               />
             </div>
           </div>
 
           {/* Dogs Data Cards List */}
-          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
             {filteredPetSummary.length === 0 ? (
-              <div className="p-6 text-center text-[#4B7A38] text-xs space-y-1 bg-white/40 rounded-2xl">
+              <div className="p-6 text-center text-[#7A6865] text-xs space-y-1 bg-[#FAF8F5] rounded-2xl border border-[#E6DFD5]">
                 <p className="font-bold">No pets match this filter</p>
                 <button
                   onClick={() => { setPetSummaryTab('all'); setPetSummarySearch(''); }}
-                  className="text-[11px] text-[#2A6E12] underline font-bold cursor-pointer"
+                  className="text-[11px] text-[#FF6B00] underline font-bold cursor-pointer"
                 >
                   Clear Filter
                 </button>
@@ -661,7 +749,7 @@ export const DashboardView: React.FC = () => {
                 return (
                   <div
                     key={item.client.id}
-                    className="bg-white/85 hover:bg-white p-3 rounded-2xl border border-[#C5EBBA] transition-all space-y-2 shadow-2xs"
+                    className="bg-[#FAF8F5] hover:bg-white p-3.5 rounded-2xl border border-[#E6DFD5] transition-all space-y-2.5 shadow-2xs"
                   >
                     {/* Dog Header */}
                     <div className="flex items-start justify-between gap-2">
@@ -669,15 +757,15 @@ export const DashboardView: React.FC = () => {
                         <img
                           src={avatar}
                           alt={item.client.name}
-                          className="w-10 h-10 rounded-full object-cover border border-[#C5EBBA] shrink-0"
+                          className="w-10 h-10 rounded-2xl object-cover border border-[#E6DFD5] shrink-0"
                           referrerPolicy="no-referrer"
                         />
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-sm text-[#1D3A0E]">
+                            <span className="font-black text-sm text-[#240C0B]">
                               {item.client.name}
                             </span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-[#E3F6D8] text-[#2A6E12]">
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-white text-[#7A6865] border border-[#E6DFD5]">
                               {item.client.size} • {item.client.weight || '15'} lbs
                             </span>
                             {item.isVip && (
@@ -686,8 +774,8 @@ export const DashboardView: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-[#4B7A38] font-medium">
-                            {item.client.breed} • Owner: <span className="font-bold text-[#1D3A0E]">{item.client.owner}</span>
+                          <p className="text-[11px] text-[#7A6865] font-medium">
+                            {item.client.breed} • Owner: <span className="font-bold text-[#240C0B]">{item.client.owner}</span>
                           </p>
                         </div>
                       </div>
@@ -698,39 +786,27 @@ export const DashboardView: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Care & Health Highlights */}
-                    <div className="grid grid-cols-2 gap-1.5 text-[10px] bg-[#F7FBF4] p-2 rounded-xl border border-[#E3F6D8]">
+                    {/* Care Highlights */}
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px] bg-white p-2 rounded-xl border border-[#E6DFD5]">
                       <div>
-                        <span className="text-[#6C9658] font-bold block">Next Appointment</span>
-                        <span className="font-extrabold text-[#1D3A0E] truncate block">
+                        <span className="text-[#A08E8B] font-bold block">Next Session</span>
+                        <span className="font-extrabold text-[#240C0B] truncate block">
                           {item.nextApptStr}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[#6C9658] font-bold block">Visits & Spend</span>
-                        <span className="font-extrabold text-[#1D3A0E] block">
-                          {item.totalVisits} visits • {formatPrice(item.lifetimeSpend)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[#6C9658] font-bold block">Preferred Stylist</span>
-                        <span className="font-semibold text-[#1D3A0E] truncate block">
-                          {item.preferredStaff?.name || 'Any Stylist'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[#6C9658] font-bold block">Loyalty Balance</span>
-                        <span className="font-semibold text-[#2A6E12] block">
-                          {item.client.points || 0} pts
+                        <span className="text-[#A08E8B] font-bold block">Visits & Loyalty</span>
+                        <span className="font-extrabold text-[#240C0B] block">
+                          {item.totalVisits} visits • {item.client.points || 0} pts
                         </span>
                       </div>
                     </div>
 
-                    {/* Sensitivities / Special Handling Tags */}
+                    {/* Care Notes Tag */}
                     {item.hasSpecialCare && (
                       <div className="flex flex-wrap gap-1 items-center">
                         <span className="text-[9px] font-bold text-[#B45309] flex items-center gap-0.5">
-                          <AlertTriangle className="w-2.5 h-2.5" /> Care Notes:
+                          <AlertTriangle className="w-2.5 h-2.5" /> Care:
                         </span>
                         {item.client.behaviorNotes?.map((n, i) => (
                           <span key={i} className="text-[9px] font-bold px-1.5 py-0.2 bg-[#FEF3C7] text-[#92400E] rounded-md">
@@ -742,160 +818,23 @@ export const DashboardView: React.FC = () => {
                             {item.client.sensitivities}
                           </span>
                         )}
-                        {item.client.allergies && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#FEE2E2] text-[#991B1B] rounded-md">
-                            Allergies: {item.client.allergies}
-                          </span>
-                        )}
                       </div>
                     )}
 
                     {/* Direct Pet Actions */}
-                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-[#C5EBBA]/50">
+                    <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-[#E6DFD5]">
                       <button
                         onClick={() => openModal('clientHistory', { client: item.client })}
-                        className="px-2.5 py-1 bg-white hover:bg-[#E3F6D8] text-[#1D3A0E] text-[10px] font-bold rounded-lg border border-[#C5EBBA] flex items-center gap-1 transition-colors cursor-pointer"
+                        className="px-2.5 py-1 bg-white hover:bg-[#FAF8F5] text-[#240C0B] text-[10px] font-bold rounded-lg border border-[#D8D3C4] flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        <FileText className="w-3 h-3 text-[#4B7A38]" /> Full Pet Record
+                        <FileText className="w-3 h-3 text-[#FF6B00]" /> Full Record
                       </button>
                       <button
                         onClick={() => openModal('appointmentForm', { clientId: item.client.id })}
-                        className="px-2.5 py-1 bg-[#1D3A0E] hover:bg-[#2A6E12] text-white text-[10px] font-extrabold rounded-lg flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                        className="px-2.5 py-1 bg-[#240C0B] hover:bg-[#381514] text-white text-[10px] font-black rounded-lg flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                       >
-                        <Calendar className="w-3 h-3" /> Book Groom
+                        <Calendar className="w-3 h-3 text-[#FF6B00]" /> Book Groom
                       </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </motion.div>
-
-        {/* Col 3: Grooming Schedule Timeline Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="font-display font-extrabold text-xl text-[#240C0B]">
-              Grooming Schedule
-            </h2>
-            <span className="text-[11px] font-bold text-[#FF6B00] bg-[#FFF3EB] px-2.5 py-1 rounded-full">
-              Today ({formattedTodayLabel})
-            </span>
-          </div>
-
-          <div className="space-y-3.5">
-            {todaysAppts.length === 0 ? (
-              <div className="p-6 text-center text-[#A08E8B] text-xs space-y-2">
-                <p>No grooming sessions scheduled for today yet.</p>
-                <button
-                  onClick={() => openModal('appointmentForm', { date: todayStr })}
-                  className="px-4 py-2 bg-[#FF6B00] text-white text-xs font-bold rounded-full shadow-sm"
-                >
-                  Book Session
-                </button>
-              </div>
-            ) : (
-              todaysAppts.map((appt, idx) => {
-                const client = clients.find(c => c.id === appt.clientId);
-                const service = services.find(s => s.id === appt.serviceId);
-                const groomer = staff.find(st => st.id === appt.staffId);
-                const isCompleted = appt.status === 'completed';
-                const petAvatar = PET_AVATARS[appt.clientId] || DEFAULT_DOG_AVATAR;
-
-                // Highlight first non-completed appointment as Active
-                const isActiveSlot = idx === 0 || (!isCompleted && todaysAppts.findIndex(a => a.status !== 'completed') === idx);
-
-                if (isActiveSlot) {
-                  return (
-                    <div 
-                      key={appt.id}
-                      className="bg-[#3B1F70] text-white p-4 rounded-2xl shadow-md space-y-3"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-[10px] font-bold text-[#C2B1E5]">
-                          {appt.start} ({appt.duration}m)
-                        </span>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${
-                          isCompleted ? 'bg-[#10B981] text-white' : 'bg-[#FF6B00] text-white'
-                        }`}>
-                          {isCompleted ? 'Completed' : 'Active Session'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2.5">
-                        <img 
-                          src={petAvatar} 
-                          alt={client?.name || 'Pet'} 
-                          className="w-9 h-9 rounded-full object-cover border border-[#A885EE] shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <h4 className="font-display font-extrabold text-sm text-white truncate">
-                            {client?.name || 'Pet'} ({client?.breed})
-                          </h4>
-                          <p className="text-[10px] text-[#D1C3F0] truncate">
-                            {service?.name || 'Grooming'} • {groomer ? groomer.name.split(' ')[0] : 'Stylist'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center justify-between border-t border-white/10">
-                        <div>
-                          <span className="text-[9px] text-[#C2B1E5] block uppercase font-semibold">Total Price</span>
-                          <span className="font-display font-extrabold text-base text-white">
-                            {formatPrice(appt.price + (appt.retail || 0))}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openModal('invoiceModal', { appointment: appt })}
-                            className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
-                            title="Print Invoice"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                          </button>
-
-                          {!isCompleted && (
-                            <button
-                              onClick={() => handleComplete(appt.id, client?.name || 'Pet')}
-                              className="px-3 py-1.5 bg-[#FF6B00] hover:bg-[#E55C00] text-white text-xs font-extrabold rounded-full shadow-sm flex items-center gap-1 cursor-pointer"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Mark Done
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div 
-                    key={appt.id}
-                    className="flex gap-3 text-xs items-center justify-between p-2.5 bg-[#FAF8F5] rounded-2xl border border-[#E6DFD5]"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-[10px] font-bold text-[#FF6B00] shrink-0 w-12 text-right">
-                        {appt.start}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-extrabold text-[#240C0B] truncate">{client?.name || 'Pet'}</p>
-                        <p className="text-[10px] text-[#A08E8B] truncate">{service?.name}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-bold text-[#240C0B]">{formatPrice(appt.price)}</span>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                        isCompleted ? 'bg-[#E1F0E7] text-[#10B981]' : 'bg-[#FFE7B3] text-[#331D00]'
-                      }`}>
-                        {appt.status}
-                      </span>
                     </div>
                   </div>
                 );
@@ -904,6 +843,107 @@ export const DashboardView: React.FC = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Dog Before & After Transformation Gallery Bar */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+        className="bg-white p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E6DFD5]">
+          <div>
+            <h3 className="font-display font-black text-xl text-[#240C0B] flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#FF6B00]" />
+              <span>Real Dog Transformations (Before & After)</span>
+            </h3>
+            <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
+              Genuine salon styling transformations with before/after photos and scissor cut notes.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openModal('transformationForm')}
+              className="px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white text-xs font-black rounded-full shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" /> Upload Transformation
+            </button>
+            <button
+              onClick={() => setView('gallery')}
+              className="px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#E6DFD5] text-[#240C0B] text-xs font-extrabold rounded-full border border-[#D8D3C4] transition-all cursor-pointer"
+            >
+              View Full Gallery →
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Showcase Transformations Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {transformations.slice(0, 3).map((tr) => (
+            <div 
+              key={tr.id}
+              className="bg-[#FAF8F5] p-4 rounded-2xl border border-[#E6DFD5] space-y-3 hover:border-[#FF6B00] transition-all flex flex-col justify-between group"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-display font-black text-base text-[#240C0B]">
+                      {tr.petName}
+                    </h4>
+                    <span className="text-xs font-bold text-[#FF6B00]">
+                      {tr.breed} • Owner: {tr.ownerName}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#7A6865] border border-[#E6DFD5]">
+                    {tr.date}
+                  </span>
+                </div>
+
+                {/* Side-by-side Before & After Photos */}
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black uppercase tracking-wider block text-center px-1 py-0.5 rounded-md bg-[#240C0B] text-white">
+                      Before
+                    </span>
+                    <div className="aspect-square rounded-xl overflow-hidden bg-[#EAE7DC] border border-[#D8D3C4]">
+                      <img 
+                        src={tr.beforeImg || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=400&q=80'} 
+                        alt="Before Groom" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black uppercase tracking-wider block text-center px-1 py-0.5 rounded-md bg-[#059669] text-white">
+                      After Groom
+                    </span>
+                    <div className="aspect-square rounded-xl overflow-hidden bg-[#D1FAE5] border border-[#A7F3D0]">
+                      <img 
+                        src={tr.afterImg || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80'} 
+                        alt="After Groom" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Style Notes */}
+                <div className="mt-3 bg-white p-2.5 rounded-xl border border-[#E6DFD5] text-[11px] text-[#6E5B58]">
+                  <strong className="text-[#240C0B] font-extrabold">Style Cut: </strong>
+                  {tr.styleNotes}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#E6DFD5] flex items-center justify-between text-xs text-[#7A6865]">
+                <span>Stylist: <strong className="text-[#240C0B]">{tr.groomerName}</strong></span>
+                <span className="text-[10px] text-[#FF6B00] font-extrabold">{tr.serviceName}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
 
       {/* Bottom Row: Care & Services Radial Index & Monthly Revenue Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
