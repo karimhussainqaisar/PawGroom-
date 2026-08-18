@@ -1,9 +1,10 @@
 import QRCode from 'qrcode';
-import { Appointment, Client, Settings, Service, Package, LoyaltyRedemption } from '../types';
+import { Appointment, Client, Settings, Service, Package, LoyaltyRedemption, PurchasedRetailItem } from '../types';
 
 export interface CalculatedInvoiceData {
   servicePrice: number;
   retailAddon: number;
+  purchasedItems: PurchasedRetailItem[];
   grossSubtotal: number;
   discountAmount: number;
   discountCode: string;
@@ -49,6 +50,7 @@ export function calculateAppointmentInvoice(
     return {
       servicePrice: 0,
       retailAddon: 0,
+      purchasedItems: [],
       grossSubtotal: 0,
       discountAmount: 0,
       discountCode: '',
@@ -75,7 +77,10 @@ export function calculateAppointmentInvoice(
 
   const service = services.find((s) => s.id === appt.serviceId);
 
-  const retailAddon = appt.retail || 0;
+  const purchasedItems = appt.purchasedItems || [];
+  const retailAddon = purchasedItems.length > 0 
+    ? purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+    : (appt.retail || 0);
   const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
   const grossSubtotal = servicePrice + retailAddon;
 
@@ -114,6 +119,7 @@ export function calculateAppointmentInvoice(
   return {
     servicePrice,
     retailAddon,
+    purchasedItems,
     grossSubtotal,
     discountAmount,
     discountCode,

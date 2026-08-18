@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw, Download } from 'lucide-react';
+import { PurchasedRetailItem } from '../../types';
+import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Printer, FileText, Receipt, Scissors, ShieldAlert, Copy, Gift, Sparkles, Share2, MessageCircle, Upload, Image as ImageIcon, Camera, RefreshCw, Download, Plus, Minus, ShoppingBag } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 import { formatShortInvoiceNumber, calculateAppointmentInvoice } from '../../utils/invoice';
@@ -440,7 +441,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     formatPrice 
   } = useApp();
   
-  const appt = data?.appointment;
+  const appt = data?.appointment || (data?.id ? data : null);
   if (!appt) return null;
 
   const client = clients.find((c) => c.id === appt.clientId);
@@ -452,7 +453,94 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     ? packages.find((p) => p.id === appt.packageId)
     : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : null);
 
-  const [retailAddon, setRetailAddon] = useState(appt.retail || 0);
+  // Multi-retail items state
+  const initialPurchasedItems = useMemo<PurchasedRetailItem[]>(() => {
+    if (appt.purchasedItems && appt.purchasedItems.length > 0) {
+      return appt.purchasedItems;
+    }
+    if (appt.retail && appt.retail > 0) {
+      // Find matching inventory item by price or fallback
+      const matchingInv = inventory.find((i) => i.price === appt.retail);
+      return [{
+        itemId: matchingInv?.id || 'legacy_retail',
+        name: matchingInv?.name || 'Retail Care Add-on',
+        price: appt.retail,
+        quantity: 1
+      }];
+    }
+    return [];
+  }, [appt.purchasedItems, appt.retail, inventory]);
+
+  const [purchasedProducts, setPurchasedProducts] = useState<PurchasedRetailItem[]>(initialPurchasedItems);
+  const [selectedInventoryId, setSelectedInventoryId] = useState<string>('');
+
+  React.useEffect(() => {
+    setPurchasedProducts(initialPurchasedItems);
+  }, [appt.id]);
+
+  const retailAddon = useMemo(() => {
+    return purchasedProducts.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 1), 0);
+  }, [purchasedProducts]);
+
+  const handleAddProduct = (itemToAdd?: { id: string; name: string; price: number; stock?: number }) => {
+    const targetItem = itemToAdd || inventory.find((i) => i.id === selectedInventoryId);
+    if (!targetItem) return;
+
+    setPurchasedProducts((prev) => {
+      const existingIdx = prev.findIndex((p) => p.itemId === targetItem.id);
+      if (existingIdx !== -1) {
+        const next = [...prev];
+        const currentQty = next[existingIdx].quantity || 1;
+        if (targetItem.stock !== undefined && currentQty >= targetItem.stock) {
+          showToast(`Only ${targetItem.stock} in stock for ${targetItem.name}`, 'warning');
+          return prev;
+        }
+        next[existingIdx] = {
+          ...next[existingIdx],
+          quantity: currentQty + 1,
+        };
+        return next;
+      } else {
+        if (targetItem.stock !== undefined && targetItem.stock <= 0) {
+          showToast(`${targetItem.name} is currently out of stock!`, 'warning');
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            itemId: targetItem.id,
+            name: targetItem.name,
+            price: Number(targetItem.price || 0),
+            quantity: 1,
+          },
+        ];
+      }
+    });
+    setSelectedInventoryId('');
+  };
+
+  const handleUpdateProductQuantity = (itemId: string, delta: number) => {
+    setPurchasedProducts((prev) => {
+      return prev
+        .map((p) => {
+          if (p.itemId === itemId) {
+            const newQty = (p.quantity || 1) + delta;
+            const invItem = inventory.find((i) => i.id === itemId);
+            if (delta > 0 && invItem && invItem.stock !== undefined && newQty > invItem.stock) {
+              showToast(`Cannot exceed current stock level (${invItem.stock}) for ${p.name}`, 'warning');
+              return p;
+            }
+            return newQty > 0 ? { ...p, quantity: newQty } : null;
+          }
+          return p;
+        })
+        .filter(Boolean) as PurchasedRetailItem[];
+    });
+  };
+
+  const handleRemoveProduct = (itemId: string) => {
+    setPurchasedProducts((prev) => prev.filter((p) => p.itemId !== itemId));
+  };
 
   // Filter promo codes strictly for THIS specific client or dog
   const clientPromoCodes = useMemo(() => {
@@ -533,6 +621,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     // Save invoice and discount details to appointment
     updateAppointment(appt.id, {
       retail: retailAddon,
+      purchasedItems: purchasedProducts,
       discountAmount: chosenDiscAmount,
       discountCode: chosenCode,
       discountTitle: chosenTitle,
@@ -547,7 +636,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       markVoucherAsUsed(activeVoucher.code, appt.id);
     }
 
-    updateAppointmentStatus(appt.id, 'completed', retailAddon);
+    updateAppointmentStatus(appt.id, 'completed', retailAddon, purchasedProducts);
     confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     showToast(
       `Appointment completed! Total: ${formatPrice(finalTotal)} (Tax: ${taxRate}%${chosenDiscAmount > 0 ? `, Promo: -${formatPrice(chosenDiscAmount)}` : ''})`,
@@ -565,6 +654,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       appointment: { 
         ...appt, 
         retail: retailAddon,
+        purchasedItems: purchasedProducts,
         discountAmount: chosenDiscAmount,
         discountCode: chosenCode,
         discountTitle: chosenTitle,
@@ -575,6 +665,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       groomerName: groomer?.name,
       servicePrice,
       retailAddon,
+      purchasedItems: purchasedProducts,
       discountAmount: chosenDiscAmount,
       discountCode: chosenCode,
       discountTitle: chosenTitle,
@@ -663,21 +754,134 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
           </div>
         )}
 
-        {/* Add-on Retail Sales */}
-        <div className="pt-2 border-t">
-          <label className="font-bold text-[#173E39] block mb-1">Add-on Retail Products ($)</label>
-          <select
-            value={retailAddon}
-            onChange={(e) => setRetailAddon(parseFloat(e.target.value))}
-            className="w-full p-2 border border-[#D8D3C4] rounded-xl bg-white outline-none focus:border-[#2E8A81]"
-          >
-            <option value={0}>None ($0.00)</option>
-            {inventory.map((i) => (
-              <option key={i.id} value={i.price || 0}>
-                {i.name} (+${Number(i.price || 0).toFixed(2)})
-              </option>
+        {/* Add-on Retail Sales (Multiple Products & Stock Deduction) */}
+        <div className="p-3.5 rounded-2xl bg-white border border-[#D8D3C4] space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-bold text-[#173E39]">
+              <ShoppingBag className="w-4 h-4 text-[#2E8A81]" />
+              <span>Add-on Retail Products & Care Items</span>
+            </div>
+            {purchasedProducts.length > 0 && (
+              <span className="text-[11px] font-bold text-[#FF6B00] bg-[#FFF8E7] px-2 py-0.5 rounded-full border border-[#FFE7B3]">
+                {purchasedProducts.reduce((s, p) => s + (p.quantity || 1), 0)} items ({formatPrice(retailAddon)})
+              </span>
+            )}
+          </div>
+
+          {/* Product Picker Row */}
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedInventoryId}
+              onChange={(e) => setSelectedInventoryId(e.target.value)}
+              className="flex-1 p-2 border border-[#D8D3C4] rounded-xl bg-white text-xs outline-none focus:border-[#2E8A81]"
+            >
+              <option value="">Select product to add...</option>
+              {inventory.map((i) => {
+                const isOutOfStock = i.stock !== undefined && i.stock <= 0;
+                return (
+                  <option key={i.id} value={i.id} disabled={isOutOfStock}>
+                    {i.name} — {formatPrice(i.price || 0)} {i.stock !== undefined ? `(${i.stock} in stock${isOutOfStock ? ' - OUT' : ''})` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            <button
+              type="button"
+              disabled={!selectedInventoryId}
+              onClick={() => handleAddProduct()}
+              className="px-3 py-2 bg-[#2E8A81] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1F6660] text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add</span>
+            </button>
+          </div>
+
+          {/* Quick-Add Popular Retail Items Badges */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[10px] text-[#5C716C] font-semibold">Quick add:</span>
+            {inventory.slice(0, 4).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleAddProduct(item)}
+                disabled={item.stock !== undefined && item.stock <= 0}
+                className="text-[10px] font-bold px-2 py-1 bg-[#FAF8F5] hover:bg-[#EAE7DC] text-[#173E39] border border-[#D8D3C4] rounded-lg cursor-pointer transition-all flex items-center gap-1 disabled:opacity-40"
+              >
+                <span>+ {item.name.split(' ')[0]}</span>
+                <span className="text-[#FF6B00]">({formatPrice(item.price)})</span>
+              </button>
             ))}
-          </select>
+          </div>
+
+          {/* Selected Products List */}
+          {purchasedProducts.length > 0 ? (
+            <div className="space-y-1.5 pt-1.5 border-t border-[#EAE7DC]">
+              {purchasedProducts.map((prod) => {
+                const invItem = inventory.find((i) => i.id === prod.itemId || i.name.toLowerCase() === prod.name.toLowerCase());
+                const currentStock = invItem ? invItem.stock : undefined;
+                const lineTotal = (prod.price || 0) * (prod.quantity || 1);
+
+                return (
+                  <div
+                    key={prod.itemId}
+                    className="p-2 bg-[#FAF8F5] rounded-xl border border-[#D8D3C4] flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-[#173E39] truncate">{prod.name}</div>
+                      <div className="text-[10px] text-[#5C716C] flex items-center gap-2">
+                        <span>{formatPrice(prod.price)} each</span>
+                        {currentStock !== undefined && (
+                          <span className={`font-semibold ${currentStock < 5 ? 'text-[#C9503A]' : 'text-[#2E8A81]'}`}>
+                            • Stock: {currentStock}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quantity Controls */}
+                    <div className="flex items-center gap-1 bg-white border border-[#D8D3C4] rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateProductQuantity(prod.itemId, -1)}
+                        className="w-6 h-6 flex items-center justify-center text-[#5C716C] hover:text-[#173E39] hover:bg-[#F1EEE6] rounded cursor-pointer"
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center font-bold text-xs text-[#173E39]">
+                        {prod.quantity || 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateProductQuantity(prod.itemId, 1)}
+                        className="w-6 h-6 flex items-center justify-center text-[#5C716C] hover:text-[#173E39] hover:bg-[#F1EEE6] rounded cursor-pointer"
+                        title="Increase quantity"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="text-right min-w-[60px]">
+                      <div className="font-bold text-[#173E39]">{formatPrice(lineTotal)}</div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveProduct(prod.itemId)}
+                      className="p-1 text-[#A08E8B] hover:text-[#C9503A] hover:bg-[#FEF2F2] rounded-lg transition-colors cursor-pointer"
+                      title="Remove product"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-[11px] text-[#7A6865] italic bg-[#FAF8F5] p-2 rounded-xl border border-dashed border-[#D8D3C4] text-center">
+              No retail items added to this appointment.
+            </div>
+          )}
         </div>
 
         {/* Dog/Client Specific Promo Codes & Discounts */}
@@ -853,12 +1057,25 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
             <span className="font-bold text-[#173E39]">{formatPrice(servicePrice)}</span>
           </div>
 
-          {retailAddon > 0 && (
+          {purchasedProducts.length > 0 ? (
+            <div className="space-y-1 pt-0.5">
+              <div className="flex justify-between text-[#5C716C]">
+                <span>Retail Products ({purchasedProducts.reduce((s, p) => s + (p.quantity || 1), 0)} items):</span>
+                <span className="font-bold text-[#173E39]">+{formatPrice(retailAddon)}</span>
+              </div>
+              {purchasedProducts.map((p) => (
+                <div key={p.itemId} className="flex justify-between text-[#7A6865] text-[10px] pl-2">
+                  <span className="truncate max-w-[200px]">• {p.name} ({p.quantity || 1}x)</span>
+                  <span>{formatPrice((p.price || 0) * (p.quantity || 1))}</span>
+                </div>
+              ))}
+            </div>
+          ) : retailAddon > 0 ? (
             <div className="flex justify-between text-[#5C716C]">
               <span>Retail Add-ons:</span>
               <span className="font-bold text-[#173E39]">+{formatPrice(retailAddon)}</span>
             </div>
-          )}
+          ) : null}
 
           <div className="flex justify-between text-[#5C716C] pt-0.5 border-t border-[#D8D3C4]/40">
             <span>Gross Subtotal:</span>
@@ -922,6 +1139,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
               // Persist invoice & promo code data to appointment state so reopening always has it!
               updateAppointment(appt.id, {
                 retail: retailAddon,
+                purchasedItems: purchasedProducts,
                 discountAmount: chosenDiscAmount,
                 discountCode: chosenCode,
                 discountTitle: chosenTitle,
@@ -940,6 +1158,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
                 appointment: {
                   ...appt,
                   retail: retailAddon,
+                  purchasedItems: purchasedProducts,
                   discountAmount: chosenDiscAmount,
                   discountCode: chosenCode,
                   discountTitle: chosenTitle,
@@ -950,6 +1169,7 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
                   packageName: pkg?.name || appt.packageName,
                 }, 
                 retailAddon,
+                purchasedItems: purchasedProducts,
                 discountAmount: chosenDiscAmount,
                 discountCode: chosenCode,
                 discountTitle: chosenTitle,
@@ -3198,7 +3418,10 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     ? packages.find((p) => p.id === appt.packageId)
     : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : (data?.packageId ? packages.find(p => p.id === data.packageId) : null));
 
-  const retailAddon = data?.retailAddon !== undefined ? data.retailAddon : (appt.retail || 0);
+  const purchasedItems: PurchasedRetailItem[] = data?.purchasedItems || appt.purchasedItems || [];
+  const retailAddon = data?.retailAddon !== undefined 
+    ? data.retailAddon 
+    : (purchasedItems.length > 0 ? purchasedItems.reduce((s, p) => s + (p.price || 0) * (p.quantity || 1), 0) : (appt.retail || 0));
   const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
   const subtotal = servicePrice + retailAddon;
 
@@ -3260,13 +3483,14 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     const ok = openWhatsAppInvoice({
       invoiceNum,
       client,
-      appointment: { ...appt, retail: retailAddon },
+      appointment: { ...appt, retail: retailAddon, purchasedItems },
       clinicSettings: settings,
       serviceName: service?.name,
       packageName: pkg?.name || appt.packageName,
       groomerName: groomer?.name,
       servicePrice,
       retailAddon,
+      purchasedItems,
       discountAmount,
       discountCode,
       discountTitle,
@@ -3286,13 +3510,14 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
     const text = generateWhatsAppInvoiceText({
       invoiceNum,
       client,
-      appointment: { ...appt, retail: retailAddon },
+      appointment: { ...appt, retail: retailAddon, purchasedItems },
       clinicSettings: settings,
       serviceName: service?.name,
       packageName: pkg?.name || appt.packageName,
       groomerName: groomer?.name,
       servicePrice,
       retailAddon,
+      purchasedItems,
       discountAmount,
       discountCode,
       discountTitle,
@@ -3523,8 +3748,29 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                   </td>
                 </tr>
 
-                {/* Retail Addon */}
-                {retailAddon > 0 && (
+                {/* Itemized Retail Products or Legacy Addon */}
+                {purchasedItems.length > 0 ? (
+                  purchasedItems.map((item, idx) => {
+                    const qty = item.quantity || 1;
+                    const unitPrice = item.price || 0;
+                    const lineTotal = unitPrice * qty;
+                    return (
+                      <tr key={item.itemId || `prod_${idx}`}>
+                        <td className="py-2.5 pr-3">
+                          <div className="font-bold text-xs text-[#240C0B]">
+                            🛍️ {item.name}
+                          </div>
+                          <div className="text-[11px] text-[#7A6865] mt-0.5">
+                            Retail pet care & grooming take-home product.
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-2 text-center font-medium text-[#7A6865] text-[11px]">{qty}x</td>
+                        <td className="py-2.5 px-2 text-right font-medium text-[#7A6865] text-[11px]">{formatPrice(unitPrice)}</td>
+                        <td className="py-2.5 pl-2 text-right font-bold text-xs text-[#240C0B]">{formatPrice(lineTotal)}</td>
+                      </tr>
+                    );
+                  })
+                ) : retailAddon > 0 ? (
                   <tr>
                     <td className="py-2.5 pr-3">
                       <div className="font-bold text-xs text-[#240C0B]">
@@ -3538,7 +3784,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
                     <td className="py-2.5 px-2 text-right font-medium text-[#7A6865] text-[11px]">{formatPrice(retailAddon)}</td>
                     <td className="py-2.5 pl-2 text-right font-bold text-xs text-[#240C0B]">{formatPrice(retailAddon)}</td>
                   </tr>
-                )}
+                ) : null}
 
                 {/* Promo Code Discount */}
                 {discountAmount > 0 && (

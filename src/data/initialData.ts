@@ -485,14 +485,31 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     duration: 60, 
     price: 60, 
     status: 'completed', 
-    retail: 16, 
+    retail: 18, 
+    purchasedItems: [
+      { itemId: 'in1', name: 'Oatmeal Shampoo 500ml', price: 18, quantity: 1 }
+    ],
     discountAmount: 11.4, 
     discountCode: 'BELLA-15', 
     discountTitle: '15% Off VIP Full Grooming',
     notes: 'Oatmeal shampoo used' 
   },
   { id: 'ap102', clientId: 'cl5', serviceId: 'sv2', staffId: 'st1', date: dDays(0), start: '10:00', duration: 90, price: 70, status: 'completed', retail: 0 },
-  { id: 'ap103', clientId: 'cl9', serviceId: 'sv1', staffId: 'st1', date: dDays(0), start: '11:30', duration: 75, price: 55, status: 'completed', retail: 12 },
+  { 
+    id: 'ap103', 
+    clientId: 'cl9', 
+    serviceId: 'sv1', 
+    staffId: 'st1', 
+    date: dDays(0), 
+    start: '11:30', 
+    duration: 75, 
+    price: 55, 
+    status: 'completed', 
+    retail: 12,
+    purchasedItems: [
+      { itemId: 'in4', name: 'Ear Cleaner 120ml', price: 12, quantity: 1 }
+    ]
+  },
   { id: 'ap104', clientId: 'cl1', serviceId: 'sv1', staffId: 'st1', date: dDays(0), start: '13:30', duration: 75, price: 55, status: 'confirmed', notes: 'Owner requested extra paw balm' },
   { id: 'ap105', clientId: 'cl3', serviceId: 'sv2', staffId: 'st1', date: dDays(0), start: '15:00', duration: 90, price: 70, status: 'booked' },
 
@@ -505,11 +522,53 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
   { id: 'ap111', clientId: 'cl11', serviceId: 'sv2', staffId: 'st1', date: dDays(4), start: '12:00', duration: 90, price: 70, status: 'booked' },
 
   // Recent completed appointments (Past 21 days for financial charts)
-  { id: 'ap1', clientId: 'cl7', serviceId: 'sv7', staffId: 'st2', date: dDays(-1), start: '10:00', duration: 15, price: 18, status: 'completed', retail: 8 },
-  { id: 'ap2', clientId: 'cl3', serviceId: 'sv2', staffId: 'st1', date: dDays(-1), start: '12:00', duration: 90, price: 70, status: 'completed', retail: 20 },
+  { 
+    id: 'ap1', 
+    clientId: 'cl7', 
+    serviceId: 'sv7', 
+    staffId: 'st2', 
+    date: dDays(-1), 
+    start: '10:00', 
+    duration: 15, 
+    price: 18, 
+    status: 'completed', 
+    retail: 6,
+    purchasedItems: [
+      { itemId: 'in6', name: 'Bandana / Bow', price: 6, quantity: 1 }
+    ]
+  },
+  { 
+    id: 'ap2', 
+    clientId: 'cl3', 
+    serviceId: 'sv2', 
+    staffId: 'st1', 
+    date: dDays(-1), 
+    start: '12:00', 
+    duration: 90, 
+    price: 70, 
+    status: 'completed', 
+    retail: 20,
+    purchasedItems: [
+      { itemId: 'in2', name: 'De-shed Conditioner 500ml', price: 20, quantity: 1 }
+    ]
+  },
   { id: 'ap3', clientId: 'cl12', serviceId: 'sv4', staffId: 'st2', date: dDays(-1), start: '13:30', duration: 45, price: 38, status: 'completed' },
   { id: 'ap4', clientId: 'cl6', serviceId: 'sv4', staffId: 'st2', date: dDays(-2), start: '10:30', duration: 45, price: 38, status: 'completed' },
-  { id: 'ap5', clientId: 'cl8', serviceId: 'sv1', staffId: 'st1', date: dDays(-2), start: '14:00', duration: 75, price: 55, status: 'completed', retail: 14 },
+  { 
+    id: 'ap5', 
+    clientId: 'cl8', 
+    serviceId: 'sv1', 
+    staffId: 'st1', 
+    date: dDays(-2), 
+    start: '14:00', 
+    duration: 75, 
+    price: 55, 
+    status: 'completed', 
+    retail: 14,
+    purchasedItems: [
+      { itemId: 'in3', name: 'Detangling Spray 250ml', price: 14, quantity: 1 }
+    ]
+  },
   { id: 'ap6', clientId: 'cl2', serviceId: 'sv6', staffId: 'st1', date: dDays(-3), start: '14:00', duration: 60, price: 60, status: 'completed' },
   { id: 'ap7', clientId: 'cl12', serviceId: 'sv1', staffId: 'st1', date: dDays(-4), start: '14:00', duration: 75, price: 55, status: 'completed' },
   { id: 'ap8', clientId: 'cl15', serviceId: 'sv2', staffId: 'st1', date: dDays(-4), start: '10:00', duration: 90, price: 70, status: 'completed', retail: 22 },

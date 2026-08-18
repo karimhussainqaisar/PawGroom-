@@ -8,6 +8,7 @@ import {
   Package, 
   Staff, 
   Appointment, 
+  PurchasedRetailItem,
   InventoryItem, 
   GiftCard, 
   Expense, 
@@ -89,9 +90,11 @@ interface AppContextType {
 
   // CRUD Actions
   addAppointment: (appt: Omit<Appointment, 'id'>) => Appointment;
-  updateAppointmentStatus: (id: string, status: AppointmentStatus, retail?: number) => void;
+  updateAppointmentStatus: (id: string, status: AppointmentStatus, retail?: number, purchasedItems?: PurchasedRetailItem[]) => void;
   updateAppointment: (id: string, appt: Partial<Appointment>) => void;
   deleteAppointment: (id: string) => void;
+  deductInventoryStock: (items: { itemId: string; quantity: number }[]) => void;
+  restoreInventoryStock: (items: { itemId: string; quantity: number }[]) => void;
 
   addClient: (client: Omit<Client, 'id' | 'createdAt' | 'points' | 'photos'>) => Client;
   updateClient: (id: string, client: Partial<Client>) => void;
@@ -329,17 +332,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Helper functions for deducting/restoring inventory stock
+  const deductInventoryStock = (items: { itemId: string; quantity: number }[]) => {
+    if (!items || items.length === 0) return;
+    setInventory((prev) => {
+      const nextInv = [...prev];
+      items.forEach((item) => {
+        const qty = item.quantity || 1;
+        const idx = nextInv.findIndex((i) => i.id === item.itemId || i.name.toLowerCase() === item.itemId.toLowerCase());
+        if (idx !== -1) {
+          nextInv[idx] = {
+            ...nextInv[idx],
+            stock: Math.max(0, nextInv[idx].stock - qty),
+          };
+        }
+      });
+      return nextInv;
+    });
+  };
+
+  const restoreInventoryStock = (items: { itemId: string; quantity: number }[]) => {
+    if (!items || items.length === 0) return;
+    setInventory((prev) => {
+      const nextInv = [...prev];
+      items.forEach((item) => {
+        const qty = item.quantity || 1;
+        const idx = nextInv.findIndex((i) => i.id === item.itemId || i.name.toLowerCase() === item.itemId.toLowerCase());
+        if (idx !== -1) {
+          nextInv[idx] = {
+            ...nextInv[idx],
+            stock: nextInv[idx].stock + qty,
+          };
+        }
+      });
+      return nextInv;
+    });
+  };
+
   // CRUD Functions
   const addAppointment = (apptData: Omit<Appointment, 'id'>) => {
     const id = 'ap_' + Date.now();
+    const retailTotal = apptData.purchasedItems && apptData.purchasedItems.length > 0
+      ? apptData.purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+      : (apptData.retail || 0);
+
     const newAppt: Appointment = { 
       id, 
       ...apptData,
+      retail: retailTotal,
       invoiceNumber: apptData.invoiceNumber || formatShortInvoiceNumber({ id, ...apptData })
     };
-    setAppointments((prev) => [newAppt, ...prev]);
 
-    // Automatically add loyalty points if completed
+    // Deduct stock for any purchased items
+    if (newAppt.purchasedItems && newAppt.purchasedItems.length > 0) {
+      deductInventoryStock(newAppt.purchasedItems);
+    }
+
+    // Add loyalty points if completed
     if (newAppt.status === 'completed') {
       const earned = Math.floor((newAppt.price + (newAppt.retail || 0)) * settings.ppd);
       if (earned > 0) {
@@ -349,40 +398,93 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    setAppointments((prev) => [newAppt, ...prev]);
+
     const client = clients.find((c) => c.id === newAppt.clientId);
     const petName = client ? client.name : 'Pet';
     showToast(`Appointment booked for ${petName}!`, 'success');
     return newAppt;
   };
 
-  const updateAppointmentStatus = (id: string, status: AppointmentStatus, retail?: number) => {
-    setAppointments((prev) =>
-      prev.map((a) => {
+  const updateAppointmentStatus = (
+    id: string, 
+    status: AppointmentStatus, 
+    retail?: number, 
+    purchasedItems?: PurchasedRetailItem[]
+  ) => {
+    const existing = appointments.find((a) => a.id === id);
+    if (existing && purchasedItems !== undefined) {
+      if (existing.purchasedItems && existing.purchasedItems.length > 0) {
+        restoreInventoryStock(existing.purchasedItems);
+      }
+      if (purchasedItems && purchasedItems.length > 0) {
+        deductInventoryStock(purchasedItems);
+      }
+    }
+
+    if (existing && status === 'completed' && existing.status !== 'completed') {
+      const retailTotal = purchasedItems !== undefined
+        ? purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+        : (retail !== undefined ? retail : existing.retail || 0);
+      const earned = Math.floor((existing.price + retailTotal) * settings.ppd);
+      if (earned > 0) {
+        setClients((cList) =>
+          cList.map((c) => (c.id === existing.clientId ? { ...c, points: (c.points || 0) + earned } : c))
+        );
+      }
+    }
+
+    setAppointments((prev) => {
+      return prev.map((a) => {
         if (a.id === id) {
-          const updated = { ...a, status, retail: retail !== undefined ? retail : a.retail };
-          // Award loyalty points on completion if transitioning to completed
-          if (status === 'completed' && a.status !== 'completed') {
-            const earned = Math.floor((updated.price + (updated.retail || 0)) * settings.ppd);
-            if (earned > 0) {
-              setClients((cList) =>
-                cList.map((c) => (c.id === a.clientId ? { ...c, points: (c.points || 0) + earned } : c))
-              );
-            }
-          }
-          return updated;
+          const retailTotal = purchasedItems !== undefined
+            ? purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+            : (retail !== undefined ? retail : a.retail);
+
+          return { 
+            ...a, 
+            status, 
+            retail: retailTotal,
+            purchasedItems: purchasedItems !== undefined ? purchasedItems : a.purchasedItems
+          };
         }
         return a;
-      })
-    );
+      });
+    });
     showToast(`Appointment status updated to ${status}`, 'info');
   };
 
   const updateAppointment = (id: string, apptData: Partial<Appointment>) => {
-    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...apptData } : a)));
+    const existing = appointments.find((a) => a.id === id);
+    if (existing && apptData.purchasedItems !== undefined) {
+      if (existing.purchasedItems && existing.purchasedItems.length > 0) {
+        restoreInventoryStock(existing.purchasedItems);
+      }
+      if (apptData.purchasedItems && apptData.purchasedItems.length > 0) {
+        deductInventoryStock(apptData.purchasedItems);
+      }
+    }
+
+    setAppointments((prev) => {
+      return prev.map((a) => {
+        if (a.id === id) {
+          const retailTotal = apptData.purchasedItems !== undefined
+            ? apptData.purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+            : (apptData.retail !== undefined ? apptData.retail : a.retail);
+
+          return { ...a, ...apptData, retail: retailTotal };
+        }
+        return a;
+      });
+    });
     showToast('Appointment updated', 'success');
   };
 
   const deleteAppointment = (id: string) => {
+    const existing = appointments.find((a) => a.id === id);
+    if (existing?.purchasedItems && existing.purchasedItems.length > 0) {
+      restoreInventoryStock(existing.purchasedItems);
+    }
     setAppointments((prev) => prev.filter((a) => a.id !== id));
     showToast('Appointment cancelled/removed', 'info');
   };
@@ -935,6 +1037,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAppointmentStatus,
         updateAppointment,
         deleteAppointment,
+        deductInventoryStock,
+        restoreInventoryStock,
         addClient,
         updateClient,
         deleteClient,

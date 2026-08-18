@@ -86,6 +86,13 @@ export interface Staff {
   avail: Record<number, [number, number] | null>; // day index (0=Sun, 1=Mon, ...) -> [startHour, endHour] or null
 }
 
+export interface PurchasedRetailItem {
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
 export interface Appointment {
   id: string;
   clientId: string;
@@ -99,6 +106,7 @@ export interface Appointment {
   price: number;
   status: AppointmentStatus;
   retail?: number;
+  purchasedItems?: PurchasedRetailItem[];
   notes?: string;
   discountAmount?: number;
   discountCode?: string;

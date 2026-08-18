@@ -1,4 +1,4 @@
-import { Client, Appointment, Settings } from '../types';
+import { Client, Appointment, Settings, PurchasedRetailItem } from '../types';
 
 export interface WhatsAppInvoiceData {
   invoiceNum: string;
@@ -10,6 +10,7 @@ export interface WhatsAppInvoiceData {
   groomerName?: string;
   servicePrice: number;
   retailAddon?: number;
+  purchasedItems?: PurchasedRetailItem[];
   discountAmount?: number;
   discountCode?: string;
   discountTitle?: string;
@@ -31,6 +32,7 @@ export function generateWhatsAppInvoiceText(data: WhatsAppInvoiceData): string {
     groomerName,
     servicePrice,
     retailAddon = 0,
+    purchasedItems,
     discountAmount = 0,
     discountCode = '',
     discountTitle = '',
@@ -72,7 +74,19 @@ export function generateWhatsAppInvoiceText(data: WhatsAppInvoiceData): string {
     lines.push(`💵 *Service Rate:* ${fmt(servicePrice)}`);
   }
 
-  if (retailAddon > 0) {
+  const items = (purchasedItems && purchasedItems.length > 0) 
+    ? purchasedItems 
+    : (appointment.purchasedItems && appointment.purchasedItems.length > 0 ? appointment.purchasedItems : []);
+
+  if (items.length > 0) {
+    lines.push(`🛍️ *Retail Products Purchased:*`);
+    items.forEach((item) => {
+      lines.push(`   • ${item.name} (${item.quantity}x @ ${fmt(item.price)}) — ${fmt(item.price * item.quantity)}`);
+    });
+    if (items.length > 1) {
+      lines.push(`   *Retail Products Total:* ${fmt(retailAddon || items.reduce((s, i) => s + i.price * i.quantity, 0))}`);
+    }
+  } else if (retailAddon > 0) {
     lines.push(`🛍️ *Retail Add-on:* Botanical Care & Spa (+${fmt(retailAddon)})`);
   }
 
