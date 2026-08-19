@@ -23,7 +23,7 @@ export const DEFAULT_REGISTERED_PROFILES: ClientProfile[] = [
       phone: '(555) 234-5678',
       address: '142 Market St, Suite 2B, San Francisco, CA 94105',
       website: 'www.happypawsgroom.com',
-      colorTheme: 'terracotta'
+      colorTheme: 'emerald'
     }
   },
   {
