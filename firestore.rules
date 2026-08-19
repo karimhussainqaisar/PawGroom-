@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Client profiles collection
+    match /client_profiles/{profileId} {
+      allow read, write: if isValidId(profileId);
+    }
+
+    // Admin configuration collection
+    match /admin_config/{adminId} {
+      allow read, write: if isValidId(adminId);
+    }
+
+    // Test connection document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

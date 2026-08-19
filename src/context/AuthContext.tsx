@@ -15,6 +15,13 @@ import {
   generateNextProfileId 
 } from '../data/initialAuthData';
 import { DEFAULT_REGISTERED_PROFILES } from '../data/registeredProfiles';
+import { 
+  testConnection, 
+  seedFirestoreIfEmpty, 
+  subscribeToOnlineFirestoreProfiles, 
+  saveProfileToFirestore, 
+  deleteProfileFromFirestore 
+} from '../lib/firebase';
 
 export type AuthViewMode = 'client_login' | 'admin_login' | 'admin_dashboard' | 'app';
 
@@ -86,14 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inactiveProfileDetails, setInactiveProfileDetails] = useState<ClientProfile | null>(null);
 
   // Helper: Merge fresh profiles with existing local list
-  const mergeProfiles = (serverProfiles: ClientProfile[], baseDb: AuthDatabase): AuthDatabase => {
+  const mergeProfiles = (onlineProfiles: ClientProfile[], baseDb: AuthDatabase): AuthDatabase => {
     const map = new Map<string, ClientProfile>();
     // 1. Code base defaults
     DEFAULT_REGISTERED_PROFILES.forEach(p => map.set(p.profileId, p));
     // 2. Base DB
     baseDb.profiles.forEach(p => map.set(p.profileId, p));
-    // 3. Server Profiles (highest priority)
-    serverProfiles.forEach(p => map.set(p.profileId, p));
+    // 3. Online Database Profiles (highest authority)
+    onlineProfiles.forEach(p => map.set(p.profileId, p));
 
     return {
       ...baseDb,
@@ -102,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  // Function to sync with global server-side persistent database
+  // Function to sync with global server-side & static persistent database
   const refreshServerDatabase = useCallback(async () => {
     const timestamp = Date.now();
     try {
@@ -123,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (err) {
-      // API fetch failed, proceed to static public file fallback
+      // Server API unreachable, proceed to next tier
     }
 
     try {
@@ -147,11 +154,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Sync on mount and periodically every 5 seconds so changes on any device reflect everywhere
+  // 1. Initialize Firestore & Subscribe to Realtime Online Database
   useEffect(() => {
+    // Validate connection and seed if empty
+    testConnection();
+    seedFirestoreIfEmpty(DEFAULT_REGISTERED_PROFILES);
+
+    // Real-time listener for Firestore online database
+    const unsubscribe = subscribeToOnlineFirestoreProfiles(
+      (firestoreProfiles) => {
+        if (firestoreProfiles && firestoreProfiles.length > 0) {
+          setAuthDatabase(prev => {
+            const merged = mergeProfiles(firestoreProfiles, prev);
+            saveAuthDatabase(merged);
+            return merged;
+          });
+        }
+      },
+      (err) => {
+        console.warn('Firestore subscription status:', err);
+      }
+    );
+
+    // Initial server refresh & interval fallback
     refreshServerDatabase();
-    const interval = setInterval(refreshServerDatabase, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(refreshServerDatabase, 6000);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearInterval(interval);
+    };
   }, [refreshServerDatabase]);
 
   // Sync auth database changes to localStorage
@@ -249,13 +281,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (apiErr) {
-      console.warn('Server auth endpoint unreachable, checking synchronized pool:', apiErr);
+      console.warn('Server auth endpoint unreachable, checking live synchronized pool:', apiErr);
     }
 
-    // Refresh fallback pool if server endpoint failed
-    await refreshServerDatabase();
-
-    // 2. Comprehensive pool check (Local DB + Default Code Pool)
+    // 2. Comprehensive pool check (Firestore Online Database + Local DB + Default Pool)
     const allProfiles = [
       ...authDatabase.profiles,
       ...DEFAULT_REGISTERED_PROFILES
@@ -266,10 +295,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     if (!matchedProfile) {
+      const emailExists = allProfiles.some(p => p.email.toLowerCase() === cleanEmail);
+      if (emailExists) {
+        return {
+          success: false,
+          status: 'invalid',
+          error: 'Incorrect password for this account. Please verify case-sensitivity.'
+        };
+      }
+
       return {
         success: false,
         status: 'invalid',
-        error: 'Invalid email or password. Please verify your credentials.'
+        error: 'No registered client profile found for this email address.'
       };
     }
 
@@ -284,6 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
+    // Successful fallback match
     const newSession: AuthSession = {
       userType: 'client',
       profile: matchedProfile,
@@ -294,12 +333,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     persistSession(newSession, rememberMe);
     setAuthView('app');
-
-    return {
-      success: true,
-      status: 'active',
-      profile: matchedProfile
-    };
+    return { success: true, status: 'active', profile: matchedProfile };
   };
 
   const loginAdmin = async (email: string, password: string, rememberMe: boolean = true): Promise<{ success: boolean; error?: string }> => {
@@ -313,7 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         const newSession: AuthSession = {
           userType: 'admin',
@@ -412,7 +446,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // 1. Immediately update local state for instantaneous UX
+    // 1. Immediately update local state
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -423,7 +457,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Persist to server backend database for worldwide access
+    // 2. Persist to Online Firebase Firestore Database (Real-time global sync)
+    saveProfileToFirestore(newProfile).catch(err => {
+      console.warn('Firestore direct write notice:', err);
+    });
+
+    // 3. Persist to server backend database (which also updates all 5 code files)
     try {
       const res = await fetch('/api/auth/profiles', {
         method: 'POST',
@@ -438,13 +477,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (err) {
-      console.error('Server save error, saved locally:', err);
+      console.error('Server save notice:', err);
     }
 
     return newProfile;
   };
 
   const updateClientProfile = async (profileId: string, updates: Partial<ClientProfile>): Promise<boolean> => {
+    let targetProfile: ClientProfile | null = null;
+
     // 1. Local update
     setAuthDatabase(prev => {
       const updated = {
@@ -455,6 +496,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (updates.businessName && up.customSettings) {
               up.customSettings.salonName = updates.businessName;
             }
+            targetProfile = up;
             return up;
           }
           return p;
@@ -465,7 +507,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Server update
+    // 2. Online Firestore Update
+    if (targetProfile) {
+      saveProfileToFirestore(targetProfile).catch(err => {
+        console.warn('Firestore update notice:', err);
+      });
+    }
+
+    // 3. Server update
     try {
       const res = await fetch(`/api/auth/profiles/${profileId}`, {
         method: 'PUT',
@@ -485,6 +534,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleProfileStatus = async (profileId: string): Promise<boolean> => {
+    let updatedProfile: ClientProfile | null = null;
+
     // 1. Local toggle
     setAuthDatabase(prev => {
       const updated = {
@@ -492,7 +543,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profiles: prev.profiles.map(p => {
           if (p.profileId === profileId) {
             const nextStatus: AccountStatus = p.status === 'active' ? 'inactive' : 'active';
-            return { ...p, status: nextStatus };
+            const up = { ...p, status: nextStatus };
+            updatedProfile = up;
+            return up;
           }
           return p;
         }),
@@ -502,7 +555,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Server toggle
+    // 2. Online Firestore update
+    if (updatedProfile) {
+      saveProfileToFirestore(updatedProfile).catch(err => {
+        console.warn('Firestore toggle notice:', err);
+      });
+    }
+
+    // 3. Server toggle
     try {
       const res = await fetch(`/api/auth/profiles/${profileId}/toggle-status`, {
         method: 'PATCH'
@@ -520,6 +580,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteClientProfile = async (profileId: string): Promise<boolean> => {
+    // 1. Local delete
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -530,6 +591,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
+    // 2. Online Firestore delete
+    deleteProfileFromFirestore(profileId).catch(err => {
+      console.warn('Firestore delete notice:', err);
+    });
+
+    // 3. Server delete
     try {
       const res = await fetch(`/api/auth/profiles/${profileId}`, {
         method: 'DELETE'
@@ -550,35 +617,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await fetch('/api/auth/reset', { method: 'POST' });
       if (res.ok) {
-        const result = await res.json();
-        if (result.database) {
-          setAuthDatabase(result.database);
-          saveAuthDatabase(result.database);
-          return;
+        const data = await res.json();
+        if (data.database) {
+          setAuthDatabase(data.database);
+          saveAuthDatabase(data.database);
         }
       }
     } catch (e) {
-      console.warn('Server reset error:', e);
+      setAuthDatabase(INITIAL_AUTH_DATABASE);
+      saveAuthDatabase(INITIAL_AUTH_DATABASE);
     }
-
-    setAuthDatabase(INITIAL_AUTH_DATABASE);
-    saveAuthDatabase(INITIAL_AUTH_DATABASE);
+    // Also re-seed Firestore
+    seedFirestoreIfEmpty(DEFAULT_REGISTERED_PROFILES);
   };
-
-  const isAuthenticated = !!session;
-  const isAdmin = session?.userType === 'admin';
-  const currentProfile = session?.profile || null;
-  const currentAdmin = session?.admin || null;
 
   return (
     <AuthContext.Provider
       value={{
         authDatabase,
         session,
-        isAuthenticated,
-        isAdmin,
-        currentProfile,
-        currentAdmin,
+        isAuthenticated: !!session,
+        isAdmin: session?.userType === 'admin',
+        currentProfile: session?.userType === 'client' ? session.profile || null : null,
+        currentAdmin: session?.userType === 'admin' ? session.admin || null : null,
         authView,
         setAuthView,
         loginClient,

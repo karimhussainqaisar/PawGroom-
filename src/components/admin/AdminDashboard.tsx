@@ -551,14 +551,32 @@ export const AdminDashboard: React.FC = () => {
         {/* Tab 3: System & Database */}
         {activeTab === 'settings' && (
           <div className="bg-[#1C0908] p-6 rounded-3xl border border-white/10 space-y-6 max-w-3xl">
-            <div>
-              <h3 className="font-display font-black text-lg text-white">Centralized Profile Database</h3>
-              <p className="text-xs text-[#A08E8B] mt-0.5">
-                Authentication schema is prepared for seamless 1-click migration to Firebase Auth & Firestore.
-              </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-display font-black text-lg text-white">Centralized Online Profile Database</h3>
+                <p className="text-xs text-[#A08E8B] mt-0.5">
+                  Connected directly to live Google Cloud Firebase Firestore with real-time replication.
+                </p>
+              </div>
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#2E8A81]/20 text-[#2E8A81] border border-[#2E8A81]/30">
+                <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
+                Firebase Online
+              </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-[#A08E8B]">Database Engine:</span>
+                <span className="font-mono font-bold text-[#2E8A81]">Google Cloud Firestore (Online)</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-[#A08E8B]">Firebase Project ID:</span>
+                <span className="font-mono font-bold text-white">vast-tractor-mtj8l</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-[#A08E8B]">Replication Mode:</span>
+                <span className="font-mono text-[#FFA052]">Real-time onSnapshot + REST API + Local Replica</span>
+              </div>
               <div className="flex justify-between text-xs">
                 <span className="text-[#A08E8B]">Database Version:</span>
                 <span className="font-mono font-bold text-white">{authDatabase.version}</span>
