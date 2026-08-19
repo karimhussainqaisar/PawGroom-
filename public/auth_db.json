@@ -19,7 +19,7 @@
       "plan": "Premium",
       "createdAt": "2026-01-10",
       "expiryDate": "2027-01-01",
-      "status": "active",
+      "status": "inactive",
       "customSettings": {
         "salonName": "Happy Paws Grooming Studio",
         "name": "Happy Paws Pro Care",
@@ -82,7 +82,7 @@
       "plan": "Premium",
       "createdAt": "2026-02-15",
       "expiryDate": "2027-02-15",
-      "status": "active",
+      "status": "inactive",
       "customSettings": {
         "salonName": "Velvet Paws Spa",
         "name": "Velvet Paws Salon",
@@ -284,5 +284,5 @@
     }
   ],
   "version": "1.4.0",
-  "lastUpdated": "2026-08-19T03:00:00.000Z"
+  "lastUpdated": "2026-08-19T10:16:10.517Z"
 }

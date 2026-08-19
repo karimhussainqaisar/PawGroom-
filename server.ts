@@ -47,7 +47,7 @@ const DEFAULT_AUTH_DB = {
       plan: 'Premium',
       createdAt: '2026-01-10',
       expiryDate: '2027-01-01',
-      status: 'active',
+      status: 'inactive',
       customSettings: {
         salonName: 'Happy Paws Grooming Studio',
         name: 'Happy Paws Pro Care',
