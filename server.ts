@@ -6,12 +6,24 @@ import { createServer as createViteServer } from 'vite';
 const app = express();
 const PORT = 3000;
 
-// Enable JSON parsing
+// Enable CORS and JSON parsing
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 
-// Persistent database file path on server
+// Persistent database file paths on server and in public directory
 const DATA_DIR = path.join(process.cwd(), 'data');
+const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const DB_FILE = path.join(DATA_DIR, 'auth_db.json');
+const PUBLIC_DB_FILE = path.join(PUBLIC_DIR, 'auth_db.json');
 
 // Default initial database configuration
 const DEFAULT_AUTH_DB = {
@@ -89,18 +101,20 @@ const DEFAULT_AUTH_DB = {
       }
     }
   ],
-  version: '1.2.0',
+  version: '1.3.0',
   lastUpdated: new Date().toISOString()
 };
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (e) {
-    console.error('Failed to create data directory:', e);
+// Ensure directories exist
+[DATA_DIR, PUBLIC_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (e) {
+      console.error(`Failed to create directory ${dir}:`, e);
+    }
   }
-}
+});
 
 // Helper: Read DB from disk
 function readServerAuthDb() {
@@ -111,21 +125,33 @@ function readServerAuthDb() {
       if (parsed && Array.isArray(parsed.profiles)) {
         return parsed;
       }
+    } else if (fs.existsSync(PUBLIC_DB_FILE)) {
+      const content = fs.readFileSync(PUBLIC_DB_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (parsed && Array.isArray(parsed.profiles)) {
+        return parsed;
+      }
     }
   } catch (err) {
     console.warn('Could not read auth_db.json, using default:', err);
   }
-  // Initialize file
+  // Initialize files
   writeServerAuthDb(DEFAULT_AUTH_DB);
   return DEFAULT_AUTH_DB;
 }
 
-// Helper: Write DB to disk
+// Helper: Write DB to disk and public folder for direct universal access
 function writeServerAuthDb(data: any) {
+  const jsonStr = JSON.stringify(data, null, 2);
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');
   } catch (err) {
-    console.error('Failed to write auth_db.json:', err);
+    console.error('Failed to write data/auth_db.json:', err);
+  }
+  try {
+    fs.writeFileSync(PUBLIC_DB_FILE, jsonStr, 'utf-8');
+  } catch (err) {
+    console.error('Failed to write public/auth_db.json:', err);
   }
 }
 

@@ -6,15 +6,14 @@ import {
   Eye, 
   EyeOff, 
   Sparkles, 
-  Scissors, 
   ShieldCheck, 
   ArrowRight, 
-  Dog, 
   CheckCircle2, 
   AlertCircle,
   KeyRound,
   Store,
-  Layers,
+  Calendar,
+  Receipt,
   Heart
 } from 'lucide-react';
 import { InactiveAccountModal } from './InactiveAccountModal';
@@ -40,11 +39,11 @@ export const ClientLoginPage: React.FC = () => {
     if (e) e.preventDefault();
 
     if (!email.trim()) {
-      triggerError('Please enter your account email address.');
+      triggerError('Please enter your registered business email address.');
       return;
     }
     if (!isValidEmail(email)) {
-      triggerError('Please enter a valid email address.');
+      triggerError('Please enter a valid email format (e.g., studio@domain.com).');
       return;
     }
     if (!password) {
@@ -58,10 +57,10 @@ export const ClientLoginPage: React.FC = () => {
     try {
       const res = await loginClient(email, password, rememberMe);
       if (!res.success) {
-        triggerError(res.error || 'Invalid email or password.');
+        triggerError(res.error || 'Invalid email or password. Please verify your credentials.');
       }
     } catch (err) {
-      triggerError('An unexpected authentication error occurred. Please try again.');
+      triggerError('Authentication connection error. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -74,81 +73,84 @@ export const ClientLoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#180504] overflow-hidden selection:bg-[#FF6B00] selection:text-white">
-      {/* Background Animated Gradient Mesh */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-[#FF6B00]/25 via-[#E8734A]/10 to-transparent blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tl from-[#2E8A81]/25 via-[#173E39]/15 to-transparent blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[#FF6B00]/5 blur-[160px] pointer-events-none" />
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#FAF8F5] overflow-hidden selection:bg-[#FF6B00] selection:text-white">
+      {/* Background Soft Warm Lighting & Ambient Blobs */}
+      <div className="absolute top-[-15%] left-[-10%] w-[550px] h-[550px] rounded-full bg-[#FF6B00]/10 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[550px] h-[550px] rounded-full bg-[#2E8A81]/10 blur-[130px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-[#FF6B00]/5 blur-[160px] pointer-events-none" />
 
-      {/* Grid Pattern Overlay */}
+      {/* Decorative Dot Matrix Grid */}
       <div 
-        className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+        className="absolute inset-0 opacity-[0.035] pointer-events-none" 
         style={{ 
-          backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-          backgroundSize: '32px 32px' 
+          backgroundImage: `radial-gradient(circle at 1px 1px, #240C0B 1.2px, transparent 0)`,
+          backgroundSize: '28px 28px' 
         }} 
       />
 
-      {/* Main SaaS Auth Frame (Split Layout on Desktop) */}
-      <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[40px] border border-white/15 bg-[#240C0B]/85 backdrop-blur-2xl shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
+      {/* Main SaaS Auth Frame (Split Layout Synchronized with Park Grooming Aesthetic) */}
+      <div className="relative z-10 w-full max-w-5xl rounded-[32px] sm:rounded-[36px] border border-[#E6DFD5] bg-[#240C0B] text-white shadow-[0_24px_70px_rgba(36,12,11,0.18)] overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
         
-        {/* Left Col: Brand & Pet Grooming Experience Visuals (5 cols) */}
-        <div className="lg:col-span-5 bg-gradient-to-b from-[#2B100F] via-[#240C0B] to-[#1A0605] p-8 sm:p-10 flex flex-col justify-between relative border-b lg:border-b-0 lg:border-r border-white/10 overflow-hidden">
-          {/* Subtle Graphic Accents */}
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-[#FF6B00]/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-4 right-4 opacity-10 pointer-events-none">
-            <Dog className="w-64 h-64 text-white -rotate-12 translate-x-10 translate-y-10" />
-          </div>
+        {/* Left Col: Brand Identity, Official Paw Logo & Studio Features (5 cols) */}
+        <div className="lg:col-span-5 bg-gradient-to-b from-[#2B100F] via-[#240C0B] to-[#1C0908] p-8 sm:p-10 flex flex-col justify-between relative border-b lg:border-b-0 lg:border-r border-white/10 overflow-hidden">
+          {/* Subtle Ambient Glow */}
+          <div className="absolute -top-12 -left-12 w-44 h-44 bg-[#FF6B00]/20 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Brand Header */}
+          {/* Synchronized Brand Header */}
           <div className="space-y-6 relative z-10">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-[#FFA052] flex items-center justify-center text-white shadow-lg shadow-[#FF6B00]/30 transform hover:rotate-6 transition-transform">
-                <Scissors className="w-6 h-6 stroke-[2.5]" />
+              {/* Official Park Grooming Paw Logo */}
+              <div className="w-11 h-11 rounded-2xl bg-[#FF6B00] flex items-center justify-center shadow-lg shadow-[#FF6B00]/30 transform hover:scale-105 transition-transform shrink-0">
+                <svg className="w-6 h-6 fill-white" viewBox="0 0 32 32">
+                  <ellipse cx="16" cy="20" rx="6" ry="5" />
+                  <circle cx="9.5" cy="13" r="2.6" />
+                  <circle cx="16" cy="10.5" r="2.8" />
+                  <circle cx="22.5" cy="13" r="2.6" />
+                </svg>
               </div>
               <div>
-                <span className="text-[10px] font-black tracking-widest text-[#FF6B00] uppercase block">
-                  SaaS Multi-Tenant Cloud
-                </span>
-                <h1 className="font-display font-black text-xl text-white tracking-wide">
-                  Park Grooming Dashboard
+                <h1 className="font-display font-black text-xl text-white tracking-wide uppercase leading-tight">
+                  PARK GROOMING
                 </h1>
+                <span className="text-[10px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
+                  Dog Grooming Studio
+                </span>
               </div>
             </div>
 
             {/* Value Proposition */}
-            <div className="space-y-3 pt-4">
+            <div className="space-y-3 pt-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white font-semibold">
                 <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-                <span>Next-Gen Pet Studio Management</span>
+                <span>Client & Studio Portal</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-white leading-tight">
-                All-in-One Grooming & Client Experience.
+              <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-white leading-snug">
+                Manage your grooming salon anywhere in the world.
               </h2>
               <p className="text-xs text-[#C5B7B4] leading-relaxed">
-                Seamless scheduling, instant A4 & QR invoices, client pet profiles, vaccine alert monitors, and automated loyalty rewards.
+                Real-time appointment calendar, digital A4 & QR invoices, pet health records, groomer schedules, and automated customer loyalty rewards.
               </p>
             </div>
 
-            {/* Feature Highlights with icons */}
+            {/* Feature Highlights */}
             <div className="space-y-2.5 pt-2">
               <div className="flex items-center gap-2.5 text-xs text-white/90">
                 <div className="w-5 h-5 rounded-full bg-[#2E8A81]/30 border border-[#2E8A81] flex items-center justify-center text-[#2E8A81] shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
-                <span>Isolated Multi-Tenant Business Stores</span>
+                <span>Worldwide Cross-Device Cloud Sync</span>
               </div>
               <div className="flex items-center gap-2.5 text-xs text-white/90">
                 <div className="w-5 h-5 rounded-full bg-[#FF6B00]/30 border border-[#FF6B00] flex items-center justify-center text-[#FF6B00] shrink-0">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <Receipt className="w-3.5 h-3.5" />
                 </div>
-                <span>Automated WhatsApp & QR Receipt Sharing</span>
+                <span>Instant Invoices with WhatsApp & QR Sharing</span>
               </div>
               <div className="flex items-center gap-2.5 text-xs text-white/90">
                 <div className="w-5 h-5 rounded-full bg-[#8B6D9C]/30 border border-[#8B6D9C] flex items-center justify-center text-[#8B6D9C] shrink-0">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <Calendar className="w-3.5 h-3.5" />
                 </div>
-                <span>Real-Time Vaccine Expiry Tracking</span>
+                <span>Smart Multi-Groomer Appointments</span>
               </div>
             </div>
           </div>
@@ -159,11 +161,11 @@ export const ClientLoginPage: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-[#2E8A81]" />
                 <div className="text-left">
-                  <p className="text-[11px] font-bold text-white leading-tight">256-Bit Encrypted Session</p>
-                  <p className="text-[10px] text-[#A08E8B]">Protected Tenant Sandbox</p>
+                  <p className="text-[11px] font-bold text-white leading-tight">Universal Cloud Database</p>
+                  <p className="text-[10px] text-[#A08E8B]">Access from any mobile, tablet, or browser</p>
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-[#A08E8B] bg-white/5 px-2 py-1 rounded-md">v1.4.0</span>
+              <span className="text-[10px] font-mono text-[#2E8A81] bg-[#2E8A81]/15 px-2 py-1 rounded-md font-bold">Online</span>
             </div>
           </div>
         </div>
@@ -176,17 +178,17 @@ export const ClientLoginPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#FF6B00]">
-                  Client Portal
+                  Client Login
                 </span>
                 <span className="text-xs text-[#A08E8B] flex items-center gap-1">
-                  <Store className="w-3.5 h-3.5" /> Business Sign In
+                  <Store className="w-3.5 h-3.5" /> Studio Dashboard
                 </span>
               </div>
               <h3 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
-                Welcome Back
+                Sign In to Park Grooming
               </h3>
               <p className="text-xs text-[#A08E8B] mt-1">
-                Enter your registered business email and password to access your studio.
+                Enter your registered business email and password to access your dashboard.
               </p>
             </div>
 
@@ -203,7 +205,7 @@ export const ClientLoginPage: React.FC = () => {
               {/* Email Input */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#E6DFD5]">
-                  Business Email
+                  Business Email Address
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-[#A08E8B] absolute left-4 top-1/2 -translate-y-1/2" />
@@ -214,7 +216,7 @@ export const ClientLoginPage: React.FC = () => {
                       setEmail(e.target.value);
                       if (errorMessage) setErrorMessage(null);
                     }}
-                    placeholder="Enter your email"
+                    placeholder="name@groomingstudio.com"
                     required
                     className="w-full bg-white/5 border border-white/15 focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/30 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-[#7A6865] outline-none transition-all"
                   />
@@ -225,7 +227,7 @@ export const ClientLoginPage: React.FC = () => {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-[#E6DFD5]">
-                    Password
+                    Account Password
                   </label>
                   <span className="text-[11px] text-[#A08E8B] cursor-default">
                     Case-sensitive
@@ -255,7 +257,7 @@ export const ClientLoginPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Remember Me Toggle */}
+              {/* Remember Me */}
               <div className="flex items-center justify-between pt-1">
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <input
@@ -265,7 +267,7 @@ export const ClientLoginPage: React.FC = () => {
                     className="w-4 h-4 rounded-md accent-[#FF6B00] cursor-pointer"
                   />
                   <span className="text-xs text-[#C5B7B4] group-hover:text-white transition-colors">
-                    Keep me signed in
+                    Keep me signed in on this device
                   </span>
                 </label>
               </div>
@@ -274,12 +276,12 @@ export const ClientLoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#E55C00] hover:from-[#E55C00] hover:to-[#CC4F00] text-white font-display font-bold text-sm tracking-wide shadow-lg shadow-[#FF6B00]/30 hover:shadow-xl hover:shadow-[#FF6B00]/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed group mt-4"
+                className="w-full py-4 px-6 rounded-2xl bg-[#FF6B00] hover:bg-[#E55C00] text-white font-display font-bold text-sm tracking-wide shadow-lg shadow-[#FF6B00]/25 hover:shadow-xl hover:shadow-[#FF6B00]/35 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed group mt-4"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Authenticating Studio...</span>
+                    <span>Signing in to Studio...</span>
                   </div>
                 ) : (
                   <>
@@ -295,7 +297,7 @@ export const ClientLoginPage: React.FC = () => {
           <div className="pt-6 mt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#A08E8B]">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
-              <span>Multi-Tenant Auth Engine Active</span>
+              <span>Park Grooming Multi-Tenant Cloud</span>
             </div>
 
             <button

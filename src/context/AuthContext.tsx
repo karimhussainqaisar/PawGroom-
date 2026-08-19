@@ -14,6 +14,7 @@ import {
   INITIAL_AUTH_DATABASE, 
   generateNextProfileId 
 } from '../data/initialAuthData';
+import { DEFAULT_REGISTERED_PROFILES } from '../data/registeredProfiles';
 
 export type AuthViewMode = 'client_login' | 'admin_login' | 'admin_dashboard' | 'app';
 
@@ -84,26 +85,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inactiveModalOpen, setInactiveModalOpen] = useState<boolean>(false);
   const [inactiveProfileDetails, setInactiveProfileDetails] = useState<ClientProfile | null>(null);
 
+  // Helper: Merge fresh profiles with existing local list
+  const mergeProfiles = (serverProfiles: ClientProfile[], baseDb: AuthDatabase): AuthDatabase => {
+    const map = new Map<string, ClientProfile>();
+    // 1. Code base defaults
+    DEFAULT_REGISTERED_PROFILES.forEach(p => map.set(p.profileId, p));
+    // 2. Base DB
+    baseDb.profiles.forEach(p => map.set(p.profileId, p));
+    // 3. Server Profiles (highest priority)
+    serverProfiles.forEach(p => map.set(p.profileId, p));
+
+    return {
+      ...baseDb,
+      profiles: Array.from(map.values()),
+      lastUpdated: new Date().toISOString()
+    };
+  };
+
   // Function to sync with global server-side persistent database
   const refreshServerDatabase = useCallback(async () => {
     try {
+      // 1. Attempt API fetch
       const res = await fetch('/api/auth/db');
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.profiles)) {
-          setAuthDatabase(data);
-          saveAuthDatabase(data);
+          setAuthDatabase(prev => {
+            const merged = mergeProfiles(data.profiles, prev);
+            saveAuthDatabase(merged);
+            return merged;
+          });
+          return;
         }
       }
     } catch (err) {
-      console.warn('Could not sync with server auth API, using local replica:', err);
+      // API fetch failed, proceed to static public file fallback
+    }
+
+    try {
+      // 2. Attempt direct static public JSON file fetch
+      const staticRes = await fetch('/auth_db.json');
+      if (staticRes.ok) {
+        const staticData = await staticRes.json();
+        if (staticData && Array.isArray(staticData.profiles)) {
+          setAuthDatabase(prev => {
+            const merged = mergeProfiles(staticData.profiles, prev);
+            saveAuthDatabase(merged);
+            return merged;
+          });
+        }
+      }
+    } catch (err2) {
+      console.warn('Using local auth database replica:', err2);
     }
   }, []);
 
-  // Sync on mount and periodically every 15 seconds so changes on any device reflect everywhere
+  // Sync on mount and periodically every 10 seconds so changes on any device reflect everywhere
   useEffect(() => {
     refreshServerDatabase();
-    const interval = setInterval(refreshServerDatabase, 15000);
+    const interval = setInterval(refreshServerDatabase, 10000);
     return () => clearInterval(interval);
   }, [refreshServerDatabase]);
 
@@ -118,7 +158,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedProfile = authDatabase.profiles.find(p => p.profileId === session.profile?.profileId);
       if (updatedProfile) {
         if (updatedProfile.status === 'inactive') {
-          // If deactivated by admin while logged in, trigger inactive state
           setInactiveProfileDetails(updatedProfile);
           setInactiveModalOpen(true);
           logout();
@@ -151,53 +190,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
+    // Refresh database right before authenticating to guarantee newest profiles
+    await refreshServerDatabase();
+
+    // 1. Direct Server API verification
     try {
-      // 1. First attempt direct Server API verification (worldwide sync)
       const res = await fetch('/api/auth/client-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.success && data.profile) {
-        const newSession: AuthSession = {
-          userType: 'client',
-          profile: data.profile,
-          token: data.token || `token_${data.profile.profileId}_${Date.now()}`,
-          loginTime: new Date().toISOString(),
-          rememberMe
-        };
-        persistSession(newSession, rememberMe);
-        setAuthView('app');
-        return { success: true, status: 'active', profile: data.profile };
-      }
-
-      if (res.status === 403 && data.status === 'inactive') {
-        setInactiveProfileDetails(data.profile || null);
-        setInactiveModalOpen(true);
-        return {
-          success: false,
-          status: 'inactive',
-          error: data.error || 'Your account is currently inactive. Please contact support.',
-          profile: data.profile
-        };
-      }
-
-      if (res.status === 401) {
-        return {
-          success: false,
-          status: 'invalid',
-          error: data.error || 'Invalid email or password.'
-        };
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.profile) {
+          const newSession: AuthSession = {
+            userType: 'client',
+            profile: data.profile,
+            token: data.token || `token_${data.profile.profileId}_${Date.now()}`,
+            loginTime: new Date().toISOString(),
+            rememberMe
+          };
+          persistSession(newSession, rememberMe);
+          setAuthView('app');
+          return { success: true, status: 'active', profile: data.profile };
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errData.status === 'inactive') {
+          setInactiveProfileDetails(errData.profile || null);
+          setInactiveModalOpen(true);
+          return {
+            success: false,
+            status: 'inactive',
+            error: errData.error || 'Your account is currently inactive. Please contact support.',
+            profile: errData.profile
+          };
+        }
       }
     } catch (apiErr) {
-      console.warn('Server auth call failed, checking local database:', apiErr);
+      console.warn('Server auth endpoint unreachable, checking synchronized pool:', apiErr);
     }
 
-    // 2. Fallback to current synchronized state in case server is booting
-    const matchedProfile = authDatabase.profiles.find(
+    // 2. Comprehensive pool check (Local DB + Default Code Pool)
+    const allProfiles = [
+      ...authDatabase.profiles,
+      ...DEFAULT_REGISTERED_PROFILES
+    ];
+
+    const matchedProfile = allProfiles.find(
       p => p.email.toLowerCase() === cleanEmail && p.password === cleanPassword
     );
 
@@ -205,7 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'invalid',
-        error: 'Invalid email or password.'
+        error: 'Invalid email or password. Please verify your credentials.'
       };
     }
 
@@ -299,7 +340,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Impersonate / Preview Client Profile from Admin Dashboard
   const impersonateClient = (profileId: string) => {
-    const profile = authDatabase.profiles.find(p => p.profileId === profileId);
+    const profile = authDatabase.profiles.find(p => p.profileId === profileId) ||
+      DEFAULT_REGISTERED_PROFILES.find(p => p.profileId === profileId);
     if (!profile) return;
 
     const newSession: AuthSession = {
@@ -348,11 +390,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // 1. Immediately update local state for instantaneous UX
-    setAuthDatabase(prev => ({
-      ...prev,
-      profiles: [newProfile, ...prev.profiles.filter(p => p.profileId !== profileId)],
-      lastUpdated: new Date().toISOString()
-    }));
+    setAuthDatabase(prev => {
+      const updated = {
+        ...prev,
+        profiles: [newProfile, ...prev.profiles.filter(p => p.profileId !== profileId)],
+        lastUpdated: new Date().toISOString()
+      };
+      saveAuthDatabase(updated);
+      return updated;
+    });
 
     // 2. Persist to server backend database for worldwide access
     try {
@@ -377,20 +423,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateClientProfile = async (profileId: string, updates: Partial<ClientProfile>): Promise<boolean> => {
     // 1. Local update
-    setAuthDatabase(prev => ({
-      ...prev,
-      profiles: prev.profiles.map(p => {
-        if (p.profileId === profileId) {
-          const updated = { ...p, ...updates };
-          if (updates.businessName && updated.customSettings) {
-            updated.customSettings.salonName = updates.businessName;
+    setAuthDatabase(prev => {
+      const updated = {
+        ...prev,
+        profiles: prev.profiles.map(p => {
+          if (p.profileId === profileId) {
+            const up = { ...p, ...updates };
+            if (updates.businessName && up.customSettings) {
+              up.customSettings.salonName = updates.businessName;
+            }
+            return up;
           }
-          return updated;
-        }
-        return p;
-      }),
-      lastUpdated: new Date().toISOString()
-    }));
+          return p;
+        }),
+        lastUpdated: new Date().toISOString()
+      };
+      saveAuthDatabase(updated);
+      return updated;
+    });
 
     // 2. Server update
     try {
@@ -413,17 +463,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleProfileStatus = async (profileId: string): Promise<boolean> => {
     // 1. Local toggle
-    setAuthDatabase(prev => ({
-      ...prev,
-      profiles: prev.profiles.map(p => {
-        if (p.profileId === profileId) {
-          const nextStatus: AccountStatus = p.status === 'active' ? 'inactive' : 'active';
-          return { ...p, status: nextStatus };
-        }
-        return p;
-      }),
-      lastUpdated: new Date().toISOString()
-    }));
+    setAuthDatabase(prev => {
+      const updated = {
+        ...prev,
+        profiles: prev.profiles.map(p => {
+          if (p.profileId === profileId) {
+            const nextStatus: AccountStatus = p.status === 'active' ? 'inactive' : 'active';
+            return { ...p, status: nextStatus };
+          }
+          return p;
+        }),
+        lastUpdated: new Date().toISOString()
+      };
+      saveAuthDatabase(updated);
+      return updated;
+    });
 
     // 2. Server toggle
     try {
@@ -443,11 +497,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteClientProfile = async (profileId: string): Promise<boolean> => {
-    setAuthDatabase(prev => ({
-      ...prev,
-      profiles: prev.profiles.filter(p => p.profileId !== profileId),
-      lastUpdated: new Date().toISOString()
-    }));
+    setAuthDatabase(prev => {
+      const updated = {
+        ...prev,
+        profiles: prev.profiles.filter(p => p.profileId !== profileId),
+        lastUpdated: new Date().toISOString()
+      };
+      saveAuthDatabase(updated);
+      return updated;
+    });
 
     try {
       const res = await fetch(`/api/auth/profiles/${profileId}`, {
