@@ -20,7 +20,7 @@ import {
 import { InactiveAccountModal } from './InactiveAccountModal';
 
 export const ClientLoginPage: React.FC = () => {
-  const { loginClient, setAuthView, authDatabase } = useAuth();
+  const { loginClient, setAuthView } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,12 +71,6 @@ export const ClientLoginPage: React.FC = () => {
     setErrorMessage(msg);
     setIsShake(true);
     setTimeout(() => setIsShake(false), 600);
-  };
-
-  const fillQuickDemo = (profileEmail: string, profilePass: string) => {
-    setEmail(profileEmail);
-    setPassword(profilePass);
-    setErrorMessage(null);
   };
 
   return (
@@ -274,21 +268,13 @@ export const ClientLoginPage: React.FC = () => {
                     Keep me signed in
                   </span>
                 </label>
-
-                <button
-                  type="button"
-                  onClick={() => fillQuickDemo('happy@email.com', 'password123')}
-                  className="text-xs font-bold text-[#FF6B00] hover:text-[#FFA052] transition-colors cursor-pointer"
-                >
-                  Quick Demo Login
-                </button>
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#E55C00] hover:from-[#E55C00] hover:to-[#CC4F00] text-white font-display font-bold text-sm tracking-wide shadow-lg shadow-[#FF6B00]/30 hover:shadow-xl hover:shadow-[#FF6B00]/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed group mt-2"
+                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#E55C00] hover:from-[#E55C00] hover:to-[#CC4F00] text-white font-display font-bold text-sm tracking-wide shadow-lg shadow-[#FF6B00]/30 hover:shadow-xl hover:shadow-[#FF6B00]/40 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed group mt-4"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -303,43 +289,6 @@ export const ClientLoginPage: React.FC = () => {
                 )}
               </button>
             </form>
-
-            {/* Fast Demo Accounts Picker (Tabs/Pills for Testing Multi-Tenant Profiles) */}
-            <div className="pt-2 space-y-2.5">
-              <div className="flex items-center justify-between text-[11px] text-[#A08E8B]">
-                <span className="font-bold uppercase tracking-wider">Quick Profile Switcher (Demo)</span>
-                <span>{authDatabase.profiles.length} Available</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {authDatabase.profiles.map((p) => {
-                  const isActive = p.status === 'active';
-                  return (
-                    <button
-                      key={p.profileId}
-                      type="button"
-                      onClick={() => fillQuickDemo(p.email, p.password)}
-                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-mono font-bold text-[#FF6B00]">{p.profileId}</span>
-                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-black uppercase ${
-                          isActive ? 'bg-[#2E8A81]/20 text-[#2E8A81]' : 'bg-[#C9503A]/20 text-[#C9503A]'
-                        }`}>
-                          {p.status}
-                        </span>
-                      </div>
-                      <p className="text-xs font-bold text-white truncate group-hover:text-[#FFA052]">
-                        {p.businessName}
-                      </p>
-                      <p className="text-[10px] text-[#A08E8B] truncate font-mono">
-                        {p.email}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
           </div>
 
           {/* Footer Admin Switcher Gateway */}

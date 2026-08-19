@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const AdminLoginPage: React.FC = () => {
-  const { loginAdmin, setAuthView, authDatabase } = useAuth();
+  const { loginAdmin, setAuthView } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,12 +50,6 @@ export const AdminLoginPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillAdminCredentials = () => {
-    setEmail(authDatabase.admin.email);
-    setPassword(authDatabase.admin.password);
-    setErrorMessage(null);
   };
 
   return (
@@ -138,7 +132,7 @@ export const AdminLoginPage: React.FC = () => {
                   setPassword(e.target.value);
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="••••••••••••"
+                placeholder="Enter admin password"
                 required
                 className="w-full bg-white/5 border border-white/15 focus:border-[#2E8A81] focus:ring-2 focus:ring-[#2E8A81]/30 rounded-2xl pl-11 pr-11 py-3 text-sm text-white placeholder-[#7A6865] outline-none transition-all font-mono"
               />
@@ -162,14 +156,6 @@ export const AdminLoginPage: React.FC = () => {
               />
               <span className="text-xs text-[#C5B7B4]">Keep admin session</span>
             </label>
-
-            <button
-              type="button"
-              onClick={fillAdminCredentials}
-              className="text-xs font-bold text-[#2E8A81] hover:text-[#4ECDC4] transition-colors cursor-pointer"
-            >
-              Fill Default Admin
-            </button>
           </div>
 
           <button

@@ -48,7 +48,8 @@ export const AdminDashboard: React.FC = () => {
     toggleProfileStatus, 
     deleteClientProfile, 
     impersonateClient,
-    resetAuthDatabase
+    resetAuthDatabase,
+    refreshServerDatabase
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'profiles' | 'plans' | 'logs' | 'settings'>('profiles');
@@ -56,6 +57,16 @@ export const AdminDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [planFilter, setPlanFilter] = useState<'all' | SubscriptionPlan>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await refreshServerDatabase();
+    setTimeout(() => {
+      setIsSyncing(false);
+      showToast('Database synchronized across all devices worldwide.');
+    }, 400);
+  };
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -165,6 +176,17 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Worldwide Server Database Sync Button */}
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 text-[#C5B7B4] hover:text-white rounded-xl text-xs font-semibold border border-white/10 transition-all cursor-pointer"
+            title="Sync all client profiles globally across all devices"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#2E8A81] ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Global Cloud Sync'}</span>
+          </button>
+
           {/* Quick Create Account Button */}
           <button
             onClick={() => setCreateModalOpen(true)}
