@@ -27,7 +27,7 @@
         "phone": "(555) 234-5678",
         "address": "142 Market St, Suite 2B, San Francisco, CA 94105",
         "website": "www.happypawsgroom.com",
-        "colorTheme": "terracotta"
+        "colorTheme": "emerald"
       }
     },
     {
@@ -40,7 +40,7 @@
       "plan": "Enterprise",
       "createdAt": "2026-02-01",
       "expiryDate": "2027-02-01",
-      "status": "active",
+      "status": "inactive",
       "customSettings": {
         "salonName": "Luxury Pets Care & Spa",
         "name": "Luxury Pets Haute Salon",
@@ -229,7 +229,7 @@
       "plan": "Starter",
       "createdAt": "2026-06-01",
       "expiryDate": "2027-06-01",
-      "status": "active",
+      "status": "inactive",
       "customSettings": {
         "salonName": "Whisker & Woof Studio",
         "name": "Whisker & Woof",
@@ -284,5 +284,5 @@
     }
   ],
   "version": "1.4.0",
-  "lastUpdated": "2026-08-19T10:16:10.517Z"
+  "lastUpdated": "2026-08-19T14:42:52.256Z"
 }

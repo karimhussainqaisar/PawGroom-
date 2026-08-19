@@ -19,11 +19,15 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// Persistent database file paths on server and in public directory
+// Persistent database file paths across all 5 code/storage tiers
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
+const SRC_DATA_DIR = path.join(process.cwd(), 'src', 'data');
+
 const DB_FILE = path.join(DATA_DIR, 'auth_db.json');
 const PUBLIC_DB_FILE = path.join(PUBLIC_DIR, 'auth_db.json');
+const SRC_REGISTERED_PROFILES_FILE = path.join(SRC_DATA_DIR, 'registeredProfiles.ts');
+const SRC_INITIAL_AUTH_DATA_FILE = path.join(SRC_DATA_DIR, 'initialAuthData.ts');
 
 // Default initial database configuration
 const DEFAULT_AUTH_DB = {
@@ -55,7 +59,7 @@ const DEFAULT_AUTH_DB = {
         phone: '(555) 234-5678',
         address: '142 Market St, Suite 2B, San Francisco, CA 94105',
         website: 'www.happypawsgroom.com',
-        colorTheme: 'terracotta'
+        colorTheme: 'emerald'
       }
     },
     {
@@ -316,7 +320,7 @@ const DEFAULT_AUTH_DB = {
 };
 
 // Ensure directories exist
-[DATA_DIR, PUBLIC_DIR].forEach(dir => {
+[DATA_DIR, PUBLIC_DIR, SRC_DATA_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
@@ -325,6 +329,93 @@ const DEFAULT_AUTH_DB = {
     }
   }
 });
+
+// Helper: Generate TypeScript for registeredProfiles.ts
+function generateRegisteredProfilesTs(profiles: any[]): string {
+  return `import { ClientProfile } from '../types/auth';
+
+/**
+ * PAW GROOMING — MASTER CLIENT PROFILES REPOSITORY
+ * Code-level persistent registry containing all client profiles.
+ */
+export const DEFAULT_REGISTERED_PROFILES: ClientProfile[] = ${JSON.stringify(profiles, null, 2)};
+`;
+}
+
+// Helper: Generate TypeScript for initialAuthData.ts
+function generateInitialAuthDataTs(admin: any, version: string, lastUpdated: string): string {
+  return `import { AuthDatabase, ClientProfile, AdminUser } from '../types/auth';
+import { DEFAULT_REGISTERED_PROFILES } from './registeredProfiles';
+
+export const AUTH_STORAGE_KEY = 'paw_grooming_auth_db_v2';
+export const SESSION_STORAGE_KEY = 'paw_grooming_auth_session_v2';
+
+export const INITIAL_ADMIN: AdminUser = ${JSON.stringify(admin, null, 2)};
+
+export const INITIAL_PROFILES: ClientProfile[] = DEFAULT_REGISTERED_PROFILES;
+
+export const INITIAL_AUTH_DATABASE: AuthDatabase = {
+  admin: INITIAL_ADMIN,
+  profiles: INITIAL_PROFILES,
+  version: '${version || "1.4.0"}',
+  lastUpdated: '${lastUpdated || new Date().toISOString()}'
+};
+
+// Helper: load auth database from localStorage
+export function loadAuthDatabase(): AuthDatabase {
+  try {
+    const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.profiles && Array.isArray(parsed.profiles)) {
+        const profileMap = new Map<string, ClientProfile>();
+        DEFAULT_REGISTERED_PROFILES.forEach(p => profileMap.set(p.profileId, p));
+        parsed.profiles.forEach((p: ClientProfile) => profileMap.set(p.profileId, p));
+        return {
+          ...parsed,
+          profiles: Array.from(profileMap.values())
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to parse saved auth database:', err);
+  }
+  saveAuthDatabase(INITIAL_AUTH_DATABASE);
+  return INITIAL_AUTH_DATABASE;
+}
+
+// Helper: save auth database to localStorage
+export function saveAuthDatabase(db: AuthDatabase): void {
+  try {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(db));
+  } catch (err) {
+    console.error('Failed to save auth database to localStorage:', err);
+  }
+}
+
+// Helper: Generate next unique Profile ID
+export function generateNextProfileId(profiles: ClientProfile[]): string {
+  const existingNumbers = profiles
+    .map(p => {
+      const match = p.profileId.match(/^PG(\\d+)$/i);
+      return match ? parseInt(match[1], 10) : 0;
+    })
+    .filter(n => !isNaN(n));
+
+  const maxNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+  const nextNum = maxNum + 1;
+  return \`PG\${String(nextNum).padStart(3, '0')}\`;
+}
+
+// Helper: Generate secure suggested password
+export function generateSuggestedPassword(): string {
+  const words = ['Paws', 'Bark', 'Groom', 'Studio', 'Shampoo', 'Fluffy', 'Happy', 'Puppy'];
+  const randomWord = words[Math.floor(Math.random() * words.length)];
+  const randomNum = Math.floor(100 + Math.random() * 900);
+  return \`\${randomWord}@\${randomNum}\`;
+}
+`;
+}
 
 // Helper: Read DB from disk
 function readServerAuthDb() {
@@ -350,18 +441,37 @@ function readServerAuthDb() {
   return DEFAULT_AUTH_DB;
 }
 
-// Helper: Write DB to disk and public folder for direct universal access
+// Helper: Write DB to ALL 5 code and persistent storage locations
 function writeServerAuthDb(data: any) {
+  currentDb = data;
   const jsonStr = JSON.stringify(data, null, 2);
+
+  // 1. data/auth_db.json
   try {
     fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');
   } catch (err) {
     console.error('Failed to write data/auth_db.json:', err);
   }
+
+  // 2. public/auth_db.json
   try {
     fs.writeFileSync(PUBLIC_DB_FILE, jsonStr, 'utf-8');
   } catch (err) {
     console.error('Failed to write public/auth_db.json:', err);
+  }
+
+  // 3. src/data/registeredProfiles.ts
+  try {
+    fs.writeFileSync(SRC_REGISTERED_PROFILES_FILE, generateRegisteredProfilesTs(data.profiles), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write src/data/registeredProfiles.ts:', err);
+  }
+
+  // 4. src/data/initialAuthData.ts
+  try {
+    fs.writeFileSync(SRC_INITIAL_AUTH_DATA_FILE, generateInitialAuthDataTs(data.admin, data.version, data.lastUpdated), 'utf-8');
+  } catch (err) {
+    console.error('Failed to write src/data/initialAuthData.ts:', err);
   }
 }
 
@@ -379,6 +489,8 @@ app.get('/api/health', (req, res) => {
 
 // 2. Fetch full global Auth Database
 app.get('/api/auth/db', (req, res) => {
+  // Always verify latest from disk
+  currentDb = readServerAuthDb();
   res.json(currentDb);
 });
 
@@ -392,15 +504,30 @@ app.post('/api/auth/client-login', (req, res) => {
   const cleanEmail = String(email).trim().toLowerCase();
   const cleanPass = String(password).trim();
 
+  // Always refresh latest DB
+  currentDb = readServerAuthDb();
+
   const matched = currentDb.profiles.find(
     (p: any) => p.email.toLowerCase() === cleanEmail && p.password === cleanPass
   );
 
   if (!matched) {
+    // Check if email exists with different password
+    const emailExists = currentDb.profiles.some(
+      (p: any) => p.email.toLowerCase() === cleanEmail
+    );
+    if (emailExists) {
+      return res.status(401).json({
+        success: false,
+        status: 'invalid',
+        error: 'Incorrect password for this account. Please verify case-sensitivity.'
+      });
+    }
+
     return res.status(401).json({
       success: false,
       status: 'invalid',
-      error: 'Invalid email or password.'
+      error: 'No registered client profile found for this email address.'
     });
   }
 
@@ -427,6 +554,8 @@ app.post('/api/auth/admin-login', (req, res) => {
   const cleanEmail = String(email || '').trim().toLowerCase();
   const cleanPass = String(password || '').trim();
 
+  currentDb = readServerAuthDb();
+
   if (
     cleanEmail === currentDb.admin.email.toLowerCase() &&
     cleanPass === currentDb.admin.password
@@ -444,13 +573,15 @@ app.post('/api/auth/admin-login', (req, res) => {
   });
 });
 
-// 5. Create new client profile (accessible from any device in the world)
+// 5. Create new client profile (accessible from any device in the world, writes to all 5 code files)
 app.post('/api/auth/profiles', (req, res) => {
   try {
     const newProfileData = req.body;
     if (!newProfileData || !newProfileData.businessName || !newProfileData.email || !newProfileData.password) {
       return res.status(400).json({ error: 'Missing required profile fields.' });
     }
+
+    currentDb = readServerAuthDb();
 
     // Generate next Profile ID if not provided
     let profileId = newProfileData.profileId;
@@ -481,15 +612,21 @@ app.post('/api/auth/profiles', (req, res) => {
       }
     };
 
-    // Prepend new profile
-    currentDb = {
+    // Prepend new profile and remove any duplicates by ID or email
+    const filteredExisting = currentDb.profiles.filter(
+      (p: any) => p.profileId !== profileId && p.email.toLowerCase() !== newProfile.email.toLowerCase()
+    );
+
+    const updatedDb = {
       ...currentDb,
-      profiles: [newProfile, ...currentDb.profiles.filter((p: any) => p.profileId !== profileId)],
+      profiles: [newProfile, ...filteredExisting],
       lastUpdated: new Date().toISOString()
     };
 
-    writeServerAuthDb(currentDb);
-    res.status(201).json({ success: true, profile: newProfile, database: currentDb });
+    // Write across ALL 5 files
+    writeServerAuthDb(updatedDb);
+
+    res.status(201).json({ success: true, profile: newProfile, database: updatedDb });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to create profile on server.' });
   }
@@ -500,29 +637,33 @@ app.put('/api/auth/profiles/:profileId', (req, res) => {
   const { profileId } = req.params;
   const updates = req.body;
 
+  currentDb = readServerAuthDb();
   let found = false;
-  currentDb = {
-    ...currentDb,
-    profiles: currentDb.profiles.map((p: any) => {
-      if (p.profileId === profileId) {
-        found = true;
-        const updated = { ...p, ...updates };
-        if (updates.businessName && updated.customSettings) {
-          updated.customSettings.salonName = updates.businessName;
-        }
-        return updated;
+
+  const updatedProfiles = currentDb.profiles.map((p: any) => {
+    if (p.profileId === profileId) {
+      found = true;
+      const updated = { ...p, ...updates };
+      if (updates.businessName && updated.customSettings) {
+        updated.customSettings.salonName = updates.businessName;
       }
-      return p;
-    }),
-    lastUpdated: new Date().toISOString()
-  };
+      return updated;
+    }
+    return p;
+  });
 
   if (!found) {
     return res.status(404).json({ error: `Profile ${profileId} not found.` });
   }
 
-  writeServerAuthDb(currentDb);
-  res.json({ success: true, database: currentDb });
+  const updatedDb = {
+    ...currentDb,
+    profiles: updatedProfiles,
+    lastUpdated: new Date().toISOString()
+  };
+
+  writeServerAuthDb(updatedDb);
+  res.json({ success: true, database: updatedDb });
 });
 
 // 7. Toggle Profile status (active/inactive)
@@ -530,49 +671,55 @@ app.patch('/api/auth/profiles/:profileId/toggle-status', (req, res) => {
   const { profileId } = req.params;
   let nextStatus = 'active';
 
+  currentDb = readServerAuthDb();
   let found = false;
-  currentDb = {
-    ...currentDb,
-    profiles: currentDb.profiles.map((p: any) => {
-      if (p.profileId === profileId) {
-        found = true;
-        nextStatus = p.status === 'active' ? 'inactive' : 'active';
-        return { ...p, status: nextStatus };
-      }
-      return p;
-    }),
-    lastUpdated: new Date().toISOString()
-  };
+
+  const updatedProfiles = currentDb.profiles.map((p: any) => {
+    if (p.profileId === profileId) {
+      found = true;
+      nextStatus = p.status === 'active' ? 'inactive' : 'active';
+      return { ...p, status: nextStatus };
+    }
+    return p;
+  });
 
   if (!found) {
     return res.status(404).json({ error: `Profile ${profileId} not found.` });
   }
 
-  writeServerAuthDb(currentDb);
-  res.json({ success: true, newStatus: nextStatus, database: currentDb });
+  const updatedDb = {
+    ...currentDb,
+    profiles: updatedProfiles,
+    lastUpdated: new Date().toISOString()
+  };
+
+  writeServerAuthDb(updatedDb);
+  res.json({ success: true, newStatus: nextStatus, database: updatedDb });
 });
 
 // 8. Delete Profile
 app.delete('/api/auth/profiles/:profileId', (req, res) => {
   const { profileId } = req.params;
-  currentDb = {
+  currentDb = readServerAuthDb();
+
+  const updatedDb = {
     ...currentDb,
     profiles: currentDb.profiles.filter((p: any) => p.profileId !== profileId),
     lastUpdated: new Date().toISOString()
   };
 
-  writeServerAuthDb(currentDb);
-  res.json({ success: true, database: currentDb });
+  writeServerAuthDb(updatedDb);
+  res.json({ success: true, database: updatedDb });
 });
 
 // 9. Reset database
 app.post('/api/auth/reset', (req, res) => {
-  currentDb = {
+  const updatedDb = {
     ...DEFAULT_AUTH_DB,
     lastUpdated: new Date().toISOString()
   };
-  writeServerAuthDb(currentDb);
-  res.json({ success: true, database: currentDb });
+  writeServerAuthDb(updatedDb);
+  res.json({ success: true, database: updatedDb });
 });
 
 // -------------------------------------------------------------

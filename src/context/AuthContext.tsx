@@ -104,9 +104,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to sync with global server-side persistent database
   const refreshServerDatabase = useCallback(async () => {
+    const timestamp = Date.now();
     try {
-      // 1. Attempt API fetch
-      const res = await fetch('/api/auth/db');
+      // 1. Attempt API fetch with cache-busting
+      const res = await fetch(`/api/auth/db?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      });
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.profiles)) {
@@ -123,8 +127,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      // 2. Attempt direct static public JSON file fetch
-      const staticRes = await fetch('/auth_db.json');
+      // 2. Attempt direct static public JSON file fetch with cache-busting
+      const staticRes = await fetch(`/auth_db.json?t=${timestamp}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      });
       if (staticRes.ok) {
         const staticData = await staticRes.json();
         if (staticData && Array.isArray(staticData.profiles)) {
@@ -140,10 +147,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Sync on mount and periodically every 10 seconds so changes on any device reflect everywhere
+  // Sync on mount and periodically every 5 seconds so changes on any device reflect everywhere
   useEffect(() => {
     refreshServerDatabase();
-    const interval = setInterval(refreshServerDatabase, 10000);
+    const interval = setInterval(refreshServerDatabase, 5000);
     return () => clearInterval(interval);
   }, [refreshServerDatabase]);
 
@@ -190,14 +197,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // Refresh database right before authenticating to guarantee newest profiles
-    await refreshServerDatabase();
-
     // 1. Direct Server API verification
     try {
       const res = await fetch('/api/auth/client-login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store'
+        },
         body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
       });
 
@@ -213,6 +220,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           persistSession(newSession, rememberMe);
           setAuthView('app');
+          // Also update local database with fresh profile
+          setAuthDatabase(prev => {
+            const merged = mergeProfiles([data.profile], prev);
+            saveAuthDatabase(merged);
+            return merged;
+          });
           return { success: true, status: 'active', profile: data.profile };
         }
       } else {
@@ -227,10 +240,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             profile: errData.profile
           };
         }
+        if (res.status === 401) {
+          return {
+            success: false,
+            status: 'invalid',
+            error: errData.error || 'Invalid email or password. Please verify your credentials.'
+          };
+        }
       }
     } catch (apiErr) {
       console.warn('Server auth endpoint unreachable, checking synchronized pool:', apiErr);
     }
+
+    // Refresh fallback pool if server endpoint failed
+    await refreshServerDatabase();
 
     // 2. Comprehensive pool check (Local DB + Default Code Pool)
     const allProfiles = [
