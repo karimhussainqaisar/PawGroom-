@@ -135,7 +135,7 @@ export async function saveProfileToFirestore(profile: ClientProfile): Promise<vo
   try {
     const ref = doc(db, PROFILES_COLLECTION, profile.profileId);
     await setDoc(ref, profile, { merge: true });
-    console.log(`Saved profile ${profile.profileId} (${profile.businessName}) to online Firebase Firestore.`);
+    console.log(`Saved/Updated profile ${profile.profileId} (${profile.businessName}) to online Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${PROFILES_COLLECTION}/${profile.profileId}`);
   }
@@ -152,6 +152,71 @@ export async function deleteProfileFromFirestore(profileId: string): Promise<voi
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, `${PROFILES_COLLECTION}/${profileId}`);
   }
+}
+
+/**
+ * Direct Firebase Firestore Authentication for Client Login
+ */
+export async function authenticateWithFirestore(
+  email: string, 
+  password: string
+): Promise<{ 
+  success: boolean; 
+  profile?: ClientProfile; 
+  status?: 'active' | 'inactive' | 'invalid'; 
+  error?: string 
+}> {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanPass = password.trim();
+
+  try {
+    const snap = await getDocs(collection(db, PROFILES_COLLECTION));
+    let matchedProfile: ClientProfile | null = null;
+    let foundEmail = false;
+
+    snap.forEach(docSnap => {
+      const p = docSnap.data() as ClientProfile;
+      if (p.email && p.email.trim().toLowerCase() === cleanEmail) {
+        foundEmail = true;
+        if (p.password === cleanPass) {
+          matchedProfile = p;
+        }
+      }
+    });
+
+    if (matchedProfile) {
+      const p = matchedProfile as ClientProfile;
+      if (p.status === 'inactive') {
+        return {
+          success: false,
+          status: 'inactive',
+          profile: p,
+          error: 'Your account is currently inactive. Please contact support.'
+        };
+      }
+      return {
+        success: true,
+        status: 'active',
+        profile: p
+      };
+    }
+
+    if (foundEmail) {
+      return {
+        success: false,
+        status: 'invalid',
+        error: 'Incorrect password for this account. Please check case sensitivity.'
+      };
+    }
+  } catch (err) {
+    console.warn('Direct Firestore authentication notice:', err);
+  }
+
+  return {
+    success: false,
+    status: 'invalid',
+    error: 'No registered client profile found for this email address.'
+  };
 }
 
 /**

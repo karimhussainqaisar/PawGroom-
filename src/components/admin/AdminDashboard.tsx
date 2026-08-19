@@ -978,6 +978,16 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
 
           <div className="grid grid-cols-3 gap-3">
             <div>
+              <label className="block text-[#A08E8B] font-bold mb-1">Phone Number</label>
+              <input
+                type="text"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+                placeholder="(555) 000-0000"
+              />
+            </div>
+            <div>
               <label className="block text-[#A08E8B] font-bold mb-1">Subscription Plan</label>
               <select
                 value={plan}
@@ -991,16 +1001,6 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
               </select>
             </div>
             <div>
-              <label className="block text-[#A08E8B] font-bold mb-1">Expiry Date</label>
-              <input
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
-                required
-              />
-            </div>
-            <div>
               <label className="block text-[#A08E8B] font-bold mb-1">Status</label>
               <select
                 value={status}
@@ -1011,6 +1011,17 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 <option value="inactive">Inactive</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[#A08E8B] font-bold mb-1">Expiry Date</label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+              required
+            />
           </div>
 
           <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
