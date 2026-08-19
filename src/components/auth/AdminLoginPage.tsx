@@ -85,7 +85,7 @@ export const AdminLoginPage: React.FC = () => {
               SuperAdmin Console
             </span>
             <h2 className="font-display font-black text-2xl tracking-tight text-white uppercase">
-              PARK GROOMING
+              PAW GROOMING
             </h2>
             <p className="text-xs text-[#A08E8B] mt-1">
               Multi-Client Profile & Database Management

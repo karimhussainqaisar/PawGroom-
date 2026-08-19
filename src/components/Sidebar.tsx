@@ -89,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
               </div>
               <div>
                 <h1 className="font-display font-extrabold text-base text-white tracking-wide uppercase leading-tight line-clamp-1">
-                  {currentProfile?.businessName || settings.salonName || settings.name || 'Park Grooming'}
+                  {currentProfile?.businessName || settings.salonName || settings.name || 'Paw Grooming'}
                 </h1>
                 <span className="text-[9px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
                   {currentProfile ? `${currentProfile.plan} Tier` : (settings.name || 'Grooming & Spa')}

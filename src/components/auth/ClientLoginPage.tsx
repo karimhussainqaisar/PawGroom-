@@ -110,7 +110,7 @@ export const ClientLoginPage: React.FC = () => {
               </div>
               <div>
                 <h1 className="font-display font-black text-xl text-white tracking-wide uppercase leading-tight">
-                  PARK GROOMING
+                  PAW GROOMING
                 </h1>
                 <span className="text-[10px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
                   Dog Grooming Studio
@@ -185,7 +185,7 @@ export const ClientLoginPage: React.FC = () => {
                 </span>
               </div>
               <h3 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
-                Sign In to Park Grooming
+                Sign In to Paw Grooming
               </h3>
               <p className="text-xs text-[#A08E8B] mt-1">
                 Enter your registered business email and password to access your dashboard.
@@ -297,7 +297,7 @@ export const ClientLoginPage: React.FC = () => {
           <div className="pt-6 mt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#A08E8B]">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
-              <span>Park Grooming Multi-Tenant Cloud</span>
+              <span>Paw Grooming Multi-Tenant Cloud</span>
             </div>
 
             <button

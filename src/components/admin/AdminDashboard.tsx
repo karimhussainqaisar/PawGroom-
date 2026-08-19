@@ -163,7 +163,7 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-display font-black text-base text-white tracking-wide">
-                Park Grooming SaaS
+                Paw Grooming SaaS
               </h1>
               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-[#2E8A81] text-white">
                 Admin Console
