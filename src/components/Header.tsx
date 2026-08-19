@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Plus, UserPlus, Menu, Search, X, Bell } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Plus, UserPlus, Menu, Search, X, Bell, LogOut, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -17,6 +18,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
     settings,
     clients 
   } = useApp();
+
+  const { currentProfile, isAdmin, logout, returnToAdmin } = useAuth();
 
   const healthAlertsCount = React.useMemo(() => {
     const today = new Date(2026, 7, 12);
@@ -67,8 +70,20 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
           </div>
         </div>
 
-        {/* Right Section: Notifications Bell & User Badge */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Right Section: Notifications Bell & User Badge & Logout */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          {/* Admin Preview Return Banner Button */}
+          {isAdmin && (
+            <button
+              onClick={returnToAdmin}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#2E8A81] hover:bg-[#236F68] text-white rounded-full text-[11px] font-bold shadow-xs cursor-pointer active:scale-95 transition-all"
+              title="Return to SuperAdmin Control Center"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Admin Console</span>
+            </button>
+          )}
+
           {/* Health / Vaccine Alerts Button */}
           <button
             onClick={() => setView('alerts')}
@@ -87,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
           <div 
             onClick={() => setView('settings')}
             className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs cursor-pointer hover:border-[#FF6B00] transition-colors"
-            title="Open Clinic Settings"
+            title="Open Studio Settings"
           >
             <img 
               src={settings.photo || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=120&q=80"} 
@@ -96,10 +111,10 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
             />
             <div className="text-left leading-tight pr-1">
               <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider truncate max-w-[120px]">
-                {settings.salonName || 'PawBook Studio'}
+                {currentProfile?.businessName || settings.salonName || 'Park Grooming Studio'}
               </span>
               <span className="text-xs font-extrabold text-[#240C0B] font-display truncate max-w-[120px] block">
-                {settings.name || 'PawBook Pro Studio'}
+                {currentProfile?.ownerName || settings.name || 'Master Stylist'}
               </span>
             </div>
           </div>
@@ -107,10 +122,19 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
           {/* Book Grooming Primary Button */}
           <button
             onClick={() => openModal('appointmentForm')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-full text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-full text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden xs:inline">Book Grooming</span>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={logout}
+            className="w-9 h-9 rounded-full bg-white border border-[#E6DFD5] hover:bg-[#FEF2F2] hover:border-[#C9503A]/40 text-[#7A6865] hover:text-[#C9503A] flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+            title="Sign out of Studio"
+          >
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

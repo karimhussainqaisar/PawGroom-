@@ -5,6 +5,7 @@ import { X, Check, Calendar, Phone, Mail, Award, AlertTriangle, Send, Trash2, Pr
 import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 import { formatShortInvoiceNumber, calculateAppointmentInvoice } from '../../utils/invoice';
+import { downloadElementAsPng, copyElementImageToClipboard, shareElementImage } from '../../utils/imageShare';
 import { InvoiceQRCode } from '../common/InvoiceQRCode';
 
 export const ModalContainer: React.FC = () => {
@@ -2748,18 +2749,22 @@ const STANDALONE_PRINT_STYLES = `
 
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm;
+    margin: 4mm 6mm;
   }
 
-  body {
+  html, body {
     font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #240C0B;
-    background: #ffffff;
-    padding: 16px;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    padding: 0;
     margin: 0 auto;
-    max-width: 800px;
+    width: 100%;
+    max-width: 100%;
     line-height: 1.45;
     font-size: 12px;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   h1, h2, h3, h4, .font-display {
@@ -3071,7 +3076,7 @@ const triggerPrintDocument = (title: string, containerId: string) => {
                 }
               </style>
             </head>
-            <body class="bg-[#FAF8F5] p-4 sm:p-8">
+            <body class="bg-white p-2 sm:p-4">
               <div class="print-banner no-print max-w-[800px] mx-auto">
                 <div style="font-size: 13px; font-weight: 700;">
                   🖨️ <span>Print or Save as PDF</span>
@@ -3081,7 +3086,7 @@ const triggerPrintDocument = (title: string, containerId: string) => {
                   <button class="close-action-btn" onclick="window.close()">Close</button>
                 </div>
               </div>
-              <div class="printable-area max-w-[800px] mx-auto bg-white p-8 rounded-2xl shadow-sm border border-[#D8D3C4]">${containerEl.innerHTML}</div>
+              <div class="printable-area max-w-[800px] mx-auto bg-white p-4 sm:p-6 rounded-none shadow-none border-none">${containerEl.innerHTML}</div>
               <script>
                 window.onload = function() {
                   setTimeout(function() {
@@ -3127,8 +3132,8 @@ const downloadPrintableHTML = (title: string, containerId: string, filename: str
     </script>
     <style>${STANDALONE_PRINT_STYLES}</style>
   </head>
-  <body class="bg-[#FAF8F5] p-4 sm:p-8">
-    <div class="printable-area max-w-[800px] mx-auto bg-white p-8 sm:p-10 rounded-2xl shadow-sm border border-[#D8D3C4]">${containerEl.innerHTML}</div>
+  <body class="bg-white p-2 sm:p-4">
+    <div class="printable-area max-w-[800px] mx-auto bg-white p-4 sm:p-6 rounded-none shadow-none border-none">${containerEl.innerHTML}</div>
     <script>
       window.onload = function() {
         window.print();
@@ -3466,6 +3471,8 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const clinicAddress = settings?.address || '100 Bark Avenue, Suite 4, San Francisco, CA 94107';
   const clinicPhoto = settings?.photo || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80';
 
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+
   const handlePrint = () => {
     triggerPrintDocument(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc');
   };
@@ -3473,6 +3480,63 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   const handleDownload = () => {
     downloadPrintableHTML(`Invoice ${invoiceNum} - ${clinicName}`, 'printable-invoice-doc', `${invoiceNum}_${client?.name || 'Pet'}_Invoice.html`);
     showToast('Printable invoice downloaded successfully!', 'success');
+  };
+
+  const handleShareImage = async () => {
+    const el = document.getElementById('printable-invoice-doc');
+    if (!el) return;
+    setIsProcessingImage(true);
+    showToast('Rendering high-resolution invoice image...', 'info');
+    try {
+      const res = await shareElementImage(el, {
+        title: `Invoice ${invoiceNum} - ${clinicName}`,
+        text: `Official Invoice for ${client?.owner || 'Client'} (${client?.name || 'Pet'}) - ${invoiceNum}`,
+        filename: `Invoice_${invoiceNum}_${client?.name || 'Pet'}.png`
+      });
+      if (res.success) {
+        if (res.method === 'web-share') {
+          showToast('Invoice image shared successfully!', 'success');
+        } else if (res.method === 'clipboard') {
+          showToast('Invoice image copied to clipboard & downloaded!', 'success');
+        } else {
+          showToast('Invoice PNG image downloaded (ready to share in WhatsApp)!', 'success');
+        }
+      } else {
+        showToast(res.error || 'Failed to share image', 'error');
+      }
+    } catch (e) {
+      showToast('Could not share image', 'error');
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handleDownloadPng = async () => {
+    const el = document.getElementById('printable-invoice-doc');
+    if (!el) return;
+    setIsProcessingImage(true);
+    showToast('Generating PNG image file...', 'info');
+    const ok = await downloadElementAsPng(el, `Invoice_${invoiceNum}_${client?.name || 'Pet'}.png`);
+    setIsProcessingImage(false);
+    if (ok) {
+      showToast('Invoice image (.PNG) saved to downloads!', 'success');
+    } else {
+      showToast('Failed to generate PNG image', 'error');
+    }
+  };
+
+  const handleCopyImage = async () => {
+    const el = document.getElementById('printable-invoice-doc');
+    if (!el) return;
+    setIsProcessingImage(true);
+    const ok = await copyElementImageToClipboard(el);
+    setIsProcessingImage(false);
+    if (ok) {
+      showToast('Invoice image copied! Paste directly into WhatsApp or messages.', 'success');
+    } else {
+      await downloadElementAsPng(el, `Invoice_${invoiceNum}_${client?.name || 'Pet'}.png`);
+      showToast('Invoice image downloaded to attach in WhatsApp!', 'info');
+    }
   };
 
   const handleWhatsAppShare = () => {
@@ -3534,7 +3598,7 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
   return (
     <div className="space-y-4">
       {/* Top Action Toolbar (Hidden on print) */}
-      <div className="no-print bg-[#FAF8F5] p-3.5 sm:p-4 rounded-2xl border border-[#E6DFD5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+      <div className="no-print bg-[#FAF8F5] p-3.5 sm:p-4 rounded-2xl border border-[#E6DFD5] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#240C0B] text-white rounded-xl shadow-xs shrink-0">
             <Receipt className="w-5 h-5 text-[#FF6B00]" />
@@ -3552,46 +3616,62 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
-          {/* WhatsApp Direct Share Button */}
+        <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
+          {/* Share as Image (Native share to WhatsApp, AirDrop, Messages) */}
+          <button
+            type="button"
+            disabled={isProcessingImage}
+            onClick={handleShareImage}
+            className="bg-[#2E8A81] hover:bg-[#236F68] disabled:opacity-50 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Share invoice as an image via WhatsApp or system share menu"
+          >
+            <ImageIcon className="w-4 h-4 text-white" />
+            <span>{isProcessingImage ? 'Rendering Image...' : 'Share as Image'}</span>
+          </button>
+
+          {/* WhatsApp Direct Text Share */}
           <button
             type="button"
             onClick={handleWhatsAppShare}
-            className="bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-            title="Share invoice directly to client on WhatsApp"
+            className="bg-[#25D366] hover:bg-[#1EBE5D] text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Open WhatsApp with prefilled formatted invoice receipt text"
           >
             <MessageCircle className="w-4 h-4 fill-current" />
-            <span>Share via WhatsApp</span>
+            <span>WhatsApp Text</span>
           </button>
 
+          {/* Download Image (PNG) */}
+          <button
+            type="button"
+            disabled={isProcessingImage}
+            onClick={handleDownloadPng}
+            className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] disabled:opacity-50 text-[#240C0B] font-bold text-xs px-3 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Download high-resolution PNG image"
+          >
+            <Download className="w-3.5 h-3.5 text-[#2E8A81]" />
+            <span>PNG</span>
+          </button>
+
+          {/* Copy Text Summary */}
           <button
             type="button"
             onClick={handleCopyTextReceipt}
             className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] text-[#240C0B] font-bold text-xs px-3 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Copy formatted text message"
+            title="Copy formatted invoice text"
           >
-            <Share2 className="w-3.5 h-3.5 text-[#2E8A81]" />
-            <span className="hidden sm:inline">Copy Text</span>
+            <Copy className="w-3.5 h-3.5 text-[#7A6865]" />
+            <span className="hidden sm:inline">Copy</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="bg-white border border-[#D8D3C4] hover:bg-[#FAF8F5] text-[#240C0B] font-bold text-xs px-3 py-2.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Download offline printable HTML invoice"
-          >
-            <Download className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span className="hidden sm:inline">Save File</span>
-          </button>
-
+          {/* Print Invoice / Save PDF */}
           <button
             type="button"
             onClick={handlePrint}
             className="bg-[#240C0B] hover:bg-[#180504] text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-            title="Print or Save PDF"
+            title="Print or Save as PDF"
           >
             <Printer className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Print Invoice</span>
+            <span>Print PDF</span>
           </button>
 
           <button
@@ -3604,11 +3684,11 @@ const InvoiceModal: React.FC<{ data: any; onClose: () => void }> = ({ data, onCl
         </div>
       </div>
 
-      {/* A4 Printable Document Container (Exact 210mm standard proportions with spacious layout) */}
-      <div className="flex justify-center overflow-x-auto p-2 sm:p-4 bg-[#EBE7DF] rounded-2xl">
+      {/* A4 Printable Document Container (Exact 210mm standard proportions with clean white background) */}
+      <div className="printable-wrapper flex justify-center overflow-x-auto p-2 sm:p-4 bg-transparent print:bg-white print:p-0 print:m-0 rounded-2xl">
         <div 
           id="printable-invoice-doc" 
-          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 md:p-12 space-y-7 border border-[#D8D3C4] shadow-md print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none"
+          className="printable-area bg-white text-[#240C0B] w-full max-w-[210mm] min-h-[297mm] p-6 sm:p-10 md:p-12 space-y-7 border border-[#E6DFD5] shadow-md print:shadow-none print:border-none print:p-1 print:m-0 print:w-full print:max-w-none print:min-h-0"
         >
           {/* Header Block: Studio Brand & Official Invoice Title (Strictly Side-by-Side in the Same Line) */}
           <div className="flex flex-row justify-between items-start gap-4 border-b-2 border-[#240C0B] pb-5 w-full">

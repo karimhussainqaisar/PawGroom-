@@ -1,0 +1,205 @@
+import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { 
+  ShieldCheck, 
+  Lock, 
+  Mail, 
+  Eye, 
+  EyeOff, 
+  ArrowLeft, 
+  KeyRound, 
+  Server, 
+  AlertCircle,
+  CheckCircle2,
+  Sparkles
+} from 'lucide-react';
+
+export const AdminLoginPage: React.FC = () => {
+  const { loginAdmin, setAuthView, authDatabase } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleAdminLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (!email.trim()) {
+      setErrorMessage('Please enter the admin email.');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Please enter the admin security password.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    try {
+      const res = await loginAdmin(email, password, rememberMe);
+      if (!res.success) {
+        setErrorMessage(res.error || 'Invalid admin credentials.');
+      }
+    } catch (err) {
+      setErrorMessage('Authentication service error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fillAdminCredentials = () => {
+    setEmail(authDatabase.admin.email);
+    setPassword(authDatabase.admin.password);
+    setErrorMessage(null);
+  };
+
+  return (
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#0D0404] selection:bg-[#FF6B00] selection:text-white">
+      {/* Background Gradients */}
+      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#2E8A81]/15 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-[#FF6B00]/15 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Admin Card */}
+      <div className="relative z-10 w-full max-w-md bg-[#1C0908]/90 border border-white/15 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-2xl text-white space-y-6">
+        
+        {/* Back to Client Login Button */}
+        <button
+          type="button"
+          onClick={() => setAuthView('client_login')}
+          className="inline-flex items-center gap-2 text-xs font-bold text-[#A08E8B] hover:text-white transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Client Login</span>
+        </button>
+
+        {/* Header Title */}
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#2E8A81] to-[#4ECDC4] flex items-center justify-center mx-auto shadow-lg shadow-[#2E8A81]/30">
+            <KeyRound className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#2E8A81]/20 text-[#2E8A81] border border-[#2E8A81]/40 text-[10px] font-black uppercase tracking-widest mb-1">
+              SuperAdmin Gateway
+            </span>
+            <h2 className="font-display font-black text-2xl tracking-tight text-white">
+              Admin Control Center
+            </h2>
+            <p className="text-xs text-[#A08E8B] mt-1">
+              Restricted management console for Park Grooming SaaS
+            </p>
+          </div>
+        </div>
+
+        {/* Error Notification */}
+        {errorMessage && (
+          <div className="p-3.5 rounded-2xl bg-[#FEF2F2]/10 border border-[#C9503A]/40 text-[#FFA494] text-xs flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-[#C9503A] shrink-0" />
+            <span className="font-medium">{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleAdminLogin} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-[#E6DFD5]">
+              Master Admin Email
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-[#A08E8B] absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                placeholder="admin@parkgrooming.com"
+                required
+                className="w-full bg-white/5 border border-white/15 focus:border-[#2E8A81] focus:ring-2 focus:ring-[#2E8A81]/30 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder-[#7A6865] outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-[#E6DFD5]">
+              Security Key / Password
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-[#A08E8B] absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage(null);
+                }}
+                placeholder="••••••••••••"
+                required
+                className="w-full bg-white/5 border border-white/15 focus:border-[#2E8A81] focus:ring-2 focus:ring-[#2E8A81]/30 rounded-2xl pl-11 pr-11 py-3 text-sm text-white placeholder-[#7A6865] outline-none transition-all font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A08E8B] hover:text-white transition-colors cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded-md accent-[#2E8A81] cursor-pointer"
+              />
+              <span className="text-xs text-[#C5B7B4]">Keep admin session</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={fillAdminCredentials}
+              className="text-xs font-bold text-[#2E8A81] hover:text-[#4ECDC4] transition-colors cursor-pointer"
+            >
+              Fill Default Admin
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2E8A81] to-[#236F68] hover:from-[#236F68] hover:to-[#173E39] text-white font-display font-bold text-sm tracking-wide shadow-lg shadow-[#2E8A81]/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-70"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Verifying Admin Access...</span>
+              </div>
+            ) : (
+              <span>Unlock Admin Console</span>
+            )}
+          </button>
+        </form>
+
+        {/* Security Info Box */}
+        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-[11px] text-[#A08E8B] space-y-1">
+          <p className="flex items-center gap-1.5 font-bold text-[#E6DFD5]">
+            <Server className="w-3.5 h-3.5 text-[#2E8A81]" />
+            <span>Admin Capabilities</span>
+          </p>
+          <p>
+            Create multi-client profiles, activate/deactivate studios, manage passwords, and view SaaS platform statistics.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+};

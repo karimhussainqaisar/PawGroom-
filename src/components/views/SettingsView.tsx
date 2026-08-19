@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles } from 'lucide-react';
+import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
 import { ColorTheme } from '../../types';
 
 interface ThemeOption {
@@ -68,6 +68,7 @@ export const SettingsView: React.FC = () => {
     settings, 
     updateSettings, 
     resetToDemoData, 
+    clearAllData,
     exportDataJSON, 
     importDataJSON, 
     confirmDelete,
@@ -547,45 +548,91 @@ export const SettingsView: React.FC = () => {
         </div>
       </form>
 
-      {/* 3. Data Backup & Restore */}
-      <div className="card-box space-y-4">
-        <h3 className="font-display font-bold text-lg text-[#173E39] border-b pb-2">
-          Data Management & Backup
-        </h3>
+      {/* 3. Data Backup & Reset Management */}
+      <div className="card-box space-y-5">
+        <div className="border-b border-[#E6DFD5] pb-3 flex items-center justify-between">
+          <div>
+            <h3 className="font-display font-bold text-lg text-[#240C0B]">
+              Data Management & System Reset
+            </h3>
+            <p className="text-xs text-[#7A6865] mt-0.5">
+              Export full studio database backups, restore JSON files, or wipe/reset website data.
+            </p>
+          </div>
+        </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="btn-teal text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 font-bold cursor-pointer"
-          >
-            <Download className="w-4 h-4" /> Backup JSON Data
-          </button>
-
-          <label className="btn-ghost text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 font-bold cursor-pointer">
-            <Upload className="w-4 h-4 text-[#2E8A81]" /> Restore JSON Data
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
+        {/* Backup & Restore Controls */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-[#240C0B] uppercase tracking-wider block">
+            Database Backup & Portability
           </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="bg-[#240C0B] hover:bg-[#180504] text-white text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer transition-all shadow-xs"
+            >
+              <Download className="w-4 h-4 text-[#FF6B00]" /> Backup JSON Database
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              confirmDelete({
-                title: 'Reset Demo Dataset',
-                message: 'Are you sure you want to reset to the initial PawBook Pro demo dataset? Any custom data added will be restored to defaults.',
-                confirmLabel: 'Reset Dataset',
-                onConfirm: () => resetToDemoData(),
-              });
-            }}
-            className="btn-ghost text-xs px-4 py-2 rounded-xl text-[#C9503A] border-[#E7C0B5] hover:bg-[#FEF2F2] flex items-center gap-1.5 font-bold cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4" /> Reset Demo Dataset
-          </button>
+            <label className="btn-ghost text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer">
+              <Upload className="w-4 h-4 text-[#2E8A81]" /> Restore JSON File
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Danger Zone: Reset & Clear All Website Data */}
+        <div className="pt-3 border-t border-[#E6DFD5] space-y-3">
+          <div className="flex items-center gap-2 text-[#C9503A]">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <label className="text-xs font-black uppercase tracking-wider">
+              Danger Zone: Reset & Clear Website Data
+            </label>
+          </div>
+
+          <p className="text-xs text-[#6E5B58] leading-relaxed">
+            Choose whether to reset back to the default sample dataset or completely wipe all stored records (clients, appointments, inventory, gift cards, invoices, and settings) from your browser storage.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            {/* Reset to Demo Data */}
+            <button
+              type="button"
+              onClick={() => {
+                confirmDelete({
+                  title: 'Reset to Sample Demo Data?',
+                  message: 'This will reset all clients, appointments, staff, and inventory to the fresh PawBook Pro demo dataset. Any custom records you created will be replaced with defaults.',
+                  confirmLabel: 'Reset Demo Data',
+                  onConfirm: () => resetToDemoData(),
+                });
+              }}
+              className="btn-ghost text-xs px-4 py-2.5 rounded-xl text-[#7A6865] hover:text-[#240C0B] border-[#D8D3C4] hover:bg-[#FAF8F5] flex items-center gap-2 font-bold cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4 text-[#FF6B00]" /> Reset to Sample Dataset
+            </button>
+
+            {/* Clear ALL Website Data */}
+            <button
+              type="button"
+              onClick={() => {
+                confirmDelete({
+                  title: 'Clear ALL Website Data?',
+                  message: 'WARNING: This will permanently wipe ALL website data including all client profiles, appointments, grooming history, retail items, sales tax settings, and storage keys. This action cannot be undone.',
+                  confirmLabel: 'Clear All Website Data',
+                  onConfirm: () => clearAllData(true),
+                });
+              }}
+              className="bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#C9503A] border border-[#FCA5A5] text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-extrabold cursor-pointer transition-all shadow-xs active:scale-95"
+            >
+              <Trash2 className="w-4 h-4 text-[#C9503A]" /> Clear All Website Data
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -154,6 +154,7 @@ interface AppContextType {
 
   updateSettings: (newSettings: Partial<Settings>) => void;
   resetToDemoData: () => void;
+  clearAllData: (emptyState?: boolean) => void;
   exportDataJSON: () => string;
   importDataJSON: (jsonStr: string) => boolean;
 }
@@ -954,6 +955,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Reset to original PawBook Pro demo dataset!', 'info');
   };
 
+  const clearAllData = (emptyState: boolean = true) => {
+    if (emptyState) {
+      setClients([]);
+      setServices([]);
+      setPackages([]);
+      setStaff([]);
+      setAppointments([]);
+      setInventory([]);
+      setGiftCards([]);
+      setExpenses([]);
+      setWaitlist([]);
+      setTransformations([]);
+      setRedemptions([]);
+      setSettings(INITIAL_SETTINGS);
+    } else {
+      setClients(INITIAL_CLIENTS);
+      setServices(INITIAL_SERVICES);
+      setPackages(INITIAL_PACKAGES);
+      setStaff(INITIAL_STAFF);
+      setAppointments(INITIAL_APPOINTMENTS);
+      setInventory(INITIAL_INVENTORY);
+      setGiftCards(INITIAL_GIFTCARDS);
+      setExpenses(INITIAL_EXPENSES);
+      setWaitlist(INITIAL_WAITLIST);
+      setTransformations(INITIAL_TRANSFORMATIONS);
+      setRedemptions(INITIAL_REDEMPTIONS);
+      setSettings(INITIAL_SETTINGS);
+    }
+    
+    // Clear all localStorage entries
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.warn('Failed to clear localStorage:', e);
+    }
+
+    showToast(emptyState ? 'All website data cleared completely!' : 'Reset to original demo dataset!', 'info');
+  };
+
   const exportDataJSON = () => {
     const fullData = {
       clients,
@@ -1075,6 +1115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currencySymbol,
         updateSettings,
         resetToDemoData,
+        clearAllData,
         exportDataJSON,
         importDataJSON,
       }}

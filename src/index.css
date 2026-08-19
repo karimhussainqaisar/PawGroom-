@@ -176,25 +176,38 @@
   background: #A08E8B;
 }
 
-/* Print Styles - Isolate only the printable invoice and hide everything else */
+/* Print Styles - Isolate only the printable invoice/document and hide everything else */
 @media print {
   @page {
-    size: auto;
-    margin: 8mm 10mm;
+    size: A4 portrait;
+    margin: 4mm 6mm;
   }
 
-  html, body {
+  :root,
+  [data-theme] {
+    --studio-canvas: #ffffff !important;
+    --app-bg: #ffffff !important;
+    --paper: #ffffff !important;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body, #root, body > div, [data-theme] {
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #240C0B !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 0 !important;
     overflow: visible !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   /* Completely hide the background application, sidebars, headers, toasts, and controls */
@@ -218,20 +231,24 @@
     overflow: hidden !important;
   }
 
-  /* Reset modal backdrop */
+  /* Reset modal backdrop & outer containers to pure white */
   .modal-overlay,
   .fixed.inset-0 {
-    background: transparent !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     position: static !important;
     padding: 0 !important;
     margin: 0 !important;
     display: block !important;
     min-height: auto !important;
     overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   .modal-box {
-    background: transparent !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
@@ -242,7 +259,17 @@
     overflow: visible !important;
   }
 
-  /* Display ONLY the active printable document container */
+  .modal-box > div,
+  .printable-wrapper {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Display ONLY the active printable document container with clean colorless borders */
   #printable-invoice-doc,
   #printable-schedule-doc,
   .printable-area {
@@ -250,12 +277,13 @@
     visibility: visible !important;
     position: static !important;
     width: 100% !important;
-    max-width: 800px !important;
+    max-width: 100% !important;
     margin: 0 auto !important;
-    padding: 12px !important;
+    padding: 4mm 6mm !important;
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #240C0B !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;

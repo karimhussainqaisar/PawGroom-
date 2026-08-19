@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ClientLoginPage } from './components/auth/ClientLoginPage';
+import { AdminLoginPage } from './components/auth/AdminLoginPage';
+import { AdminDashboard } from './components/admin/AdminDashboard';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { MobileNav } from './components/MobileNav';
 import { Toast } from './components/Toast';
 import { ModalContainer } from './components/modals/ModalContainer';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
 
 import { DashboardView } from './components/views/DashboardView';
 import { CalendarView } from './components/views/CalendarView';
@@ -21,6 +26,7 @@ import { SettingsView } from './components/views/SettingsView';
 
 const MainLayout: React.FC = () => {
   const { view, settings } = useApp();
+  const { isAdmin, currentProfile, returnToAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Apply theme to html root element
@@ -79,11 +85,31 @@ const MainLayout: React.FC = () => {
   return (
     <div 
       data-theme={settings.colorTheme || 'terracotta'} 
-      className="min-h-screen p-2 sm:p-4 md:p-6 lg:p-8 flex items-center justify-center antialiased selection:bg-[#FF6B00] selection:text-white transition-colors duration-300"
+      className="min-h-screen p-2 sm:p-4 md:p-6 lg:p-8 flex flex-col items-center justify-center antialiased selection:bg-[#FF6B00] selection:text-white transition-colors duration-300 print:bg-white print:p-0 print:m-0 print:block print:min-h-0 print:w-full print:border-none print:shadow-none"
       style={{ backgroundColor: 'var(--studio-canvas, #F8A838)' }}
     >
       {/* Toast Notification Container */}
       <Toast />
+
+      {/* Admin Impersonation Top Floating Banner */}
+      {isAdmin && (
+        <div className="w-full max-w-[1600px] mb-3 px-4 py-2 bg-[#240C0B] text-white rounded-2xl border border-[#2E8A81] shadow-lg flex items-center justify-between text-xs animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
+            <span className="font-bold text-[#4ECDC4]">Admin Live Preview Mode:</span>
+            <span className="text-white font-medium">
+              Viewing as <strong className="text-[#FF6B00]">{currentProfile?.businessName || 'Client Studio'}</strong> ({currentProfile?.profileId})
+            </span>
+          </div>
+          <button
+            onClick={returnToAdmin}
+            className="flex items-center gap-1.5 px-3 py-1 bg-[#2E8A81] hover:bg-[#236F68] text-white font-bold rounded-xl transition-all cursor-pointer text-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Admin Panel</span>
+          </button>
+        </div>
+      )}
 
       {/* Main Floating Studio Card Frame */}
       <div 
@@ -119,10 +145,33 @@ const MainLayout: React.FC = () => {
   );
 };
 
+const AppContent: React.FC = () => {
+  const { isAuthenticated, authView, isAdmin } = useAuth();
+
+  // If not authenticated, route between Client Login and Admin Login
+  if (!isAuthenticated) {
+    if (authView === 'admin_login') {
+      return <AdminLoginPage />;
+    }
+    return <ClientLoginPage />;
+  }
+
+  // If authenticated as Admin and viewing Admin Dashboard
+  if (isAdmin && authView === 'admin_dashboard') {
+    return <AdminDashboard />;
+  }
+
+  // Otherwise render full Park Grooming Dashboard
+  return <MainLayout />;
+};
+
 export default function App() {
   return (
-    <AppProvider>
-      <MainLayout />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 }
+

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { ViewMode } from '../types';
 import { 
   LayoutDashboard, 
@@ -15,7 +16,8 @@ import {
   Sparkles, 
   Settings,
   X,
-  LogOut
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +27,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) => {
   const { view, setView, clients, settings } = useApp();
+  const { currentProfile, isAdmin, logout, returnToAdmin } = useAuth();
 
   // Calculate alerts badge count
   const alertCount = React.useMemo(() => {
@@ -86,10 +89,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
               </div>
               <div>
                 <h1 className="font-display font-extrabold text-base text-white tracking-wide uppercase leading-tight line-clamp-1">
-                  {settings.salonName || settings.name || 'Pet Care Studio'}
+                  {currentProfile?.businessName || settings.salonName || settings.name || 'Park Grooming'}
                 </h1>
                 <span className="text-[9px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
-                  {settings.name || 'Grooming & Spa'}
+                  {currentProfile ? `${currentProfile.plan} Tier` : (settings.name || 'Grooming & Spa')}
                 </span>
               </div>
             </div>
@@ -137,8 +140,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
           </nav>
         </div>
 
-        {/* Bottom User Profile Section - Synchronized with Clinic Settings */}
-        <div className="pt-4 border-t border-white/10">
+        {/* Bottom User Profile Section & Actions */}
+        <div className="pt-4 border-t border-white/10 space-y-2">
+          {isAdmin && (
+            <button
+              onClick={returnToAdmin}
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#2E8A81]/20 hover:bg-[#2E8A81] text-[#4ECDC4] hover:text-white text-[11px] font-bold border border-[#2E8A81]/40 transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Return to Admin Panel</span>
+            </button>
+          )}
+
           <div 
             onClick={() => handleNavClick('settings')}
             className="flex items-center justify-between bg-[#180504] p-2.5 rounded-2xl border border-white/5 hover:border-[#FF6B00]/40 transition-all cursor-pointer group"
@@ -153,10 +166,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white truncate group-hover:text-[#FF6B00] transition-colors">
-                  {settings.name || settings.salonName || 'PawBook Pro Studio'}
+                  {currentProfile?.ownerName || settings.name || settings.salonName || 'PawBook Pro Studio'}
                 </p>
-                <p className="text-[10px] text-[#A08E8B] truncate">
-                  {settings.email || 'care@pawbookpro.com'}
+                <p className="text-[10px] text-[#A08E8B] truncate font-mono">
+                  {currentProfile?.email || settings.email || 'care@pawbookpro.com'}
                 </p>
               </div>
             </div>
@@ -164,12 +177,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleNavClick('settings');
+                logout();
               }}
-              className="p-1.5 text-[#A08E8B] hover:text-white hover:bg-white/10 rounded-xl transition-all"
-              title="Clinic & Shop Settings"
+              className="p-1.5 text-[#A08E8B] hover:text-[#C9503A] hover:bg-white/10 rounded-xl transition-all"
+              title="Sign Out"
             >
-              <Settings className="w-4 h-4" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
