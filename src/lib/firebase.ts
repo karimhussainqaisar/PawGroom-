@@ -74,42 +74,21 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 export async function testConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('Successfully connected to live Firebase Firestore database!');
+    console.log('Connected to live Firebase Firestore database!');
     return true;
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firebase client is offline or network is restricted.');
     } else {
-      console.log('Firebase connection initialized.');
+      console.log('Firebase connection active.');
     }
     return false;
   }
 }
 
-// 5. Firestore Collection References
+// 5. Firestore Collection Reference
 export const PROFILES_COLLECTION = 'client_profiles';
 export const ADMIN_COLLECTION = 'admin_config';
-
-/**
- * Seed Firestore with initial profiles if collection is empty
- */
-export async function seedFirestoreIfEmpty(initialProfiles: ClientProfile[]): Promise<void> {
-  try {
-    const snap = await getDocs(collection(db, PROFILES_COLLECTION));
-    if (snap.empty && initialProfiles.length > 0) {
-      console.log(`Seeding ${initialProfiles.length} profiles to online Firestore database...`);
-      const batch = writeBatch(db);
-      initialProfiles.forEach(p => {
-        const ref = doc(db, PROFILES_COLLECTION, p.profileId);
-        batch.set(ref, p);
-      });
-      await batch.commit();
-      console.log('Firestore online database seeded successfully with all client profiles.');
-    }
-  } catch (err) {
-    console.warn('Could not auto-seed Firestore (will retry on mutation):', err);
-  }
-}
 
 /**
  * Fetch all client profiles directly from Firestore online database
@@ -135,7 +114,7 @@ export async function saveProfileToFirestore(profile: ClientProfile): Promise<vo
   try {
     const ref = doc(db, PROFILES_COLLECTION, profile.profileId);
     await setDoc(ref, profile, { merge: true });
-    console.log(`Saved/Updated profile ${profile.profileId} (${profile.businessName}) to online Firebase Firestore.`);
+    console.log(`Saved/Updated profile ${profile.profileId} (${profile.businessName}) to Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${PROFILES_COLLECTION}/${profile.profileId}`);
   }
@@ -148,7 +127,7 @@ export async function deleteProfileFromFirestore(profileId: string): Promise<voi
   try {
     const ref = doc(db, PROFILES_COLLECTION, profileId);
     await deleteDoc(ref);
-    console.log(`Deleted profile ${profileId} from online Firebase Firestore.`);
+    console.log(`Deleted profile ${profileId} from Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, `${PROFILES_COLLECTION}/${profileId}`);
   }
@@ -220,7 +199,8 @@ export async function authenticateWithFirestore(
 }
 
 /**
- * Real-time listener for Firestore profiles across all connected devices
+ * Real-time listener for Firestore profiles across all connected devices.
+ * Automatically fetches changes when manual edits occur in the Firebase Console!
  */
 export function subscribeToOnlineFirestoreProfiles(
   onUpdate: (profiles: ClientProfile[]) => void,
@@ -234,9 +214,8 @@ export function subscribeToOnlineFirestoreProfiles(
       snapshot.forEach(docSnap => {
         list.push(docSnap.data() as ClientProfile);
       });
-      if (list.length > 0) {
-        onUpdate(list);
-      }
+      // Always pass the live array directly from Firestore!
+      onUpdate(list);
     },
     (error) => {
       console.warn('Firestore realtime snapshot listener notice:', error);

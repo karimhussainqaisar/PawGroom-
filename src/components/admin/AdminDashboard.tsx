@@ -593,20 +593,18 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="pt-4 border-t border-white/10 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-white">Reset Demo Auth Profiles</p>
-                <p className="text-[11px] text-[#A08E8B]">Restore default PG001, PG002, PG003 accounts</p>
+                <p className="text-xs font-bold text-white">Live Firebase Database Sync</p>
+                <p className="text-[11px] text-[#A08E8B]">Manually fetch and refresh all profiles from Firebase Firestore</p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm('Reset authentication database to factory demo defaults?')) {
-                    resetAuthDatabase();
-                    showToast('Authentication database reset to initial state.');
-                  }
+                onClick={async () => {
+                  await refreshServerDatabase();
+                  showToast('Synchronized with live Firebase Firestore database!');
                 }}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#2E8A81]/30 hover:bg-[#2E8A81]/50 text-white font-bold text-xs transition-colors cursor-pointer border border-[#2E8A81]/40"
               >
-                Reset Database
+                Fetch from Firebase
               </button>
             </div>
           </div>

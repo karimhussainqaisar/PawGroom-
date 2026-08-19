@@ -14,11 +14,10 @@ import {
   INITIAL_AUTH_DATABASE, 
   generateNextProfileId 
 } from '../data/initialAuthData';
-import { DEFAULT_REGISTERED_PROFILES } from '../data/registeredProfiles';
 import { 
   testConnection, 
-  seedFirestoreIfEmpty, 
   subscribeToOnlineFirestoreProfiles, 
+  getOnlineFirestoreProfiles,
   saveProfileToFirestore, 
   deleteProfileFromFirestore,
   authenticateWithFirestore 
@@ -93,106 +92,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inactiveModalOpen, setInactiveModalOpen] = useState<boolean>(false);
   const [inactiveProfileDetails, setInactiveProfileDetails] = useState<ClientProfile | null>(null);
 
-  // Helper: Merge fresh profiles with existing local list
-  const mergeProfiles = (onlineProfiles: ClientProfile[], baseDb: AuthDatabase): AuthDatabase => {
-    const map = new Map<string, ClientProfile>();
-    // 1. Code base defaults
-    DEFAULT_REGISTERED_PROFILES.forEach(p => map.set(p.profileId, p));
-    // 2. Base DB
-    baseDb.profiles.forEach(p => map.set(p.profileId, p));
-    // 3. Online Database Profiles (highest authority)
-    onlineProfiles.forEach(p => map.set(p.profileId, p));
-
-    return {
-      ...baseDb,
-      profiles: Array.from(map.values()),
-      lastUpdated: new Date().toISOString()
-    };
-  };
-
-  // Function to sync with global server-side & static persistent database
+  // Manual refresh from Firestore database
   const refreshServerDatabase = useCallback(async () => {
-    const timestamp = Date.now();
     try {
-      // 1. Attempt API fetch with cache-busting
-      const res = await fetch(`/api/auth/db?t=${timestamp}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      const onlineList = await getOnlineFirestoreProfiles();
+      setAuthDatabase(prev => {
+        const updated = {
+          ...prev,
+          profiles: onlineList,
+          lastUpdated: new Date().toISOString()
+        };
+        saveAuthDatabase(updated);
+        return updated;
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.profiles)) {
-          setAuthDatabase(prev => {
-            const merged = mergeProfiles(data.profiles, prev);
-            saveAuthDatabase(merged);
-            return merged;
-          });
-          return;
-        }
-      }
     } catch (err) {
-      // Server API unreachable, proceed to static JSON
-    }
-
-    try {
-      // 2. Attempt direct static public JSON file fetch with cache-busting
-      const staticRes = await fetch(`/auth_db.json?t=${timestamp}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
-      });
-      if (staticRes.ok) {
-        const staticData = await staticRes.json();
-        if (staticData && Array.isArray(staticData.profiles)) {
-          setAuthDatabase(prev => {
-            const merged = mergeProfiles(staticData.profiles, prev);
-            saveAuthDatabase(merged);
-            return merged;
-          });
-        }
-      }
-    } catch (err2) {
-      console.warn('Using local auth database replica:', err2);
+      console.warn('Direct Firestore fetch error:', err);
     }
   }, []);
 
-  // 1. Initialize Firestore & Subscribe to Realtime Online Database
+  // 1. Subscribe to Real-Time Firebase Firestore Database
   useEffect(() => {
-    // Validate connection and seed if empty
     testConnection();
-    seedFirestoreIfEmpty(DEFAULT_REGISTERED_PROFILES);
 
-    // Real-time listener for Firestore online database
+    // Direct Real-time Firestore Snapshot Listener
+    // Any manual changes made in the Firebase Console or Admin Panel are pushed immediately!
     const unsubscribe = subscribeToOnlineFirestoreProfiles(
       (firestoreProfiles) => {
-        if (firestoreProfiles && firestoreProfiles.length > 0) {
-          setAuthDatabase(prev => {
-            const merged = mergeProfiles(firestoreProfiles, prev);
-            saveAuthDatabase(merged);
-            return merged;
-          });
-        }
+        setAuthDatabase(prev => {
+          const updated = {
+            ...prev,
+            profiles: firestoreProfiles,
+            lastUpdated: new Date().toISOString()
+          };
+          saveAuthDatabase(updated);
+          return updated;
+        });
       },
       (err) => {
         console.warn('Firestore subscription status:', err);
       }
     );
 
-    // Initial server refresh & interval fallback
+    // Initial load
     refreshServerDatabase();
-    const interval = setInterval(refreshServerDatabase, 6000);
 
     return () => {
       if (unsubscribe) unsubscribe();
-      clearInterval(interval);
     };
   }, [refreshServerDatabase]);
 
-  // Sync auth database changes to localStorage
-  useEffect(() => {
-    saveAuthDatabase(authDatabase);
-  }, [authDatabase]);
-
-  // Synchronize active session when profiles change
+  // Synchronize active session when profiles in Firestore change
   useEffect(() => {
     if (session && session.userType === 'client' && session.profile) {
       const updatedProfile = authDatabase.profiles.find(p => p.profileId === session.profile?.profileId);
@@ -227,13 +176,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Client Login: Authenticates directly with Firebase Online Database, Server API & Master Registry
+   * Client Login: Authenticates directly against the live Firebase Firestore Database
    */
   const loginClient = async (email: string, password: string, rememberMe: boolean = true): Promise<LoginResult> => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // 1. Direct Firebase Firestore Online Database Authentication (PRIMARY)
+    // 1. Direct Firebase Firestore Online Database Authentication
     try {
       const firestoreResult = await authenticateWithFirestore(cleanEmail, cleanPassword);
       if (firestoreResult.success && firestoreResult.profile) {
@@ -246,11 +195,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         persistSession(newSession, rememberMe);
         setAuthView('app');
-        setAuthDatabase(prev => {
-          const merged = mergeProfiles([firestoreResult.profile!], prev);
-          saveAuthDatabase(merged);
-          return merged;
-        });
         return { success: true, status: 'active', profile: firestoreResult.profile };
       } else if (firestoreResult.status === 'inactive' && firestoreResult.profile) {
         setInactiveProfileDetails(firestoreResult.profile);
@@ -261,77 +205,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           error: firestoreResult.error || 'Your account is currently inactive. Please contact support.',
           profile: firestoreResult.profile
         };
+      } else if (firestoreResult.error) {
+        return {
+          success: false,
+          status: 'invalid',
+          error: firestoreResult.error
+        };
       }
     } catch (firebaseErr) {
-      console.warn('Direct Firestore login check notice:', firebaseErr);
+      console.warn('Direct Firestore authentication exception:', firebaseErr);
     }
 
-    // 2. Direct Server API verification (SECONDARY)
-    try {
-      const res = await fetch('/api/auth/client-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store'
-        },
-        body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.profile) {
-          const newSession: AuthSession = {
-            userType: 'client',
-            profile: data.profile,
-            token: data.token || `token_${data.profile.profileId}_${Date.now()}`,
-            loginTime: new Date().toISOString(),
-            rememberMe
-          };
-          persistSession(newSession, rememberMe);
-          setAuthView('app');
-          setAuthDatabase(prev => {
-            const merged = mergeProfiles([data.profile], prev);
-            saveAuthDatabase(merged);
-            return merged;
-          });
-          return { success: true, status: 'active', profile: data.profile };
-        }
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        if (res.status === 403 && errData.status === 'inactive') {
-          setInactiveProfileDetails(errData.profile || null);
-          setInactiveModalOpen(true);
-          return {
-            success: false,
-            status: 'inactive',
-            error: errData.error || 'Your account is currently inactive. Please contact support.',
-            profile: errData.profile
-          };
-        }
-        if (res.status === 401) {
-          return {
-            success: false,
-            status: 'invalid',
-            error: errData.error || 'Invalid email or password. Please verify your credentials.'
-          };
-        }
-      }
-    } catch (apiErr) {
-      console.warn('Server auth endpoint unreachable, checking synchronized pool:', apiErr);
-    }
-
-    // 3. Local Synchronized Pool Check (TERTIARY FALLBACK)
-    const allProfiles = [
-      ...authDatabase.profiles,
-      ...DEFAULT_REGISTERED_PROFILES
-    ];
-
-    const matchedProfile = allProfiles.find(
+    // 2. Check local synchronized Firestore snapshot cache as fallback
+    const matchedProfile = authDatabase.profiles.find(
       p => p.email.toLowerCase() === cleanEmail && p.password === cleanPassword
     );
 
     if (!matchedProfile) {
-      const emailExists = allProfiles.some(p => p.email.toLowerCase() === cleanEmail);
+      const emailExists = authDatabase.profiles.some(p => p.email.toLowerCase() === cleanEmail);
       if (emailExists) {
         return {
           success: false,
@@ -343,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'invalid',
-        error: 'No registered client profile found for this email address.'
+        error: 'No registered client profile found in Firebase database for this email address.'
       };
     }
 
@@ -376,33 +267,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    try {
-      const res = await fetch('/api/auth/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password: cleanPassword })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        const newSession: AuthSession = {
-          userType: 'admin',
-          admin: data.admin || authDatabase.admin,
-          token: data.token || `admin_token_${Date.now()}`,
-          loginTime: new Date().toISOString(),
-          rememberMe
-        };
-        persistSession(newSession, rememberMe);
-        setAuthView('admin_dashboard');
-        return { success: true };
-      }
-      if (data.error) {
-        return { success: false, error: data.error };
-      }
-    } catch (e) {
-      console.warn('Server admin login fallback:', e);
-    }
-
     if (
       cleanEmail === authDatabase.admin.email.toLowerCase() &&
       cleanPassword === authDatabase.admin.password
@@ -433,8 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Impersonate / Preview Client Profile from Admin Dashboard
   const impersonateClient = (profileId: string) => {
-    const profile = authDatabase.profiles.find(p => p.profileId === profileId) ||
-      DEFAULT_REGISTERED_PROFILES.find(p => p.profileId === profileId);
+    const profile = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!profile) return;
 
     const newSession: AuthSession = {
@@ -462,7 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Create Client Profile: Synchronously writes to Firebase Firestore Online Database + Server DB + Local Cache
+   * Create Client Profile: Directly saved to Firebase Firestore Online Database
    */
   const createClientProfile = async (
     profileData: Omit<ClientProfile, 'profileId' | 'createdAt'> & { profileId?: string }
@@ -496,48 +359,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Persist to Online Firebase Firestore Database (Direct Cloud write)
-    try {
-      await saveProfileToFirestore(newProfile);
-    } catch (err) {
-      console.warn('Firestore direct write notice:', err);
-    }
-
-    // 3. Persist to server backend database (which also updates all server code files)
-    try {
-      const res = await fetch('/api/auth/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProfile)
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.database) {
-          setAuthDatabase(result.database);
-          saveAuthDatabase(result.database);
-        }
-      }
-    } catch (err) {
-      console.error('Server save notice:', err);
-    }
+    // 2. Persist to Firebase Firestore Online Database
+    await saveProfileToFirestore(newProfile);
 
     return newProfile;
   };
 
   /**
-   * Update Client Profile: Synchronously writes edits to Firebase Firestore Online Database + Server DB + Local Cache
+   * Update Client Profile: Directly saved to Firebase Firestore Online Database
    */
   const updateClientProfile = async (profileId: string, updates: Partial<ClientProfile>): Promise<boolean> => {
-    // 1. Find existing profile in state or defaults
-    const existing = authDatabase.profiles.find(p => p.profileId === profileId) ||
-      DEFAULT_REGISTERED_PROFILES.find(p => p.profileId === profileId);
-
+    const existing = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!existing) {
-      console.error(`Cannot find profile ${profileId} to update.`);
+      console.error(`Cannot find profile ${profileId} to update in Firebase list.`);
       return false;
     }
 
-    // 2. Create the fully merged profile object synchronously
     const updatedProfile: ClientProfile = {
       ...existing,
       ...updates,
@@ -550,7 +387,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // 3. Update local state immediately
+    // 1. Update local state
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -561,45 +398,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 4. If current session is this client, update session
+    // 2. If current session is this client, update session
     if (session && session.userType === 'client' && session.profile?.profileId === profileId) {
       setSession(prev => prev ? { ...prev, profile: updatedProfile } : null);
     }
 
-    // 5. Persist to Online Firebase Firestore Database (Direct Cloud write)
-    try {
-      await saveProfileToFirestore(updatedProfile);
-    } catch (err) {
-      console.warn('Firestore update write notice:', err);
-    }
-
-    // 6. Persist to server backend database
-    try {
-      const res = await fetch(`/api/auth/profiles/${profileId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.database) {
-          setAuthDatabase(result.database);
-        }
-      }
-    } catch (e) {
-      console.error('Server profile update error:', e);
-    }
+    // 3. Persist to Firebase Firestore Online Database
+    await saveProfileToFirestore(updatedProfile);
 
     return true;
   };
 
   /**
-   * Toggle Profile Status: Writes to Firebase Firestore Online Database + Server DB
+   * Toggle Profile Status: Directly saved to Firebase Firestore Online Database
    */
   const toggleProfileStatus = async (profileId: string): Promise<boolean> => {
-    const existing = authDatabase.profiles.find(p => p.profileId === profileId) ||
-      DEFAULT_REGISTERED_PROFILES.find(p => p.profileId === profileId);
-
+    const existing = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!existing) return false;
 
     const nextStatus: AccountStatus = existing.status === 'active' ? 'inactive' : 'active';
@@ -620,32 +434,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // 2. Persist to Firebase Firestore Online Database
-    try {
-      await saveProfileToFirestore(toggledProfile);
-    } catch (err) {
-      console.warn('Firestore status toggle notice:', err);
-    }
-
-    // 3. Persist to server backend database
-    try {
-      const res = await fetch(`/api/auth/profiles/${profileId}/toggle-status`, {
-        method: 'PATCH'
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.database) {
-          setAuthDatabase(result.database);
-        }
-      }
-    } catch (e) {
-      console.error('Server toggle error:', e);
-    }
+    await saveProfileToFirestore(toggledProfile);
 
     return true;
   };
 
   /**
-   * Delete Client Profile: Removes from Firebase Firestore Online Database + Server DB
+   * Delete Client Profile: Directly removed from Firebase Firestore Online Database
    */
   const deleteClientProfile = async (profileId: string): Promise<boolean> => {
     // 1. Local delete
@@ -660,46 +455,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // 2. Delete from Firebase Firestore Online Database
-    try {
-      await deleteProfileFromFirestore(profileId);
-    } catch (err) {
-      console.warn('Firestore delete notice:', err);
-    }
-
-    // 3. Delete from server backend database
-    try {
-      const res = await fetch(`/api/auth/profiles/${profileId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.database) {
-          setAuthDatabase(result.database);
-        }
-      }
-    } catch (e) {
-      console.error('Server delete error:', e);
-    }
+    await deleteProfileFromFirestore(profileId);
 
     return true;
   };
 
   const resetAuthDatabase = async () => {
-    try {
-      const res = await fetch('/api/auth/reset', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.database) {
-          setAuthDatabase(data.database);
-          saveAuthDatabase(data.database);
-        }
-      }
-    } catch (e) {
-      setAuthDatabase(INITIAL_AUTH_DATABASE);
-      saveAuthDatabase(INITIAL_AUTH_DATABASE);
-    }
-    // Also re-seed Firestore
-    seedFirestoreIfEmpty(DEFAULT_REGISTERED_PROFILES);
+    // Refresh from live Firestore database
+    await refreshServerDatabase();
   };
 
   return (
