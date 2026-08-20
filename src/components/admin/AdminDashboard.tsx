@@ -711,7 +711,7 @@ export const AdminDashboard: React.FC = () => {
       {permissionsModalOpen && profileForPermissions && (
         <ClientPermissionsModal
           isOpen={permissionsModalOpen}
-          profile={profileForPermissions}
+          profile={authDatabase.profiles.find(p => p.profileId === profileForPermissions.profileId) || profileForPermissions}
           onClose={() => {
             setPermissionsModalOpen(false);
             setProfileForPermissions(null);

@@ -59,7 +59,19 @@ export const ClientPermissionsModal: React.FC<ClientPermissionsModalProps> = ({
 
   useEffect(() => {
     if (profile) {
-      setPermissions(profile.permissions || DEFAULT_CLIENT_PERMISSIONS);
+      setPermissions({
+        isTrialMode: profile.permissions?.isTrialMode ?? false,
+        trialTierName: profile.permissions?.trialTierName || (profile.plan ? `${profile.plan} Tier` : 'Standard'),
+        trialMessage: profile.permissions?.trialMessage || '',
+        screens: {
+          ...FULL_ACCESS_SCREENS,
+          ...(profile.permissions?.screens || {})
+        },
+        features: {
+          ...FULL_ACCESS_FEATURES,
+          ...(profile.permissions?.features || {})
+        }
+      });
     }
   }, [profile]);
 
@@ -70,29 +82,37 @@ export const ClientPermissionsModal: React.FC<ClientPermissionsModalProps> = ({
       isTrialMode: preset.isTrial,
       trialTierName: preset.name,
       trialMessage: preset.trialMessage || '',
-      screens: { ...preset.screens },
-      features: { ...preset.features },
+      screens: { ...FULL_ACCESS_SCREENS, ...preset.screens },
+      features: { ...FULL_ACCESS_FEATURES, ...preset.features },
     });
   };
 
   const handleToggleScreen = (screenKey: keyof ScreenPermissions) => {
-    setPermissions(prev => ({
-      ...prev,
-      screens: {
-        ...(prev.screens || FULL_ACCESS_SCREENS),
-        [screenKey]: !(prev.screens ? prev.screens[screenKey] : true)
-      }
-    }));
+    setPermissions(prev => {
+      const currentScreens = { ...FULL_ACCESS_SCREENS, ...(prev.screens || {}) };
+      const currentVal = currentScreens[screenKey] !== false;
+      return {
+        ...prev,
+        screens: {
+          ...currentScreens,
+          [screenKey]: !currentVal
+        }
+      };
+    });
   };
 
   const handleToggleFeature = (featureKey: keyof FeaturePermissions) => {
-    setPermissions(prev => ({
-      ...prev,
-      features: {
-        ...(prev.features || FULL_ACCESS_FEATURES),
-        [featureKey]: !(prev.features ? prev.features[featureKey] : true)
-      }
-    }));
+    setPermissions(prev => {
+      const currentFeatures = { ...FULL_ACCESS_FEATURES, ...(prev.features || {}) };
+      const currentVal = currentFeatures[featureKey] !== false;
+      return {
+        ...prev,
+        features: {
+          ...currentFeatures,
+          [featureKey]: !currentVal
+        }
+      };
+    });
   };
 
   const handleToggleAllScreens = (allow: boolean) => {

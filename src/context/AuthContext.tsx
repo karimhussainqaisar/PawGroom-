@@ -31,6 +31,10 @@ import {
   markNotificationReadInFirestore,
   markNotificationDismissedInFirestore
 } from '../lib/firebase';
+import { 
+  FULL_ACCESS_SCREENS, 
+  FULL_ACCESS_FEATURES 
+} from '../data/permissionPresets';
 
 export type AuthViewMode = 'client_login' | 'admin_login' | 'admin_dashboard' | 'app';
 
@@ -393,6 +397,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: today,
       status: profileData.status || 'active',
       plan: profileData.plan || 'Premium',
+      permissions: profileData.permissions || {
+        isTrialMode: false,
+        trialTierName: profileData.plan ? `${profileData.plan} Tier` : 'Standard',
+        trialMessage: '',
+        screens: { ...FULL_ACCESS_SCREENS },
+        features: { ...FULL_ACCESS_FEATURES }
+      },
       customSettings: profileData.customSettings || {
         salonName: profileData.businessName,
         name: `${profileData.businessName} Studio`,
@@ -432,6 +443,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedProfile: ClientProfile = {
       ...existing,
       ...updates,
+      permissions: updates.permissions !== undefined 
+        ? {
+            isTrialMode: updates.permissions.isTrialMode ?? false,
+            trialTierName: updates.permissions.trialTierName || (existing.permissions?.trialTierName || 'Standard'),
+            trialMessage: updates.permissions.trialMessage !== undefined ? updates.permissions.trialMessage : (existing.permissions?.trialMessage || ''),
+            screens: {
+              ...FULL_ACCESS_SCREENS,
+              ...(existing.permissions?.screens || {}),
+              ...(updates.permissions.screens || {})
+            },
+            features: {
+              ...FULL_ACCESS_FEATURES,
+              ...(existing.permissions?.features || {}),
+              ...(updates.permissions.features || {})
+            }
+          }
+        : existing.permissions,
       customSettings: {
         ...(existing.customSettings || {}),
         ...(updates.customSettings || {}),
@@ -662,7 +690,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         isAuthenticated: !!session,
         isAdmin: session?.userType === 'admin',
-        currentProfile: session?.userType === 'client' ? session.profile || null : null,
+        currentProfile: session?.userType === 'client' 
+          ? (authDatabase.profiles.find(p => p.profileId === session.profile?.profileId) || session.profile || null) 
+          : null,
         currentAdmin: session?.userType === 'admin' ? session.admin || null : null,
         authView,
         setAuthView,
