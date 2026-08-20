@@ -88,15 +88,21 @@ export const DashboardView: React.FC = () => {
 
   // Today's revenue
   const todayRevenue = React.useMemo(() => {
-    return todaysAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
-  }, [todaysAppts]);
+    return todaysAppts.reduce((sum, a) => {
+      const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
+      return sum + inv.totalAmount;
+    }, 0);
+  }, [todaysAppts, services, packages, settings, redemptions]);
 
   // Month-To-Date Revenue
   const mtdRevenue = React.useMemo(() => {
     return appointments
       .filter((a) => a.status !== 'cancelled' && a.date.startsWith(currentMonthStr))
-      .reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
-  }, [appointments, currentMonthStr]);
+      .reduce((sum, a) => {
+        const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
+        return sum + inv.totalAmount;
+      }, 0);
+  }, [appointments, currentMonthStr, services, packages, settings, redemptions]);
 
   // Featured pet names for morning greeting
   const featuredPetsText = React.useMemo(() => {
@@ -239,12 +245,15 @@ export const DashboardView: React.FC = () => {
       const dayNum = i + 1;
       const dateStr = `${yearStr}-${monthStr}-${String(dayNum).padStart(2, '0')}`;
       const dayAppts = appointments.filter(a => a.date === dateStr && a.status !== 'cancelled');
-      const rev = dayAppts.reduce((sum, a) => sum + a.price + (a.retail || 0), 0);
+      const rev = dayAppts.reduce((sum, a) => {
+        const inv = calculateAppointmentInvoice(a, { services, packages, settings, redemptions });
+        return sum + inv.totalAmount;
+      }, 0);
       return { day: dayNum, dateStr, rev, count: dayAppts.length };
     });
     const maxRev = Math.max(...days.map(d => d.rev), 100);
     return { days, maxRev };
-  }, [appointments, todayStr]);
+  }, [appointments, todayStr, services, packages, settings, redemptions]);
 
   // Service Category Breakdown Ratios for Health & Care Radial
   const careCategoryRatio = React.useMemo(() => {

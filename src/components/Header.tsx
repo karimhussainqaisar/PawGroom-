@@ -27,7 +27,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = false }) => {
   const { 
     view, 
-    setView,
+    setView, 
     openModal, 
     searchQuery, 
     setSearchQuery, 
@@ -94,40 +94,40 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b border-[#E6DFD5] transition-all py-2 sm:py-2.5 px-3 sm:px-6 lg:px-8 shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E6DFD5] transition-all py-2 sm:py-2.5 px-2.5 sm:px-6 lg:px-8 shadow-2xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-4">
           
-          {/* Left Section: Mobile Menu Trigger & Universal Search */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          {/* Left Section: Mobile Menu Toggle & Brand / Desktop Search */}
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-1 min-w-0">
             {/* Mobile Navigation Menu Toggle */}
             <button
               onClick={onMenuClick}
-              className={`lg:hidden flex items-center justify-center w-10 h-10 rounded-2xl border text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0 ${
+              className={`lg:hidden flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl border text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0 ${
                 isSidebarOpen 
                   ? 'bg-theme-sidebar text-white border-transparent shadow-md' 
                   : 'bg-white border-[#E6DFD5] text-[#240C0B] hover:bg-[#F1EEE6]'
               }`}
-              aria-label={isSidebarOpen ? "Close navigation" : "Open navigation"}
+              aria-label={isSidebarOpen ? "Close navigation menu" : "Open navigation menu"}
             >
-              {isSidebarOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-[#240C0B]" />}
+              {isSidebarOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-[#240C0B]" />}
             </button>
 
-            {/* Mobile Brand Title Indicator (visible on small mobile when search is collapsed) */}
-            <div className="flex sm:hidden items-center gap-1.5 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-theme-primary flex items-center justify-center shrink-0 shadow-2xs">
-                <Dog className="w-4 h-4 text-white" />
+            {/* Mobile Minimalist Brand Header */}
+            <div className="flex sm:hidden items-center gap-1.5 min-w-0 pr-1">
+              <div className="w-7 h-7 rounded-lg bg-theme-primary flex items-center justify-center shrink-0 shadow-2xs">
+                <Dog className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-display font-black text-xs text-[#240C0B] truncate">
+              <span className="font-display font-black text-xs text-[#240C0B] truncate max-w-[90px] xs:max-w-[120px]">
                 {currentProfile?.businessName || settings.salonName || 'PawBook'}
               </span>
             </div>
 
-            {/* Desktop & Tablet Inline Search Bar (Hidden on phone, shown sm+) */}
+            {/* Desktop & Tablet Inline Search Input */}
             <div className="hidden sm:block relative w-full max-w-xs md:max-w-sm group">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A08E8B] group-focus-within:text-theme-primary transition-colors" />
               <input
                 type="text"
-                placeholder="Search pets, clients, services..."
+                placeholder="Search pets, clients, invoices..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-12 py-2 text-xs bg-white border border-[#E6DFD5] rounded-full focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 outline-none text-[#240C0B] placeholder-[#A08E8B] shadow-2xs transition-all"
@@ -149,44 +149,44 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
               </div>
             </div>
 
-            {/* Live Studio Status Pill (Responsive on all screens: mobile, tablet, desktop) */}
+            {/* Live Studio Status Pill (Responsive) */}
             <button
               onClick={() => setView('calendar')}
-              className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-theme-light border border-theme-subtle text-[11px] font-bold text-theme-primary shrink-0 hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-2xs"
-              title="Click to view today's schedule in Calendar"
+              className="hidden xs:flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-theme-light border border-theme-subtle text-[10px] sm:text-[11px] font-bold text-theme-primary shrink-0 hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-2xs"
+              title="View today's schedule in Calendar"
             >
-              <Scissors className="w-3.5 h-3.5 shrink-0" />
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <Scissors className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="whitespace-nowrap">
                 {todayBookingsCount} <span className="hidden sm:inline">{todayBookingsCount === 1 ? 'Grooming' : 'Groomings'}</span> Today
               </span>
             </button>
           </div>
 
-          {/* Right Section: Mobile Search Button, Theme Selector, Bell, Booking, Profile */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Right Section: Mobile Search Toggle, Theme, Notifications, Booking */}
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             
-            {/* Mobile Search Toggle Trigger Button */}
+            {/* Mobile Search Toggle */}
             <button
               onClick={() => setMobileSearchOpen(prev => !prev)}
-              className={`sm:hidden w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
+              className={`sm:hidden w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
                 mobileSearchOpen || searchQuery
                   ? 'bg-theme-light border-theme-primary text-theme-primary shadow-xs'
                   : 'bg-white border-[#E6DFD5] text-[#7A6865] hover:text-[#240C0B]'
               }`}
               aria-label="Toggle mobile search"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-3.5 h-3.5" />
             </button>
 
             {/* Quick Theme Switcher */}
             <div className="relative">
               <button
                 onClick={() => setThemeDropdownOpen(prev => !prev)}
-                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-[#E6DFD5] hover:border-theme-primary text-xs font-bold text-[#240C0B] shadow-2xs cursor-pointer transition-all active:scale-95"
-                title="Switch Color Theme (12 Presets)"
+                className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white border border-[#E6DFD5] hover:border-theme-primary text-xs font-bold text-[#240C0B] shadow-2xs cursor-pointer transition-all active:scale-95"
+                title="Switch Color Theme"
               >
-                <Palette className="w-4 h-4 text-theme-primary shrink-0" />
+                <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-theme-primary shrink-0" />
                 <span 
                   className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" 
                   style={{ backgroundColor: quickThemes.find(t => t.id === (settings.colorTheme || 'terracotta'))?.color || '#FF6B00' }}
@@ -248,7 +248,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
               )}
             </div>
 
-            {/* Admin Preview Return Banner Button (Tablet/Desktop) */}
+            {/* Admin Return Button (Tablet/Desktop) */}
             {isAdmin && (
               <button
                 onClick={returnToAdmin}
@@ -260,16 +260,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
               </button>
             )}
 
-            {/* Notifications Bell Button */}
+            {/* Notification Bell */}
             <button
               onClick={() => setNotificationDrawerOpen(true)}
-              className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-[#E6DFD5] hover:border-theme-primary flex items-center justify-center text-[#240C0B] hover:text-theme-primary transition-all cursor-pointer shadow-2xs group shrink-0"
-              title={`${totalBadges} Notifications & Studio Broadcasts`}
+              className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white border border-[#E6DFD5] hover:border-theme-primary flex items-center justify-center text-[#240C0B] hover:text-theme-primary transition-all cursor-pointer shadow-2xs group shrink-0"
+              title={`${totalBadges} Notifications & Alerts`}
               aria-label="Open notifications center"
             >
-              <Bell className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform" />
               {totalBadges > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-theme-primary text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-md">
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 bg-theme-primary text-white text-[8px] sm:text-[9px] font-black rounded-full flex items-center justify-center animate-pulse shadow-md">
                   {totalBadges > 99 ? '99+' : totalBadges}
                 </span>
               )}
@@ -299,21 +299,21 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
               </div>
             </div>
 
-            {/* Book Grooming Action Button */}
+            {/* Book Grooming Button (Minimalist on Mobile, Rich on Desktop) */}
             <button
               onClick={() => openModal('appointmentForm')}
-              className="btn-primary flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full text-xs font-bold active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
+              className="btn-primary flex items-center gap-1 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
               title="Book New Grooming Appointment"
             >
-              <Plus className="w-4 h-4" />
-              <span className="hidden xs:inline">Book</span>
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-[11px] sm:text-xs">Book</span>
               <span className="hidden md:inline">Grooming</span>
             </button>
 
-            {/* Logout Button */}
+            {/* Logout Button (Desktop/Tablet) */}
             <button
               onClick={logout}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-[#E6DFD5] hover:bg-[#FEF2F2] hover:border-red-300 text-[#7A6865] hover:text-red-600 flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0"
+              className="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-[#E6DFD5] hover:bg-[#FEF2F2] hover:border-red-300 text-[#7A6865] hover:text-red-600 items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0"
               title="Sign out of Studio"
               aria-label="Sign out"
             >
@@ -322,39 +322,28 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
           </div>
         </div>
 
-        {/* Mobile Full-Width Search Bar Dropdown (Animated) */}
+        {/* Minimalist Mobile Search Bar Dropdown (Animated & Clean) */}
         {mobileSearchOpen && (
-          <div className="sm:hidden pt-2.5 pb-1 animate-slideDown">
+          <div className="sm:hidden pt-2 pb-1 animate-slideDown">
             <div className="relative w-full">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-theme-primary" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-theme-primary" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search pets, owners, services, phones..."
+                placeholder="Search pets, owners, invoices, phones..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs bg-white border-2 border-theme-primary/50 rounded-2xl focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 outline-none text-[#240C0B] placeholder-[#A08E8B] shadow-sm"
+                className="w-full pl-8 pr-8 py-1.5 text-xs bg-white border-2 border-theme-primary/50 rounded-xl focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 outline-none text-[#240C0B] placeholder-[#A08E8B] shadow-sm"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A6865] hover:text-[#240C0B] p-1"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7A6865] hover:text-[#240C0B] p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
-            {searchQuery && (
-              <div className="mt-1.5 px-2 flex items-center justify-between text-[11px] text-[#7A6865]">
-                <span>Filtering active dashboard & records</span>
-                <button 
-                  onClick={() => setMobileSearchOpen(false)} 
-                  className="font-bold text-theme-primary hover:underline"
-                >
-                  Done
-                </button>
-              </div>
-            )}
           </div>
         )}
       </header>
@@ -367,8 +356,3 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
     </>
   );
 };
-
-
-
-
-

@@ -28,7 +28,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Appointment } from '../../types';
-import { formatShortInvoiceNumber } from '../../utils/invoice';
+import { formatShortInvoiceNumber, calculateAppointmentInvoice } from '../../utils/invoice';
 import { InvoiceQRCode } from '../common/InvoiceQRCode';
 import { openWhatsAppInvoice } from '../../utils/whatsapp';
 import { PremiumReportModal } from '../modals/PremiumReportModal';
@@ -42,6 +42,7 @@ export const InvoicesView: React.FC = () => {
     packages, 
     staff, 
     settings, 
+    redemptions,
     openModal, 
     updateAppointment, 
     showToast, 
@@ -72,17 +73,7 @@ export const InvoicesView: React.FC = () => {
       ? packages.find((p) => p.id === appt.packageId)
       : (appt.packageName ? packages.find(p => p.name.toLowerCase() === appt.packageName?.toLowerCase()) : null);
     const groomer = staff.find((st) => st.id === appt.staffId);
-
-    const invoiceNum = formatShortInvoiceNumber(appt);
-    const servicePrice = pkg ? pkg.price : (service?.price || appt.price || 0);
-    const retailAddon = appt.retail || 0;
-    const grossSubtotal = servicePrice + retailAddon;
-    const discount = appt.discountAmount || 0;
-    const taxableSubtotal = Math.max(0, grossSubtotal - discount);
-    const tax = Math.round(taxableSubtotal * (taxRate / 100) * 100) / 100;
-    const total = taxableSubtotal + tax;
-    const isPaid = appt.status === 'completed';
-    const isCancelled = appt.status === 'cancelled' || appt.status === 'noshow';
+    const calculated = calculateAppointmentInvoice(appt, { services, packages, settings, redemptions });
 
     return {
       appt,
@@ -90,22 +81,22 @@ export const InvoicesView: React.FC = () => {
       service,
       pkg,
       groomer,
-      invoiceNum,
-      servicePrice,
-      retailAddon,
-      grossSubtotal,
-      discount,
-      taxableSubtotal,
-      subtotal: taxableSubtotal,
-      tax,
-      taxAmount: tax,
-      total,
-      totalAmount: total,
-      taxRate,
-      isPaid,
-      isCancelled,
-      serviceName: pkg ? pkg.name : (service?.name || 'Grooming Treatment'),
-      serviceOrPackage: pkg ? pkg.name : (service?.name || 'Grooming Treatment'),
+      invoiceNum: calculated.invoiceNum,
+      servicePrice: calculated.servicePrice,
+      retailAddon: calculated.retailAddon,
+      grossSubtotal: calculated.grossSubtotal,
+      discount: calculated.discountAmount,
+      taxableSubtotal: calculated.taxableSubtotal,
+      subtotal: calculated.taxableSubtotal,
+      tax: calculated.taxAmount,
+      taxAmount: calculated.taxAmount,
+      total: calculated.totalAmount,
+      totalAmount: calculated.totalAmount,
+      taxRate: calculated.taxRate,
+      isPaid: calculated.isPaid,
+      isCancelled: appt.status === 'cancelled' || appt.status === 'noshow',
+      serviceName: calculated.serviceOrPackageName,
+      serviceOrPackage: calculated.serviceOrPackageName,
       ownerName: client?.owner || 'Valued Client',
       petName: client?.name || 'Pet',
       clientName: client?.name || 'Pet',
