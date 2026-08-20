@@ -461,6 +461,7 @@
   /* Display ONLY the active printable document container with clean colorless borders */
   #printable-invoice-doc,
   #printable-schedule-doc,
+  #printable-report-doc,
   .printable-area {
     display: block !important;
     visibility: visible !important;
@@ -481,24 +482,28 @@
 
   #printable-invoice-doc *,
   #printable-schedule-doc *,
+  #printable-report-doc *,
   .printable-area * {
     visibility: visible !important;
   }
 
   #printable-invoice-doc .flex-row,
-  #printable-schedule-doc .flex-row {
+  #printable-schedule-doc .flex-row,
+  #printable-report-doc .flex-row {
     display: flex !important;
     flex-direction: row !important;
   }
 
   #printable-invoice-doc .flex-1,
-  #printable-schedule-doc .flex-1 {
+  #printable-schedule-doc .flex-1,
+  #printable-report-doc .flex-1 {
     flex: 1 1 0% !important;
   }
 
   /* Image constraints */
   #printable-invoice-doc img.clinic-logo-img,
   #printable-schedule-doc img.clinic-logo-img,
+  #printable-report-doc img.clinic-logo-img,
   .printable-area img.clinic-logo-img {
     width: 60px !important;
     height: 60px !important;
@@ -512,6 +517,7 @@
   /* QR code image fill in printable area */
   #printable-invoice-doc img.qr-code-img,
   #printable-schedule-doc img.qr-code-img,
+  #printable-report-doc img.qr-code-img,
   .printable-area img.qr-code-img,
   img.qr-code-img {
     width: 100% !important;

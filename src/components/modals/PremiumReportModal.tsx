@@ -48,6 +48,11 @@ import {
   generatePremiumRevenueCSV, 
   downloadCSV 
 } from '../../utils/reportExport';
+import { 
+  triggerPrintDocument, 
+  downloadPrintableHTML, 
+  generateExecutiveReportHTML 
+} from '../../utils/printDoc';
 import { calculateAppointmentInvoice } from '../../utils/invoice';
 import { formatISO } from '../../data/initialData';
 
@@ -458,7 +463,135 @@ export const PremiumReportModal: React.FC<PremiumReportModalProps> = ({
   };
 
   const handlePrintPDF = () => {
-    window.print();
+    const reportTitle = activeTab === 'invoices' 
+      ? `Executive Billing & Invoices Report (${dateRangeBounds.label})` 
+      : `Executive Revenue & Analytics Report (${dateRangeBounds.label})`;
+    
+    const printHtml = generateExecutiveReportHTML({
+      title: reportTitle,
+      type: activeTab,
+      periodLabel: dateRangeBounds.label,
+      clinicName: currentProfile?.businessName || settings.salonName || 'PawBook Pro Studio',
+      clinicOwner: currentProfile?.ownerName || settings.name || 'Master Stylist',
+      clinicPhone: settings.phone,
+      clinicEmail: settings.email,
+      clinicAddress: settings.address,
+      currency: currencySymbol || '$',
+      metrics: {
+        grossTotal: metrics.grossTotal,
+        groomingTotal: metrics.groomingTotal,
+        retailTotal: metrics.retailTotal,
+        taxTotal: metrics.taxTotal,
+        netProfit: metrics.netProfit,
+        profitMargin: metrics.profitMargin,
+        totalCount: metrics.totalCount,
+        paidCount: metrics.paidCount,
+        dueCount: metrics.dueCount,
+        avgTicket: metrics.avgTicket,
+        paidRate: metrics.paidRate,
+      },
+      services: servicesChartData.map((s) => ({
+        name: s.name,
+        count: s.count,
+        total: s.total,
+        percentage: s.percentage,
+      })),
+      staff: staffChartData.map((st) => ({
+        name: st.name,
+        role: st.role,
+        count: st.count,
+        serviceRev: st.serviceRev,
+        commissionPayout: st.commissionPayout,
+        studioNet: st.studioNet,
+      })),
+      transactions: invoiceReportData.map((inv) => ({
+        invoiceNum: inv.invoiceNum,
+        date: inv.date,
+        time: inv.time,
+        ownerName: inv.ownerName,
+        petName: inv.petName,
+        serviceName: inv.serviceName,
+        groomerName: inv.groomerName,
+        subtotal: inv.subtotal,
+        taxAmount: inv.taxAmount,
+        total: inv.total,
+        isPaid: inv.isPaid,
+        isCancelled: inv.isCancelled,
+      })),
+    });
+
+    triggerPrintDocument(reportTitle, printHtml, { 
+      isHtml: true, 
+      fallbackFilename: `${activeTab}_report_${todayStr}.html` 
+    });
+    showToast('Launching print dialog...', 'info');
+  };
+
+  const handleDownloadPrintableHTML = () => {
+    const reportTitle = activeTab === 'invoices' 
+      ? `Executive Billing & Invoices Report (${dateRangeBounds.label})` 
+      : `Executive Revenue & Analytics Report (${dateRangeBounds.label})`;
+    
+    const printHtml = generateExecutiveReportHTML({
+      title: reportTitle,
+      type: activeTab,
+      periodLabel: dateRangeBounds.label,
+      clinicName: currentProfile?.businessName || settings.salonName || 'PawBook Pro Studio',
+      clinicOwner: currentProfile?.ownerName || settings.name || 'Master Stylist',
+      clinicPhone: settings.phone,
+      clinicEmail: settings.email,
+      clinicAddress: settings.address,
+      currency: currencySymbol || '$',
+      metrics: {
+        grossTotal: metrics.grossTotal,
+        groomingTotal: metrics.groomingTotal,
+        retailTotal: metrics.retailTotal,
+        taxTotal: metrics.taxTotal,
+        netProfit: metrics.netProfit,
+        profitMargin: metrics.profitMargin,
+        totalCount: metrics.totalCount,
+        paidCount: metrics.paidCount,
+        dueCount: metrics.dueCount,
+        avgTicket: metrics.avgTicket,
+        paidRate: metrics.paidRate,
+      },
+      services: servicesChartData.map((s) => ({
+        name: s.name,
+        count: s.count,
+        total: s.total,
+        percentage: s.percentage,
+      })),
+      staff: staffChartData.map((st) => ({
+        name: st.name,
+        role: st.role,
+        count: st.count,
+        serviceRev: st.serviceRev,
+        commissionPayout: st.commissionPayout,
+        studioNet: st.studioNet,
+      })),
+      transactions: invoiceReportData.map((inv) => ({
+        invoiceNum: inv.invoiceNum,
+        date: inv.date,
+        time: inv.time,
+        ownerName: inv.ownerName,
+        petName: inv.petName,
+        serviceName: inv.serviceName,
+        groomerName: inv.groomerName,
+        subtotal: inv.subtotal,
+        taxAmount: inv.taxAmount,
+        total: inv.total,
+        isPaid: inv.isPaid,
+        isCancelled: inv.isCancelled,
+      })),
+    });
+
+    downloadPrintableHTML(
+      reportTitle, 
+      printHtml, 
+      `PawBook_${activeTab === 'invoices' ? 'Invoices' : 'Revenue'}_Report_${todayStr}.html`, 
+      true
+    );
+    showToast('Saved printable offline HTML report!', 'success');
   };
 
   const PIE_COLORS = ['#FF6B00', '#2E8A81', '#2563EB', '#9333EA', '#D97706', '#E11D48', '#0D9488'];
@@ -501,11 +634,20 @@ export const PremiumReportModal: React.FC<PremiumReportModalProps> = ({
 
             <button
               onClick={handlePrintPDF}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 no-print"
-              title="Print / Save PDF Report"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white/15 hover:bg-white/25 text-white border border-white/20 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 no-print shadow-xs"
+              title="Print or Save PDF Report"
             >
-              <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Print / PDF</span>
+              <Printer className="w-4 h-4 text-white" />
+              <span>Print / PDF</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPrintableHTML}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 no-print"
+              title="Save Printable Standalone HTML File"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-amber-300" />
+              <span>Save HTML</span>
             </button>
 
             <button
@@ -618,7 +760,7 @@ export const PremiumReportModal: React.FC<PremiumReportModalProps> = ({
         </div>
 
         {/* Scrollable Report Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-[#240C0B]">
+        <div id="printable-report-doc" className="printable-area flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-[#240C0B]">
           
           {/* Executive Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -887,6 +1029,13 @@ export const PremiumReportModal: React.FC<PremiumReportModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrintPDF}
+              className="px-3.5 py-2 bg-white hover:bg-[#F1EEE6] text-[#240C0B] border border-[#E6DFD5] hover:border-[#240C0B] rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+            >
+              <Printer className="w-4 h-4 text-theme-primary" />
+              <span>Print / PDF</span>
+            </button>
             <button
               onClick={onClose}
               className="px-4 py-2 bg-white hover:bg-[#F1EEE6] text-[#240C0B] border border-[#E6DFD5] rounded-xl text-xs font-bold transition-all cursor-pointer"
