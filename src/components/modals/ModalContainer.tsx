@@ -487,51 +487,57 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
     const targetItem = itemToAdd || inventory.find((i) => i.id === selectedInventoryId);
     if (!targetItem) return;
 
-    setPurchasedProducts((prev) => {
-      const existingIdx = prev.findIndex((p) => p.itemId === targetItem.id);
-      if (existingIdx !== -1) {
+    if (targetItem.stock !== undefined && targetItem.stock <= 0) {
+      showToast(`${targetItem.name} is currently out of stock!`, 'warning');
+      return;
+    }
+
+    const existingIdx = purchasedProducts.findIndex((p) => p.itemId === targetItem.id);
+    if (existingIdx !== -1) {
+      const currentQty = purchasedProducts[existingIdx].quantity || 1;
+      if (targetItem.stock !== undefined && currentQty >= targetItem.stock) {
+        showToast(`Only ${targetItem.stock} in stock for ${targetItem.name}`, 'warning');
+        return;
+      }
+      setPurchasedProducts((prev) => {
         const next = [...prev];
-        const currentQty = next[existingIdx].quantity || 1;
-        if (targetItem.stock !== undefined && currentQty >= targetItem.stock) {
-          showToast(`Only ${targetItem.stock} in stock for ${targetItem.name}`, 'warning');
-          return prev;
-        }
         next[existingIdx] = {
           ...next[existingIdx],
           quantity: currentQty + 1,
         };
         return next;
-      } else {
-        if (targetItem.stock !== undefined && targetItem.stock <= 0) {
-          showToast(`${targetItem.name} is currently out of stock!`, 'warning');
-          return prev;
-        }
-        return [
-          ...prev,
-          {
-            itemId: targetItem.id,
-            name: targetItem.name,
-            price: Number(targetItem.price || 0),
-            quantity: 1,
-          },
-        ];
-      }
-    });
+      });
+    } else {
+      setPurchasedProducts((prev) => [
+        ...prev,
+        {
+          itemId: targetItem.id,
+          name: targetItem.name,
+          price: Number(targetItem.price || 0),
+          quantity: 1,
+        },
+      ]);
+    }
     setSelectedInventoryId('');
   };
 
   const handleUpdateProductQuantity = (itemId: string, delta: number) => {
+    const prod = purchasedProducts.find((p) => p.itemId === itemId);
+    if (!prod) return;
+
+    const newQty = (prod.quantity || 1) + delta;
+    const invItem = inventory.find((i) => i.id === itemId);
+    if (delta > 0 && invItem && invItem.stock !== undefined && newQty > invItem.stock) {
+      showToast(`Cannot exceed current stock level (${invItem.stock}) for ${prod.name}`, 'warning');
+      return;
+    }
+
     setPurchasedProducts((prev) => {
       return prev
         .map((p) => {
           if (p.itemId === itemId) {
-            const newQty = (p.quantity || 1) + delta;
-            const invItem = inventory.find((i) => i.id === itemId);
-            if (delta > 0 && invItem && invItem.stock !== undefined && newQty > invItem.stock) {
-              showToast(`Cannot exceed current stock level (${invItem.stock}) for ${p.name}`, 'warning');
-              return p;
-            }
-            return newQty > 0 ? { ...p, quantity: newQty } : null;
+            const nextQty = (p.quantity || 1) + delta;
+            return nextQty > 0 ? { ...p, quantity: nextQty } : null;
           }
           return p;
         })
