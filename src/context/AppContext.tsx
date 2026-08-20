@@ -314,6 +314,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           taxRate: cs.taxRate !== undefined ? cs.taxRate : prev.taxRate,
           colorTheme: (cs.colorTheme as any) || prev.colorTheme,
         };
+        if (JSON.stringify(prev) === JSON.stringify(merged)) {
+          return prev;
+        }
         if (merged.colorTheme) {
           document.documentElement.setAttribute('data-theme', merged.colorTheme);
         }
@@ -991,41 +994,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings((prev) => {
-      const merged = { ...prev, ...newSettings };
-      if (merged.colorTheme) {
-        document.documentElement.setAttribute('data-theme', merged.colorTheme);
-      }
+    const merged = { ...settings, ...newSettings };
+    if (merged.colorTheme) {
+      document.documentElement.setAttribute('data-theme', merged.colorTheme);
+    }
+    setSettings(merged);
 
-      // Synchronize with Firebase Firestore profile customSettings
-      if (currentProfile?.profileId) {
-        updateClientProfile(currentProfile.profileId, {
-          businessName: merged.salonName || merged.name || currentProfile.businessName,
-          phoneNumber: merged.phone || currentProfile.phoneNumber,
-          email: merged.email || currentProfile.email,
-          customSettings: {
-            ...(currentProfile.customSettings || {}),
-            name: merged.name,
-            salonName: merged.salonName || merged.name,
-            email: merged.email,
-            phone: merged.phone,
-            address: merged.address,
-            website: merged.website,
-            photo: merged.photo,
-            open: merged.open,
-            close: merged.close,
-            slot: merged.slot,
-            currency: merged.currency,
-            taxRate: merged.taxRate,
-            colorTheme: merged.colorTheme,
-          }
-        }).catch((err) => {
-          console.warn('Could not sync settings to Firestore ClientProfile:', err);
-        });
-      }
-
-      return merged;
-    });
+    // Synchronize with Firebase Firestore profile customSettings
+    if (currentProfile?.profileId) {
+      updateClientProfile(currentProfile.profileId, {
+        businessName: merged.salonName || merged.name || currentProfile.businessName,
+        phoneNumber: merged.phone || currentProfile.phoneNumber,
+        email: merged.email || currentProfile.email,
+        customSettings: {
+          ...(currentProfile.customSettings || {}),
+          name: merged.name,
+          salonName: merged.salonName || merged.name,
+          email: merged.email,
+          phone: merged.phone,
+          address: merged.address,
+          website: merged.website,
+          photo: merged.photo,
+          open: merged.open,
+          close: merged.close,
+          slot: merged.slot,
+          currency: merged.currency,
+          taxRate: merged.taxRate,
+          colorTheme: merged.colorTheme,
+        }
+      }).catch((err) => {
+        console.warn('Could not sync settings to Firestore ClientProfile:', err);
+      });
+    }
 
     showToast('Shop & studio settings saved & synchronized with Firestore!', 'success');
   };

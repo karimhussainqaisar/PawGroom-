@@ -204,8 +204,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setInactiveModalOpen(true);
             logout();
           } else {
-            // Keep active session in sync with any profile edits
-            setSession(prev => prev ? { ...prev, profile: updatedProfile } : null);
+            // Keep active session in sync with any profile edits if there are changes
+            setSession(prev => {
+              if (!prev || JSON.stringify(prev.profile) === JSON.stringify(updatedProfile)) {
+                return prev;
+              }
+              return { ...prev, profile: updatedProfile };
+            });
           }
         } else {
           // PROFILE WAS DELETED FROM DATABASE!

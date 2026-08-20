@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { ClientNotificationDrawer } from './notifications/ClientNotificationDrawer';
 import { ColorTheme } from '../types';
-import { formatISO } from '../data/initialData';
+import { formatISO, getFixedToday } from '../data/initialData';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -51,17 +51,17 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
     }
   }, [mobileSearchOpen]);
 
-  const today = new Date();
-  const todayStr = formatISO(today);
+  const todayStr = formatISO(getFixedToday());
 
   const healthAlertsCount = React.useMemo(() => {
+    const nowTime = new Date().getTime();
     return clients.filter((c) => {
       if (!c.rabiesExpiry) return false;
       const exp = new Date(c.rabiesExpiry);
-      const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      const diff = Math.ceil((exp.getTime() - nowTime) / (1000 * 3600 * 24));
       return diff <= 30;
     }).length;
-  }, [clients, today]);
+  }, [clients]);
 
   // Synchronized today's appointments count
   const todayBookingsCount = React.useMemo(() => {
