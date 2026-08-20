@@ -36,12 +36,15 @@ import {
   Mail,
   Calendar,
   AlertTriangle,
-  FileText
+  FileText,
+  Bell
 } from 'lucide-react';
+import { AdminNotificationsManager } from './AdminNotificationsManager';
 
 export const AdminDashboard: React.FC = () => {
   const { 
     authDatabase, 
+    notifications,
     logout, 
     createClientProfile, 
     updateClientProfile, 
@@ -52,7 +55,8 @@ export const AdminDashboard: React.FC = () => {
     refreshServerDatabase
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'profiles' | 'plans' | 'logs' | 'settings'>('profiles');
+  const [activeTab, setActiveTab] = useState<'profiles' | 'notifications' | 'plans' | 'logs' | 'settings'>('profiles');
+  const [preselectedForPush, setPreselectedForPush] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [planFilter, setPlanFilter] = useState<'all' | SubscriptionPlan>('all');
@@ -284,7 +288,10 @@ export const AdminDashboard: React.FC = () => {
           {/* Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto">
             <button
-              onClick={() => setActiveTab('profiles')}
+              onClick={() => {
+                setPreselectedForPush(null);
+                setActiveTab('profiles');
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === 'profiles' 
                   ? 'bg-[#FF6B00] text-white shadow-sm' 
@@ -294,7 +301,21 @@ export const AdminDashboard: React.FC = () => {
               Client Accounts ({authDatabase.profiles.length})
             </button>
             <button
-              onClick={() => setActiveTab('plans')}
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === 'notifications' 
+                  ? 'bg-[#FF6B00] text-white shadow-sm' 
+                  : 'text-[#A08E8B] hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Push & Pop-ups ({notifications.length})</span>
+            </button>
+            <button
+              onClick={() => {
+                setPreselectedForPush(null);
+                setActiveTab('plans');
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === 'plans' 
                   ? 'bg-[#FF6B00] text-white shadow-sm' 
@@ -304,7 +325,10 @@ export const AdminDashboard: React.FC = () => {
               Subscription Tiers
             </button>
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => {
+                setPreselectedForPush(null);
+                setActiveTab('settings');
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === 'settings' 
                   ? 'bg-[#FF6B00] text-white shadow-sm' 
@@ -480,6 +504,18 @@ export const AdminDashboard: React.FC = () => {
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
 
+                              {/* Send Push / Pop-up direct */}
+                              <button
+                                onClick={() => {
+                                  setPreselectedForPush(p.profileId);
+                                  setActiveTab('notifications');
+                                }}
+                                className="p-2 rounded-xl bg-white/5 hover:bg-[#FF6B00] text-white transition-all cursor-pointer"
+                                title={`Send Push / Pop-up Notification to ${p.businessName}`}
+                              >
+                                <Bell className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Edit Profile */}
                               <button
                                 onClick={() => {
@@ -510,6 +546,14 @@ export const AdminDashboard: React.FC = () => {
               </table>
             </div>
           </div>
+        )}
+
+        {/* Tab: Push Notifications & Interactive Pop-ups */}
+        {activeTab === 'notifications' && (
+          <AdminNotificationsManager 
+            onSendSuccess={showToast} 
+            preselectedProfileId={preselectedForPush} 
+          />
         )}
 
         {/* Tab 2: Subscription Plans Overview */}

@@ -619,8 +619,9 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
   };
 
   const handleComplete = () => {
-    // Save invoice and discount details to appointment
+    // Save invoice, items, discount details and mark status completed atomically
     updateAppointment(appt.id, {
+      status: 'completed',
       retail: retailAddon,
       purchasedItems: purchasedProducts,
       discountAmount: chosenDiscAmount,
@@ -637,7 +638,6 @@ const AppointmentDetailModal: React.FC<{ data: any; onClose: () => void }> = ({ 
       markVoucherAsUsed(activeVoucher.code, appt.id);
     }
 
-    updateAppointmentStatus(appt.id, 'completed', retailAddon, purchasedProducts);
     confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     showToast(
       `Appointment completed! Total: ${formatPrice(finalTotal)} (Tax: ${taxRate}%${chosenDiscAmount > 0 ? `, Promo: -${formatPrice(chosenDiscAmount)}` : ''})`,

@@ -13,6 +13,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Admin broadcasts and push notifications collection
+    match /admin_broadcasts/{notifId} {
+      allow read, write: if true;
+    }
+
     // Test connection document
     match /test/{docId} {
       allow read, write: if true;

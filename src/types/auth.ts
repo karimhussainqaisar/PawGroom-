@@ -49,3 +49,26 @@ export interface AuthDatabase {
   version: string;
   lastUpdated: string;
 }
+
+export type NotificationType = 'popup' | 'banner' | 'push' | 'message';
+export type NotificationPriority = 'info' | 'warning' | 'urgent' | 'promotion' | 'update';
+
+export interface AdminNotification {
+  id: string;
+  targetType: 'all' | 'specific';
+  targetProfileId?: string; // profileId or 'all'
+  targetBusinessName?: string;
+  type: NotificationType; // 'popup' modal on client screen, 'banner', or 'push'
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  createdAt: string; // ISO string
+  expiresAt?: string;
+  createdBy: string;
+  readBy: string[]; // profileIds that have read this
+  dismissedBy: string[]; // profileIds that have dismissed the popup
+  isActive: boolean;
+}
+

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { Plus, UserPlus, Menu, Search, X, Bell, LogOut, ShieldCheck } from 'lucide-react';
+import { Plus, UserPlus, Menu, Search, X, Bell, LogOut, ShieldCheck, MessageSquare } from 'lucide-react';
+import { ClientNotificationDrawer } from './notifications/ClientNotificationDrawer';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -19,7 +20,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
     clients 
   } = useApp();
 
-  const { currentProfile, isAdmin, logout, returnToAdmin } = useAuth();
+  const { currentProfile, isAdmin, logout, returnToAdmin, unreadNotificationsCount } = useAuth();
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
 
   const healthAlertsCount = React.useMemo(() => {
     const today = new Date(2026, 7, 12);
@@ -31,115 +33,126 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = fal
     }).length;
   }, [clients]);
 
+  const totalBadges = healthAlertsCount + unreadNotificationsCount;
+
   return (
-    <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md transition-all py-3 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Left Section: Mobile Toggle & Universal Search */}
-        <div className="flex items-center gap-3 flex-1 max-w-md">
-          {/* Mobile Navigation Menu Toggle */}
-          <button
-            onClick={onMenuClick}
-            className={`lg:hidden flex items-center justify-center p-2 rounded-2xl border text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0 ${
-              isSidebarOpen 
-                ? 'bg-[#240C0B] text-white border-[#240C0B]' 
-                : 'bg-white border-[#E6DFD5] text-[#240C0B] hover:bg-[#F1EEE6]'
-            }`}
-            aria-label={isSidebarOpen ? "Close navigation" : "Open navigation"}
-          >
-            {isSidebarOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-[#240C0B]" />}
-          </button>
-
-          {/* Rounded Search Bar */}
-          <div className="relative w-full max-w-xs sm:max-w-sm">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A08E8B]" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-[#E6DFD5] rounded-full focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/20 outline-none text-[#240C0B] placeholder-[#A08E8B] shadow-2xs transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A08E8B] hover:text-[#240C0B]"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Right Section: Notifications Bell & User Badge & Logout */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          {/* Admin Preview Return Banner Button */}
-          {isAdmin && (
+    <>
+      <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md transition-all py-3 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          {/* Left Section: Mobile Toggle & Universal Search */}
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            {/* Mobile Navigation Menu Toggle */}
             <button
-              onClick={returnToAdmin}
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#2E8A81] hover:bg-[#236F68] text-white rounded-full text-[11px] font-bold shadow-xs cursor-pointer active:scale-95 transition-all"
-              title="Return to SuperAdmin Control Center"
+              onClick={onMenuClick}
+              className={`lg:hidden flex items-center justify-center p-2 rounded-2xl border text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0 ${
+                isSidebarOpen 
+                  ? 'bg-[#240C0B] text-white border-[#240C0B]' 
+                  : 'bg-white border-[#E6DFD5] text-[#240C0B] hover:bg-[#F1EEE6]'
+              }`}
+              aria-label={isSidebarOpen ? "Close navigation" : "Open navigation"}
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin Console</span>
+              {isSidebarOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-[#240C0B]" />}
             </button>
-          )}
 
-          {/* Health / Vaccine Alerts Button */}
-          <button
-            onClick={() => setView('alerts')}
-            className="relative w-9 h-9 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-[#240C0B] hover:border-[#FF6B00] hover:text-[#FF6B00] transition-all cursor-pointer shadow-2xs"
-            title={`${healthAlertsCount} Notifications & Alerts`}
-          >
-            <Bell className="w-4 h-4" />
-            {healthAlertsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FF6B00] text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
-                {healthAlertsCount}
-              </span>
-            )}
-          </button>
-
-          {/* User Badge Pill - Shop & Owner Display */}
-          <div 
-            onClick={() => setView('settings')}
-            className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs cursor-pointer hover:border-[#FF6B00] transition-colors"
-            title="Open Studio Settings"
-          >
-            <img 
-              src={settings.photo || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=120&q=80"} 
-              alt={settings.name || "Clinic Profile"} 
-              className="w-7 h-7 rounded-full object-cover border border-[#FF6B00]"
-            />
-            <div className="text-left leading-tight pr-1">
-              <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider truncate max-w-[120px]">
-                {currentProfile?.businessName || settings.salonName || 'Park Grooming Studio'}
-              </span>
-              <span className="text-xs font-extrabold text-[#240C0B] font-display truncate max-w-[120px] block">
-                {currentProfile?.ownerName || settings.name || 'Master Stylist'}
-              </span>
+            {/* Rounded Search Bar */}
+            <div className="relative w-full max-w-xs sm:max-w-sm">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A08E8B]" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-[#E6DFD5] rounded-full focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/20 outline-none text-[#240C0B] placeholder-[#A08E8B] shadow-2xs transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A08E8B] hover:text-[#240C0B]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Book Grooming Primary Button */}
-          <button
-            onClick={() => openModal('appointmentForm')}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-full text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden xs:inline">Book Grooming</span>
-          </button>
+          {/* Right Section: Notifications Bell & User Badge & Logout */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            {/* Admin Preview Return Banner Button */}
+            {isAdmin && (
+              <button
+                onClick={returnToAdmin}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#2E8A81] hover:bg-[#236F68] text-white rounded-full text-[11px] font-bold shadow-xs cursor-pointer active:scale-95 transition-all"
+                title="Return to SuperAdmin Control Center"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Admin Console</span>
+              </button>
+            )}
 
-          {/* Logout Button */}
-          <button
-            onClick={logout}
-            className="w-9 h-9 rounded-full bg-white border border-[#E6DFD5] hover:bg-[#FEF2F2] hover:border-[#C9503A]/40 text-[#7A6865] hover:text-[#C9503A] flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-            title="Sign out of Studio"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+            {/* Interactive Notifications Bell Button */}
+            <button
+              onClick={() => setNotificationDrawerOpen(true)}
+              className="relative w-9 h-9 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-[#240C0B] hover:border-[#FF6B00] hover:text-[#FF6B00] transition-all cursor-pointer shadow-2xs"
+              title={`${totalBadges} Push Notifications & Alerts`}
+            >
+              <Bell className="w-4 h-4" />
+              {totalBadges > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-[#FF6B00] text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
+                  {totalBadges}
+                </span>
+              )}
+            </button>
+
+            {/* User Badge Pill - Shop & Owner Display */}
+            <div 
+              onClick={() => setView('settings')}
+              className="hidden sm:flex items-center gap-2.5 bg-[#FFF8E7] border border-[#FFE7B3] py-1 px-2.5 rounded-full shadow-2xs cursor-pointer hover:border-[#FF6B00] transition-colors"
+              title="Open Studio Settings"
+            >
+              <img 
+                src={settings.photo || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=120&q=80"} 
+                alt={settings.name || "Clinic Profile"} 
+                className="w-7 h-7 rounded-full object-cover border border-[#FF6B00]"
+              />
+              <div className="text-left leading-tight pr-1">
+                <span className="text-[9px] text-[#A08E8B] font-bold block uppercase tracking-wider truncate max-w-[120px]">
+                  {currentProfile?.businessName || settings.salonName || 'Park Grooming Studio'}
+                </span>
+                <span className="text-xs font-extrabold text-[#240C0B] font-display truncate max-w-[120px] block">
+                  {currentProfile?.ownerName || settings.name || 'Master Stylist'}
+                </span>
+              </div>
+            </div>
+
+            {/* Book Grooming Primary Button */}
+            <button
+              onClick={() => openModal('appointmentForm')}
+              className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-full text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden xs:inline">Book Grooming</span>
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={logout}
+              className="w-9 h-9 rounded-full bg-white border border-[#E6DFD5] hover:bg-[#FEF2F2] hover:border-[#C9503A]/40 text-[#7A6865] hover:text-[#C9503A] flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+              title="Sign out of Studio"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Slide-over Push Notification Center */}
+      <ClientNotificationDrawer 
+        isOpen={notificationDrawerOpen} 
+        onClose={() => setNotificationDrawerOpen(false)} 
+      />
+    </>
   );
 };
+
 
 

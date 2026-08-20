@@ -10,6 +10,9 @@ import { MobileNav } from './components/MobileNav';
 import { Toast } from './components/Toast';
 import { ModalContainer } from './components/modals/ModalContainer';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { ClientNotificationPopup } from './components/notifications/ClientNotificationPopup';
+import { ClientNotificationBanner } from './components/notifications/ClientNotificationBanner';
+import { DeletedAccountModal } from './components/notifications/DeletedAccountModal';
 
 import { DashboardView } from './components/views/DashboardView';
 import { CalendarView } from './components/views/CalendarView';
@@ -91,6 +94,12 @@ const MainLayout: React.FC = () => {
       {/* Toast Notification Container */}
       <Toast />
 
+      {/* Interactive Push Notification Popup Modal */}
+      <ClientNotificationPopup />
+
+      {/* Admin Broadcast Banner */}
+      <ClientNotificationBanner />
+
       {/* Admin Impersonation Top Floating Banner */}
       {isAdmin && (
         <div className="w-full max-w-[1600px] mb-3 px-4 py-2 bg-[#240C0B] text-white rounded-2xl border border-[#2E8A81] shadow-lg flex items-center justify-between text-xs animate-fadeIn">
@@ -148,21 +157,28 @@ const MainLayout: React.FC = () => {
 const AppContent: React.FC = () => {
   const { isAuthenticated, authView, isAdmin } = useAuth();
 
-  // If not authenticated, route between Client Login and Admin Login
-  if (!isAuthenticated) {
-    if (authView === 'admin_login') {
-      return <AdminLoginPage />;
-    }
-    return <ClientLoginPage />;
-  }
+  return (
+    <>
+      <DeletedAccountModal />
+      {(() => {
+        // If not authenticated, route between Client Login and Admin Login
+        if (!isAuthenticated) {
+          if (authView === 'admin_login') {
+            return <AdminLoginPage />;
+          }
+          return <ClientLoginPage />;
+        }
 
-  // If authenticated as Admin and viewing Admin Dashboard
-  if (isAdmin && authView === 'admin_dashboard') {
-    return <AdminDashboard />;
-  }
+        // If authenticated as Admin and viewing Admin Dashboard
+        if (isAdmin && authView === 'admin_dashboard') {
+          return <AdminDashboard />;
+        }
 
-  // Otherwise render full Park Grooming Dashboard
-  return <MainLayout />;
+        // Otherwise render full Park Grooming Dashboard
+        return <MainLayout />;
+      })()}
+    </>
+  );
 };
 
 export default function App() {

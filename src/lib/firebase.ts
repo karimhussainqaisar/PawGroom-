@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { ClientProfile } from '../types/auth';
+import { ClientProfile, AdminNotification } from '../types/auth';
 
 // 1. Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -223,3 +223,113 @@ export function subscribeToOnlineFirestoreProfiles(
     }
   );
 }
+
+// 6. Firestore Broadcasts / Push Notifications Collection Reference
+export const BROADCASTS_COLLECTION = 'admin_broadcasts';
+
+/**
+ * Fetch all admin broadcasts & push notifications from Firestore
+ */
+export async function getOnlineFirestoreNotifications(): Promise<AdminNotification[]> {
+  try {
+    const snap = await getDocs(collection(db, BROADCASTS_COLLECTION));
+    const list: AdminNotification[] = [];
+    snap.forEach(docSnap => {
+      list.push(docSnap.data() as AdminNotification);
+    });
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (err) {
+    console.warn('Could not fetch notifications from Firestore:', err);
+    return [];
+  }
+}
+
+/**
+ * Save or Update an admin broadcast / push notification in Firestore
+ */
+export async function saveNotificationToFirestore(notification: AdminNotification): Promise<void> {
+  try {
+    const ref = doc(db, BROADCASTS_COLLECTION, notification.id);
+    await setDoc(ref, notification, { merge: true });
+    console.log(`Saved notification ${notification.id} to Firebase Firestore.`);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, `${BROADCASTS_COLLECTION}/${notification.id}`);
+  }
+}
+
+/**
+ * Delete an admin notification from Firestore
+ */
+export async function deleteNotificationFromFirestore(notificationId: string): Promise<void> {
+  try {
+    const ref = doc(db, BROADCASTS_COLLECTION, notificationId);
+    await deleteDoc(ref);
+    console.log(`Deleted notification ${notificationId} from Firebase Firestore.`);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, `${BROADCASTS_COLLECTION}/${notificationId}`);
+  }
+}
+
+/**
+ * Mark a notification as read/seen for a profile in Firestore
+ */
+export async function markNotificationReadInFirestore(notificationId: string, profileId: string): Promise<void> {
+  try {
+    const ref = doc(db, BROADCASTS_COLLECTION, notificationId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as AdminNotification;
+      const readBy = Array.isArray(data.readBy) ? data.readBy : [];
+      if (!readBy.includes(profileId)) {
+        await setDoc(ref, { readBy: [...readBy, profileId] }, { merge: true });
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not mark notification read:`, err);
+  }
+}
+
+/**
+ * Mark a notification pop-up as dismissed for a profile in Firestore
+ */
+export async function markNotificationDismissedInFirestore(notificationId: string, profileId: string): Promise<void> {
+  try {
+    const ref = doc(db, BROADCASTS_COLLECTION, notificationId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data() as AdminNotification;
+      const dismissedBy = Array.isArray(data.dismissedBy) ? data.dismissedBy : [];
+      if (!dismissedBy.includes(profileId)) {
+        await setDoc(ref, { dismissedBy: [...dismissedBy, profileId] }, { merge: true });
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not mark notification dismissed:`, err);
+  }
+}
+
+/**
+ * Real-time listener for Firestore Admin Broadcasts / Push Notifications
+ */
+export function subscribeToOnlineFirestoreNotifications(
+  onUpdate: (notifications: AdminNotification[]) => void,
+  onError?: (err: any) => void
+) {
+  const colRef = collection(db, BROADCASTS_COLLECTION);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const list: AdminNotification[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as AdminNotification);
+      });
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(list);
+    },
+    (error) => {
+      console.warn('Firestore realtime notification listener notice:', error);
+      if (onError) onError(error);
+    }
+  );
+}
+

@@ -415,11 +415,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     const existing = appointments.find((a) => a.id === id);
     if (existing && purchasedItems !== undefined) {
-      if (existing.purchasedItems && existing.purchasedItems.length > 0) {
-        restoreInventoryStock(existing.purchasedItems);
-      }
-      if (purchasedItems && purchasedItems.length > 0) {
-        deductInventoryStock(purchasedItems);
+      const prevItems = existing.purchasedItems || [];
+      const newItems = purchasedItems || [];
+      const prevKey = JSON.stringify(prevItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
+      const newKey = JSON.stringify(newItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
+
+      if (prevKey !== newKey) {
+        if (prevItems.length > 0) {
+          restoreInventoryStock(prevItems);
+        }
+        if (newItems.length > 0) {
+          deductInventoryStock(newItems);
+        }
       }
     }
 
@@ -458,11 +465,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAppointment = (id: string, apptData: Partial<Appointment>) => {
     const existing = appointments.find((a) => a.id === id);
     if (existing && apptData.purchasedItems !== undefined) {
-      if (existing.purchasedItems && existing.purchasedItems.length > 0) {
-        restoreInventoryStock(existing.purchasedItems);
+      const prevItems = existing.purchasedItems || [];
+      const newItems = apptData.purchasedItems || [];
+      const prevKey = JSON.stringify(prevItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
+      const newKey = JSON.stringify(newItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
+
+      if (prevKey !== newKey) {
+        if (prevItems.length > 0) {
+          restoreInventoryStock(prevItems);
+        }
+        if (newItems.length > 0) {
+          deductInventoryStock(newItems);
+        }
       }
-      if (apptData.purchasedItems && apptData.purchasedItems.length > 0) {
-        deductInventoryStock(apptData.purchasedItems);
+    }
+
+    if (existing && apptData.status === 'completed' && existing.status !== 'completed') {
+      const retailTotal = apptData.purchasedItems !== undefined
+        ? apptData.purchasedItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0)
+        : (apptData.retail !== undefined ? apptData.retail : existing.retail || 0);
+      const servicePrice = apptData.price !== undefined ? apptData.price : existing.price;
+      const earned = Math.floor((servicePrice + retailTotal) * settings.ppd);
+      if (earned > 0) {
+        setClients((cList) =>
+          cList.map((c) => (c.id === existing.clientId ? { ...c, points: (c.points || 0) + earned } : c))
+        );
       }
     }
 

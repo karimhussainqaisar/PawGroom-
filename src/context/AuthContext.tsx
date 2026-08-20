@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   AuthDatabase, 
   ClientProfile, 
   AdminUser, 
   AuthSession, 
   SubscriptionPlan, 
-  AccountStatus 
+  AccountStatus,
+  AdminNotification,
+  NotificationType,
+  NotificationPriority
 } from '../types/auth';
 import { 
   loadAuthDatabase, 
@@ -20,7 +23,13 @@ import {
   getOnlineFirestoreProfiles,
   saveProfileToFirestore, 
   deleteProfileFromFirestore,
-  authenticateWithFirestore 
+  authenticateWithFirestore,
+  subscribeToOnlineFirestoreNotifications,
+  getOnlineFirestoreNotifications,
+  saveNotificationToFirestore,
+  deleteNotificationFromFirestore,
+  markNotificationReadInFirestore,
+  markNotificationDismissedInFirestore
 } from '../lib/firebase';
 
 export type AuthViewMode = 'client_login' | 'admin_login' | 'admin_dashboard' | 'app';
@@ -62,6 +71,22 @@ interface AuthContextType {
   setInactiveModalOpen: (open: boolean) => void;
   inactiveProfileDetails: ClientProfile | null;
   setInactiveProfileDetails: (profile: ClientProfile | null) => void;
+
+  // Account Deleted Auto-Logout Notice State
+  deletedAccountNotice: boolean;
+  setDeletedAccountNotice: (open: boolean) => void;
+
+  // Push Notifications & Pop-ups System
+  notifications: AdminNotification[];
+  clientNotifications: AdminNotification[];
+  activePopupsForCurrentProfile: AdminNotification[];
+  activeBannersForCurrentProfile: AdminNotification[];
+  unreadNotificationsCount: number;
+  createAdminNotification: (notifData: Omit<AdminNotification, 'id' | 'createdAt' | 'createdBy' | 'readBy' | 'dismissedBy'>) => Promise<AdminNotification>;
+  deleteAdminNotification: (notificationId: string) => Promise<boolean>;
+  toggleNotificationStatus: (notificationId: string) => Promise<boolean>;
+  markNotificationAsRead: (notificationId: string) => Promise<void>;
+  dismissPopupNotification: (notificationId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,11 +116,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [inactiveModalOpen, setInactiveModalOpen] = useState<boolean>(false);
   const [inactiveProfileDetails, setInactiveProfileDetails] = useState<ClientProfile | null>(null);
+  const [deletedAccountNotice, setDeletedAccountNotice] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   // Manual refresh from Firestore database
   const refreshServerDatabase = useCallback(async () => {
     try {
-      const onlineList = await getOnlineFirestoreProfiles();
+      const [onlineList, onlineNotifs] = await Promise.all([
+        getOnlineFirestoreProfiles(),
+        getOnlineFirestoreNotifications()
+      ]);
+      
       setAuthDatabase(prev => {
         const updated = {
           ...prev,
@@ -105,18 +136,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveAuthDatabase(updated);
         return updated;
       });
+
+      if (onlineNotifs && onlineNotifs.length > 0) {
+        setNotifications(onlineNotifs);
+      }
     } catch (err) {
       console.warn('Direct Firestore fetch error:', err);
     }
   }, []);
 
-  // 1. Subscribe to Real-Time Firebase Firestore Database
+  // 1. Subscribe to Real-Time Firebase Firestore Database (Profiles & Notifications)
   useEffect(() => {
     testConnection();
 
-    // Direct Real-time Firestore Snapshot Listener
-    // Any manual changes made in the Firebase Console or Admin Panel are pushed immediately!
-    const unsubscribe = subscribeToOnlineFirestoreProfiles(
+    // Direct Real-time Firestore Snapshot Listener for Profiles
+    const unsubscribeProfiles = subscribeToOnlineFirestoreProfiles(
       (firestoreProfiles) => {
         setAuthDatabase(prev => {
           const updated = {
@@ -129,7 +163,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       },
       (err) => {
-        console.warn('Firestore subscription status:', err);
+        console.warn('Firestore profiles subscription notice:', err);
+      }
+    );
+
+    // Direct Real-time Firestore Snapshot Listener for Notifications & Pop-ups
+    const unsubscribeNotifs = subscribeToOnlineFirestoreNotifications(
+      (firestoreNotifs) => {
+        setNotifications(firestoreNotifs);
+      },
+      (err) => {
+        console.warn('Firestore notifications subscription notice:', err);
       }
     );
 
@@ -137,21 +181,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshServerDatabase();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeProfiles) unsubscribeProfiles();
+      if (unsubscribeNotifs) unsubscribeNotifs();
     };
   }, [refreshServerDatabase]);
 
-  // Synchronize active session when profiles in Firestore change
+  // 2. SIMULTANEOUS AUTO-LOGOUT: Synchronize active session when profiles in Firestore change
   useEffect(() => {
     if (session && session.userType === 'client' && session.profile) {
-      const updatedProfile = authDatabase.profiles.find(p => p.profileId === session.profile?.profileId);
-      if (updatedProfile) {
-        if (updatedProfile.status === 'inactive') {
-          setInactiveProfileDetails(updatedProfile);
-          setInactiveModalOpen(true);
-          logout();
+      const profileId = session.profile.profileId;
+      // If we have profiles in database (or database is non-empty)
+      if (authDatabase.profiles && authDatabase.profiles.length > 0) {
+        const updatedProfile = authDatabase.profiles.find(p => p.profileId === profileId);
+        
+        if (updatedProfile) {
+          if (updatedProfile.status === 'inactive') {
+            setInactiveProfileDetails(updatedProfile);
+            setInactiveModalOpen(true);
+            logout();
+          } else {
+            // Keep active session in sync with any profile edits
+            setSession(prev => prev ? { ...prev, profile: updatedProfile } : null);
+          }
         } else {
-          setSession(prev => prev ? { ...prev, profile: updatedProfile } : null);
+          // PROFILE WAS DELETED FROM DATABASE!
+          // Immediately perform simultaneous logout and display notice!
+          console.warn(`Profile ${profileId} no longer exists in Firestore. Triggering simultaneous logout.`);
+          setDeletedAccountNotice(true);
+          logout();
         }
       }
     }
@@ -182,7 +239,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // 1. Direct Firebase Firestore Online Database Authentication
     try {
       const firestoreResult = await authenticateWithFirestore(cleanEmail, cleanPassword);
       if (firestoreResult.success && firestoreResult.profile) {
@@ -216,7 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Direct Firestore authentication exception:', firebaseErr);
     }
 
-    // 2. Check local synchronized Firestore snapshot cache as fallback
+    // Check local snapshot as fallback
     const matchedProfile = authDatabase.profiles.find(
       p => p.email.toLowerCase() === cleanEmail && p.password === cleanPassword
     );
@@ -249,7 +305,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Successful fallback match
     const newSession: AuthSession = {
       userType: 'client',
       profile: matchedProfile,
@@ -295,7 +350,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthView('client_login');
   };
 
-  // Impersonate / Preview Client Profile from Admin Dashboard
   const impersonateClient = (profileId: string) => {
     const profile = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!profile) return;
@@ -325,7 +379,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Create Client Profile: Directly saved to Firebase Firestore Online Database
+   * Create Client Profile: Saved to Firebase Firestore
    */
   const createClientProfile = async (
     profileData: Omit<ClientProfile, 'profileId' | 'createdAt'> & { profileId?: string }
@@ -348,7 +402,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // 1. Immediately update local state
+    // Update local state
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -359,19 +413,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Persist to Firebase Firestore Online Database
+    // Persist to Firebase Firestore
     await saveProfileToFirestore(newProfile);
 
     return newProfile;
   };
 
   /**
-   * Update Client Profile: Directly saved to Firebase Firestore Online Database
+   * Update Client Profile: Saved to Firebase Firestore
    */
   const updateClientProfile = async (profileId: string, updates: Partial<ClientProfile>): Promise<boolean> => {
     const existing = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!existing) {
-      console.error(`Cannot find profile ${profileId} to update in Firebase list.`);
+      console.error(`Cannot find profile ${profileId} to update.`);
       return false;
     }
 
@@ -387,7 +441,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // 1. Update local state
+    // Update local state
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -398,19 +452,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. If current session is this client, update session
     if (session && session.userType === 'client' && session.profile?.profileId === profileId) {
       setSession(prev => prev ? { ...prev, profile: updatedProfile } : null);
     }
 
-    // 3. Persist to Firebase Firestore Online Database
     await saveProfileToFirestore(updatedProfile);
-
     return true;
   };
 
   /**
-   * Toggle Profile Status: Directly saved to Firebase Firestore Online Database
+   * Toggle Profile Status: Saved to Firebase Firestore
    */
   const toggleProfileStatus = async (profileId: string): Promise<boolean> => {
     const existing = authDatabase.profiles.find(p => p.profileId === profileId);
@@ -422,7 +473,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: nextStatus
     };
 
-    // 1. Update local state
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -433,17 +483,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Persist to Firebase Firestore Online Database
-    await saveProfileToFirestore(toggledProfile);
+    // If currently logged in as this client and set to inactive, trigger logout
+    if (nextStatus === 'inactive' && session?.userType === 'client' && session.profile?.profileId === profileId) {
+      setInactiveProfileDetails(toggledProfile);
+      setInactiveModalOpen(true);
+      logout();
+    }
 
+    await saveProfileToFirestore(toggledProfile);
     return true;
   };
 
   /**
-   * Delete Client Profile: Directly removed from Firebase Firestore Online Database
+   * Delete Client Profile: Directly removed from Firebase Firestore & Auto-Logout active session
    */
   const deleteClientProfile = async (profileId: string): Promise<boolean> => {
-    // 1. Local delete
+    // 1. If currently logged in as this client profile, immediately trigger auto-logout!
+    if (session && session.userType === 'client' && session.profile?.profileId === profileId) {
+      setDeletedAccountNotice(true);
+      logout();
+    }
+
+    // 2. Local state delete
     setAuthDatabase(prev => {
       const updated = {
         ...prev,
@@ -454,15 +515,144 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    // 2. Delete from Firebase Firestore Online Database
+    // 3. Remove from Firebase Firestore Online Database
     await deleteProfileFromFirestore(profileId);
 
     return true;
   };
 
   const resetAuthDatabase = async () => {
-    // Refresh from live Firestore database
     await refreshServerDatabase();
+  };
+
+  // -------------------------------------------------------------
+  // PUSH NOTIFICATIONS & POP-UPS SYSTEM METHODS
+  // -------------------------------------------------------------
+
+  const currentClientProfileId = session?.userType === 'client' ? session.profile?.profileId : null;
+
+  // Filter notifications applicable for the currently logged in client profile
+  const clientNotifications = useMemo(() => {
+    if (!currentClientProfileId) return [];
+    return notifications.filter(n => {
+      if (!n.isActive) return false;
+      if (n.targetType === 'all') return true;
+      return n.targetProfileId === currentClientProfileId;
+    });
+  }, [notifications, currentClientProfileId]);
+
+  // Active Popup Modals that have not yet been dismissed by this client
+  const activePopupsForCurrentProfile = useMemo(() => {
+    if (!currentClientProfileId) return [];
+    return clientNotifications.filter(n => {
+      if (n.type !== 'popup') return false;
+      const dismissed = Array.isArray(n.dismissedBy) ? n.dismissedBy : [];
+      return !dismissed.includes(currentClientProfileId);
+    });
+  }, [clientNotifications, currentClientProfileId]);
+
+  // Active Banners
+  const activeBannersForCurrentProfile = useMemo(() => {
+    if (!currentClientProfileId) return [];
+    return clientNotifications.filter(n => {
+      if (n.type !== 'banner') return false;
+      const dismissed = Array.isArray(n.dismissedBy) ? n.dismissedBy : [];
+      return !dismissed.includes(currentClientProfileId);
+    });
+  }, [clientNotifications, currentClientProfileId]);
+
+  // Unread Count
+  const unreadNotificationsCount = useMemo(() => {
+    if (!currentClientProfileId) return 0;
+    return clientNotifications.filter(n => {
+      const read = Array.isArray(n.readBy) ? n.readBy : [];
+      return !read.includes(currentClientProfileId);
+    }).length;
+  }, [clientNotifications, currentClientProfileId]);
+
+  /**
+   * Create Admin Broadcast / Push Notification / Pop-up
+   */
+  const createAdminNotification = async (
+    notifData: Omit<AdminNotification, 'id' | 'createdAt' | 'createdBy' | 'readBy' | 'dismissedBy'>
+  ): Promise<AdminNotification> => {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newNotif: AdminNotification = {
+      ...notifData,
+      id,
+      createdAt: new Date().toISOString(),
+      createdBy: authDatabase.admin.email || 'Admin',
+      readBy: [],
+      dismissedBy: [],
+      isActive: notifData.isActive !== undefined ? notifData.isActive : true
+    };
+
+    setNotifications(prev => [newNotif, ...prev]);
+    await saveNotificationToFirestore(newNotif);
+    return newNotif;
+  };
+
+  /**
+   * Delete Admin Notification from Firestore
+   */
+  const deleteAdminNotification = async (notificationId: string): Promise<boolean> => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    await deleteNotificationFromFirestore(notificationId);
+    return true;
+  };
+
+  /**
+   * Toggle Notification active status
+   */
+  const toggleNotificationStatus = async (notificationId: string): Promise<boolean> => {
+    const existing = notifications.find(n => n.id === notificationId);
+    if (!existing) return false;
+
+    const updated: AdminNotification = {
+      ...existing,
+      isActive: !existing.isActive
+    };
+
+    setNotifications(prev => prev.map(n => n.id === notificationId ? updated : n));
+    await saveNotificationToFirestore(updated);
+    return true;
+  };
+
+  /**
+   * Mark notification as read
+   */
+  const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+    if (!currentClientProfileId) return;
+    setNotifications(prev => prev.map(n => {
+      if (n.id === notificationId) {
+        const readBy = Array.isArray(n.readBy) ? n.readBy : [];
+        if (!readBy.includes(currentClientProfileId)) {
+          return { ...n, readBy: [...readBy, currentClientProfileId] };
+        }
+      }
+      return n;
+    }));
+    await markNotificationReadInFirestore(notificationId, currentClientProfileId);
+  };
+
+  /**
+   * Dismiss a popup modal notification
+   */
+  const dismissPopupNotification = async (notificationId: string): Promise<void> => {
+    if (!currentClientProfileId) return;
+    setNotifications(prev => prev.map(n => {
+      if (n.id === notificationId) {
+        const dismissedBy = Array.isArray(n.dismissedBy) ? n.dismissedBy : [];
+        const readBy = Array.isArray(n.readBy) ? n.readBy : [];
+        return {
+          ...n,
+          dismissedBy: dismissedBy.includes(currentClientProfileId) ? dismissedBy : [...dismissedBy, currentClientProfileId],
+          readBy: readBy.includes(currentClientProfileId) ? readBy : [...readBy, currentClientProfileId]
+        };
+      }
+      return n;
+    }));
+    await markNotificationDismissedInFirestore(notificationId, currentClientProfileId);
   };
 
   return (
@@ -490,7 +680,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         inactiveModalOpen,
         setInactiveModalOpen,
         inactiveProfileDetails,
-        setInactiveProfileDetails
+        setInactiveProfileDetails,
+        deletedAccountNotice,
+        setDeletedAccountNotice,
+        notifications,
+        clientNotifications,
+        activePopupsForCurrentProfile,
+        activeBannersForCurrentProfile,
+        unreadNotificationsCount,
+        createAdminNotification,
+        deleteAdminNotification,
+        toggleNotificationStatus,
+        markNotificationAsRead,
+        dismissPopupNotification
       }}
     >
       {children}
