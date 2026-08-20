@@ -26,8 +26,7 @@ import { AdminLoginPage as AdminLogin } from './components/auth/AdminLoginPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { InactiveAccountModal } from './components/auth/InactiveAccountModal';
 import { DeletedAccountModal } from './components/auth/DeletedAccountModal';
-import { ClientNotificationPopup } from './components/notifications/ClientNotificationPopup';
-import { ClientNotificationBanner } from './components/notifications/ClientNotificationBanner';
+import { ClientNotificationRenderer } from './components/notifications/ClientNotificationRenderer';
 import { ArrowLeft } from 'lucide-react';
 
 const MainApp: React.FC = () => {
@@ -100,39 +99,41 @@ const MainApp: React.FC = () => {
   return (
     <div 
       data-theme={settings.colorTheme || 'terracotta'} 
-      className="min-h-screen p-2 sm:p-4 md:p-6 lg:p-8 flex flex-col items-center justify-center antialiased selection:bg-[#FF6B00] selection:text-white transition-colors duration-300 print:bg-white print:p-0 print:m-0 print:block print:min-h-0 print:w-full print:border-none print:shadow-none"
-      style={{ backgroundColor: 'var(--studio-canvas, #F8A838)' }}
+      className="min-h-screen w-full flex flex-col antialiased selection:bg-[#FF6B00] selection:text-white transition-colors duration-300 print:bg-white print:p-0 print:m-0 print:block print:min-h-0 print:w-full print:border-none print:shadow-none"
+      style={{ backgroundColor: 'var(--app-bg, #FAF8F5)' }}
     >
       {/* Toast Notification Container */}
       <Toast />
 
-      {/* Interactive Push Notification Popup Modal */}
-      <ClientNotificationPopup />
+      {/* Interactive Push & Broadcast Notification Orchestration */}
+      <ClientNotificationRenderer />
 
       {/* Admin Impersonation Top Floating Banner */}
       {isAdmin && (
-        <div className="w-full max-w-[1600px] mb-3 px-4 py-2 bg-[#240C0B] text-white rounded-2xl border border-[#2E8A81] shadow-lg flex items-center justify-between text-xs animate-fadeIn">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
-            <span className="font-bold text-[#4ECDC4]">Admin Live Preview Mode:</span>
-            <span className="text-white font-medium">
-              Viewing as <strong className="text-[#FF6B00]">{currentProfile?.businessName || 'Client Studio'}</strong> ({currentProfile?.profileId})
-            </span>
+        <div className="w-full px-4 sm:px-8 py-2.5 bg-[#240C0B] text-white border-b border-white/10 flex items-center justify-between text-xs animate-fadeIn sticky top-0 z-40">
+          <div className="flex items-center gap-2 max-w-7xl mx-auto w-full justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
+              <span className="font-bold text-[#4ECDC4]">Admin Live Preview Mode:</span>
+              <span className="text-white font-medium">
+                Viewing as <strong className="text-[#FF6B00]">{currentProfile?.businessName || 'Client Studio'}</strong> ({currentProfile?.profileId})
+              </span>
+            </div>
+            <button
+              onClick={returnToAdmin}
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#2E8A81] hover:bg-[#236F68] text-white font-bold rounded-xl transition-all cursor-pointer text-xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Return to Admin Panel</span>
+            </button>
           </div>
-          <button
-            onClick={returnToAdmin}
-            className="flex items-center gap-1.5 px-3 py-1 bg-[#2E8A81] hover:bg-[#236F68] text-white font-bold rounded-xl transition-all cursor-pointer text-xs"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Admin Panel</span>
-          </button>
         </div>
       )}
 
-      {/* Main Floating Studio Card Frame */}
+      {/* Main Studio App Structure */}
       <div 
         id="main-app-container"
-        className="w-full max-w-[1600px] min-h-[92vh] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative transition-colors duration-300 print:hidden"
+        className="w-full flex-1 flex flex-col md:flex-row relative min-h-screen text-[#240C0B] transition-colors duration-300 print:hidden"
         style={{ backgroundColor: 'var(--app-bg, #FAF8F5)' }}
       >
         {/* Side Navigation Bar (Fixed left sidebar with responsive toggle) */}
@@ -145,10 +146,7 @@ const MainApp: React.FC = () => {
             isSidebarOpen={isSidebarOpen}
           />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-5">
-            {/* Interactive & Responsive Top Announcement Banner - Positioned inside main content container */}
-            <ClientNotificationBanner />
-
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
             {/* Rendered View or Feature Locked Screen */}
             {renderView()}
           </main>

@@ -88,7 +88,18 @@ export interface AuthDatabase {
   lastUpdated: string;
 }
 
-export type NotificationType = 'popup' | 'banner' | 'push' | 'message';
+export type NotificationType = 
+  | 'popup' 
+  | 'banner' 
+  | 'push' 
+  | 'ticker' 
+  | 'drawer' 
+  | 'floating_badge' 
+  | 'spotlight_card' 
+  | 'toast_stack' 
+  | 'sidebar_alert' 
+  | 'modal_takeover' 
+  | 'message';
 export type NotificationPriority = 'info' | 'warning' | 'urgent' | 'promotion' | 'update';
 
 export interface AdminNotification {

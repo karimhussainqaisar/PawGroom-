@@ -15,51 +15,99 @@ interface ThemeOption {
 const THEMES: ThemeOption[] = [
   {
     id: 'terracotta',
-    name: 'Warm Amber & Terracotta',
-    desc: 'Golden warm canvas with rich chocolate borders & fiery orange energy',
-    canvasColor: '#F8A838',
+    name: 'Warm Espresso & Terracotta',
+    desc: 'Clean warm studio background with rich espresso sidebar & orange accents',
+    canvasColor: '#FAF8F5',
     primaryColor: '#240C0B',
     accentColor: '#FF6B00',
   },
   {
     id: 'emerald',
-    name: 'Emerald Meadow',
-    desc: 'Lush botanical sage canvas with deep pine accents',
-    canvasColor: '#52967A',
-    primaryColor: '#173E39',
-    accentColor: '#2E8A81',
+    name: 'Emerald & Sage Spa',
+    desc: 'Botanical fresh background with deep forest pine & emerald accents',
+    canvasColor: '#F4F8F6',
+    primaryColor: '#0E2925',
+    accentColor: '#059669',
   },
   {
     id: 'ocean',
-    name: 'Ocean Breeze',
-    desc: 'Vibrant azure canvas with deep marine tones & cyan highlights',
-    canvasColor: '#3B82F6',
-    primaryColor: '#0F2942',
-    accentColor: '#0284C7',
+    name: 'Coastal Navy & Blue',
+    desc: 'Crisp airy background with deep marine slate & azure accents',
+    canvasColor: '#F0F6FF',
+    primaryColor: '#0F172A',
+    accentColor: '#2563EB',
   },
   {
     id: 'plum',
     name: 'Royal Berry & Plum',
-    desc: 'Luxurious violet twilight canvas with regal plum accents',
-    canvasColor: '#8B5CF6',
-    primaryColor: '#2E1065',
+    desc: 'Luxury boutique background with regal plum & violet accents',
+    canvasColor: '#FAF5FF',
+    primaryColor: '#2E103B',
     accentColor: '#9333EA',
   },
   {
     id: 'coral',
-    name: 'Sunset Rose & Coral',
-    desc: 'Warm playful peach-coral canvas with berry red tones',
-    canvasColor: '#F43F5E',
+    name: 'Sunset Coral & Truffle',
+    desc: 'Warm artisan background with rich truffle & coral accents',
+    canvasColor: '#FFF9F5',
+    primaryColor: '#351C14',
+    accentColor: '#EA580C',
+  },
+  {
+    id: 'slate',
+    name: 'Nordic Slate & Amber',
+    desc: 'Modern executive background with minimalist charcoal & gold accents',
+    canvasColor: '#F8FAFC',
+    primaryColor: '#18181B',
+    accentColor: '#D97706',
+  },
+  {
+    id: 'nordic',
+    name: 'Glacier Teal & Spruce',
+    desc: 'Refreshing Nordic teal palette with deep spruce & amber highlights',
+    canvasColor: '#F0FDF9',
+    primaryColor: '#134E4A',
+    accentColor: '#0D9488',
+  },
+  {
+    id: 'lavender',
+    name: 'Lavender Mist & Lilac',
+    desc: 'Gentle calming lavender canvas with royal violet & cyan accents',
+    canvasColor: '#FAF8FF',
+    primaryColor: '#2E1065',
+    accentColor: '#7C3AED',
+  },
+  {
+    id: 'rose',
+    name: 'Cyber Rose & Berry',
+    desc: 'High-energy vivid berry rose styling with deep velvet framing',
+    canvasColor: '#FFF5F6',
     primaryColor: '#4C0519',
     accentColor: '#E11D48',
   },
   {
-    id: 'slate',
-    name: 'Nordic Slate & Charcoal',
-    desc: 'Sleek executive neutral charcoal canvas with modern steel accents',
-    canvasColor: '#64748B',
-    primaryColor: '#0F172A',
-    accentColor: '#475569',
+    id: 'gold',
+    name: 'Imperial Gold & Espresso',
+    desc: 'Prestige luxury salon theme with warm amber gold & deep espresso',
+    canvasColor: '#FCF9F2',
+    primaryColor: '#2A1B0E',
+    accentColor: '#D97706',
+  },
+  {
+    id: 'crimson',
+    name: 'Crimson Wine & Bordeaux',
+    desc: 'Passionate bordeaux velvet background with rich ruby crimson accents',
+    canvasColor: '#FFF6F6',
+    primaryColor: '#3B0A0A',
+    accentColor: '#DC2626',
+  },
+  {
+    id: 'monochrome',
+    name: 'Obsidian & Platinum',
+    desc: 'High-contrast minimalist architecture with pure silver & indigo pop',
+    canvasColor: '#FAFAFA',
+    primaryColor: '#09090B',
+    accentColor: '#18181B',
   },
 ];
 
@@ -171,22 +219,22 @@ export const SettingsView: React.FC = () => {
     <div className="space-y-6 max-w-4xl">
       {/* 1. Global Color Theme Selector */}
       <div className="card-box space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
+        <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-2">
           <div>
-            <h2 className="font-display font-bold text-lg text-[#173E39] flex items-center gap-2">
-              <Palette className="w-5 h-5 text-[#FF6B00]" />
-              Website Color Themes (5–6 Themes)
+            <h2 className="font-display font-bold text-lg text-[#240C0B] flex items-center gap-2">
+              <Palette className="w-5 h-5 text-theme-primary" />
+              Website Color Themes (12 Synchronized Themes)
             </h2>
             <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
-              Pick your preferred studio color palette. The entire application, background canvas, and buttons adapt seamlessly.
+              Pick your preferred studio color palette. Every section, screen, header, sidebar, button, and invoice adapts instantly.
             </p>
           </div>
-          <span className="text-[11px] font-extrabold px-3 py-1 bg-[#FFF3EB] text-[#FF6B00] rounded-full border border-[#FFD0B3]">
-            Active: {THEMES.find(t => t.id === (settings.colorTheme || 'terracotta'))?.name.split(' ')[0]}
+          <span className="text-[11px] font-extrabold px-3 py-1 bg-theme-light text-theme-primary rounded-full border border-theme-primary/30">
+            Active: {THEMES.find(t => t.id === (settings.colorTheme || 'terracotta'))?.name}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
           {THEMES.map((theme) => {
             const isSelected = (settings.colorTheme || 'terracotta') === theme.id;
             return (

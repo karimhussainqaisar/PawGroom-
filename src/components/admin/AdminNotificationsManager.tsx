@@ -215,9 +215,21 @@ export const AdminNotificationsManager: React.FC<{
   const getTypeBadge = (t: NotificationType) => {
     switch (t) {
       case 'popup':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30"><Layout className="w-3 h-3" /> Dashboard Pop-up Modal</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30"><Layout className="w-3 h-3" /> Dashboard Pop-up</span>;
       case 'banner':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30"><MessageSquare className="w-3 h-3" /> Top Banner Notice</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30"><MessageSquare className="w-3 h-3" /> Top Banner</span>;
+      case 'ticker':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30"><Clock className="w-3 h-3" /> Live Ticker Strip</span>;
+      case 'drawer':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"><Layers className="w-3 h-3" /> Bottom Action Tray</span>;
+      case 'floating_badge':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30"><Sparkles className="w-3 h-3" /> Floating Widget</span>;
+      case 'spotlight_card':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"><Sparkles className="w-3 h-3" /> Dashboard Spotlight</span>;
+      case 'toast_stack':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"><Bell className="w-3 h-3" /> Corner Toast Stack</span>;
+      case 'modal_takeover':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30"><Flame className="w-3 h-3" /> Fullscreen Takeover</span>;
       default:
         return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><Bell className="w-3 h-3" /> Push Alert & Inbox</span>;
     }
@@ -284,10 +296,16 @@ export const AdminNotificationsManager: React.FC<{
             onChange={(e) => setFilterType(e.target.value)}
             className="px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-xl text-white outline-none cursor-pointer focus:border-[#FF6B00]"
           >
-            <option value="all" className="bg-[#1C0908]">All Formats</option>
-            <option value="popup" className="bg-[#1C0908]">Pop-up Modal</option>
-            <option value="banner" className="bg-[#1C0908]">Top Banner</option>
-            <option value="push" className="bg-[#1C0908]">Push / Inbox</option>
+            <option value="all" className="bg-[#1C0908]">All Formats (9 Options)</option>
+            <option value="popup" className="bg-[#1C0908]">🚨 Dashboard Pop-up Modal</option>
+            <option value="banner" className="bg-[#1C0908]">📌 Top Announcement Banner</option>
+            <option value="ticker" className="bg-[#1C0908]">📻 Live Breaking News Ticker</option>
+            <option value="drawer" className="bg-[#1C0908]">📥 Bottom Action Tray / Sheet</option>
+            <option value="floating_badge" className="bg-[#1C0908]">🔮 Floating Action Widget</option>
+            <option value="spotlight_card" className="bg-[#1C0908]">⭐ Dashboard Spotlight Card</option>
+            <option value="toast_stack" className="bg-[#1C0908]">🔔 Corner Toast Stack</option>
+            <option value="modal_takeover" className="bg-[#1C0908]">🎭 Fullscreen Immersive Takeover</option>
+            <option value="push" className="bg-[#1C0908]">📣 Push Notice & Activity Inbox</option>
           </select>
 
           <select
@@ -641,7 +659,13 @@ export const AdminNotificationsManager: React.FC<{
                   >
                     <option value="popup" className="bg-[#1C0908]">🚨 Dashboard Pop-up Modal</option>
                     <option value="banner" className="bg-[#1C0908]">📌 Top Announcement Banner</option>
-                    <option value="push" className="bg-[#1C0908]">📣 Push Notice & Inbox</option>
+                    <option value="ticker" className="bg-[#1C0908]">📻 Live Breaking News Ticker Strip</option>
+                    <option value="drawer" className="bg-[#1C0908]">📥 Bottom Action Tray / Sheet</option>
+                    <option value="floating_badge" className="bg-[#1C0908]">🔮 Floating Action Bubble Widget</option>
+                    <option value="spotlight_card" className="bg-[#1C0908]">⭐ Dashboard Spotlight Hero Card</option>
+                    <option value="toast_stack" className="bg-[#1C0908]">🔔 Corner Toast Notification Stack</option>
+                    <option value="modal_takeover" className="bg-[#1C0908]">🎭 Fullscreen Immersive Takeover Modal</option>
+                    <option value="push" className="bg-[#1C0908]">📣 Push Notice & Studio Inbox</option>
                   </select>
                 </div>
 

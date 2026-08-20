@@ -241,7 +241,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-01',
     category: 'Feature Release',
-    type: 'popup',
+    type: 'spotlight_card',
     priority: 'update',
     imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=800&q=80',
     title: '✨ AI Smart Grooming Assistant & Coat Notes',
@@ -253,7 +253,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-02',
     category: 'Promotion',
-    type: 'popup',
+    type: 'modal_takeover',
     priority: 'promotion',
     imageUrl: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=800&q=80',
     title: '🔥 Special Partner Offer: 40% Off Annual Upgrade',
@@ -265,7 +265,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-03',
     category: 'Alert & Maintenance',
-    type: 'banner',
+    type: 'ticker',
     priority: 'warning',
     title: '⚠️ Scheduled Cloud Server Maintenance: Sunday at 02:00 UTC',
     message: 'Our cloud database will undergo routine performance optimization for 15 minutes this Sunday. Local appointment records remain safe and auto-synced.',
@@ -276,7 +276,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-04',
     category: 'Alert & Maintenance',
-    type: 'popup',
+    type: 'drawer',
     priority: 'urgent',
     imageUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
     title: '💳 Monthly Studio Pro Subscription Renewal',
@@ -288,7 +288,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-05',
     category: 'Promotion',
-    type: 'popup',
+    type: 'floating_badge',
     priority: 'promotion',
     imageUrl: 'https://images.unsplash.com/photo-1541599540903-216a46ca1dc0?auto=format&fit=crop&w=800&q=80',
     title: '🎁 Free Holiday Client Booking & Marketing Toolkit',
@@ -300,7 +300,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-06',
     category: 'Feature Release',
-    type: 'push',
+    type: 'toast_stack',
     priority: 'update',
     imageUrl: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800&q=80',
     title: '📱 PawBook Mobile Companion App Now Available',
@@ -346,7 +346,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-10',
     category: 'Alert & Maintenance',
-    type: 'popup',
+    type: 'drawer',
     priority: 'warning',
     imageUrl: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?auto=format&fit=crop&w=800&q=80',
     title: '💉 Upcoming Rabies Vaccine Expirations Detected',
@@ -358,7 +358,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-11',
     category: 'Tips & Guides',
-    type: 'push',
+    type: 'ticker',
     priority: 'info',
     title: '💡 Salon Growth Tip: Blueberry Facials & Paw Balms',
     message: 'Salons offering blueberry facial add-ons and paw balm treatments report an average $18 higher ticket average per appointment. Add them to your menu!',
@@ -380,7 +380,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-13',
     category: 'Promotion',
-    type: 'popup',
+    type: 'spotlight_card',
     priority: 'promotion',
     imageUrl: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?auto=format&fit=crop&w=800&q=80',
     title: '✂️ Masterclass: Asian Fusion & Teddy Bear Heads',
@@ -392,7 +392,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-14',
     category: 'Feature Release',
-    type: 'popup',
+    type: 'floating_badge',
     priority: 'update',
     imageUrl: 'https://images.unsplash.com/photo-1556742049-0a67e557b649?auto=format&fit=crop&w=800&q=80',
     title: '💳 Dynamic QR Invoicing & Tap-to-Pay Ready',
@@ -404,7 +404,7 @@ export const READY_MADE_NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'tmpl-15',
     category: 'Alert & Maintenance',
-    type: 'popup',
+    type: 'modal_takeover',
     priority: 'urgent',
     imageUrl: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=800&q=80',
     title: '⏳ Trial Account Status: 3 Days Remaining',

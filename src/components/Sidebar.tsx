@@ -132,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
                   onClick={() => handleNavClick(item.id)}
                   className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition-all cursor-pointer relative ${
                     isActive
-                      ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30 scale-[1.02]'
+                      ? 'bg-theme-primary text-white shadow-md theme-glow scale-[1.02]'
                       : allowed 
                         ? 'text-[#C5B7B4] hover:bg-white/8 hover:text-white'
                         : 'text-[#7A6865] hover:bg-white/5 hover:text-[#C5B7B4]'
@@ -142,19 +142,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
                     {item.icon}
                   </span>
                   
-                  <span className={`flex-1 truncate ${!allowed ? 'line-through decoration-[#FF6B00]/50 text-white/50' : ''}`}>
+                  <span className={`flex-1 truncate ${!allowed ? 'line-through decoration-theme-primary/50 text-white/50' : ''}`}>
                     {item.label}
                   </span>
                   
                   {!allowed && (
-                    <span className="text-[10px] text-[#FF8833] opacity-80" title="Locked in trial/demo">
+                    <span className="text-[10px] text-theme-primary opacity-80" title="Locked in trial/demo">
                       <Lock className="w-3 h-3" />
                     </span>
                   )}
 
                   {allowed && item.badge !== undefined && item.badge > 0 && (
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                      isActive ? 'bg-white text-[#FF6B00]' : 'bg-[#FF6B00] text-white'
+                      isActive ? 'bg-white text-theme-primary' : 'bg-theme-primary text-white'
                     }`}>
                       {item.badge}
                     </span>

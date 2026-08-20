@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
+import { ClientNotificationSpotlight } from '../notifications/ClientNotificationSpotlight';
 
 // Pet avatar fallbacks
 const PET_AVATARS: Record<string, string> = {
@@ -317,6 +318,9 @@ export const DashboardView: React.FC = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* Spotlight Notification Hero Card */}
+      <ClientNotificationSpotlight />
 
       {/* Top Row: 3 Premium Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

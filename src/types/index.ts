@@ -181,7 +181,19 @@ export interface LoyaltyRedemption {
   isAutoApplied?: boolean;
 }
 
-export type ColorTheme = 'terracotta' | 'emerald' | 'ocean' | 'plum' | 'coral' | 'slate';
+export type ColorTheme = 
+  | 'terracotta' 
+  | 'emerald' 
+  | 'ocean' 
+  | 'plum' 
+  | 'coral' 
+  | 'slate'
+  | 'nordic'
+  | 'lavender'
+  | 'rose'
+  | 'gold'
+  | 'crimson'
+  | 'monochrome';
 
 export interface Settings {
   name: string;
