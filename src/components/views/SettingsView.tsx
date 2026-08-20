@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle, Cloud, Database, ShieldCheck, UserCheck } from 'lucide-react';
 import { ColorTheme } from '../../types';
+import { compressImageFile } from '../../utils/imageCompressor';
 
 interface ThemeOption {
   id: ColorTheme;
@@ -186,23 +187,18 @@ export const SettingsView: React.FC = () => {
     updateSettings({ ...settings, taxRate: clamped });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showToast('Image size exceeds 2MB limit', 'warning');
-        return;
+      try {
+        const compressed = await compressImageFile(file, 400, 400, 0.75);
+        setFormData((prev) => ({ ...prev, photo: compressed }));
+        updateSettings({ ...settings, photo: compressed });
+        showToast('Clinic photo optimized & updated successfully!', 'success');
+      } catch (err) {
+        console.error('Photo compression error:', err);
+        showToast('Could not process image file', 'error');
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setFormData((prev) => ({ ...prev, photo: result }));
-          updateSettings({ ...settings, photo: result });
-          showToast('Clinic photo updated successfully!', 'success');
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 

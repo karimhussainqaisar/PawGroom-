@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import { openWhatsAppInvoice, generateWhatsAppInvoiceText } from '../../utils/whatsapp';
 import { formatShortInvoiceNumber, calculateAppointmentInvoice } from '../../utils/invoice';
 import { downloadElementAsPng, copyElementImageToClipboard, shareElementImage } from '../../utils/imageShare';
+import { compressImageFile } from '../../utils/imageCompressor';
 import { InvoiceQRCode } from '../common/InvoiceQRCode';
 
 export const ModalContainer: React.FC = () => {
@@ -2070,7 +2071,7 @@ const TransformationFormModal: React.FC<{ data?: any; onClose: () => void }> = (
   };
 
   // Convert uploaded file to base64 DataURL
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -2079,20 +2080,19 @@ const TransformationFormModal: React.FC<{ data?: any; onClose: () => void }> = (
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        if (target === 'before') {
-          setBeforeImg(result);
-          showToast('Uploaded Before Transformation photo!', 'success');
-        } else {
-          setAfterImg(result);
-          showToast('Uploaded After Groom photo!', 'success');
-        }
+    try {
+      const compressed = await compressImageFile(file, 600, 600, 0.75);
+      if (target === 'before') {
+        setBeforeImg(compressed);
+        showToast('Uploaded & optimized Before Transformation photo!', 'success');
+      } else {
+        setAfterImg(compressed);
+        showToast('Uploaded & optimized After Groom photo!', 'success');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      showToast('Could not process selected image', 'error');
+    }
   };
 
   // Realistic Pre-packaged Dog Transformation Presets

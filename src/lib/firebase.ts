@@ -14,6 +14,7 @@ import {
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { ClientProfile, AdminNotification } from '../types/auth';
+import { compressDataUrl } from '../utils/imageCompressor';
 
 // 1. Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -112,8 +113,29 @@ export async function getOnlineFirestoreProfiles(): Promise<ClientProfile[]> {
  */
 export async function saveProfileToFirestore(profile: ClientProfile): Promise<void> {
   try {
+    const sanitizedProfile = { ...profile };
+    // Prevent giant raw base64 image strings from exceeding Firestore 1MB document limit
+    if (sanitizedProfile.customSettings?.photo && sanitizedProfile.customSettings.photo.startsWith('data:image/')) {
+      const compressed = await compressDataUrl(sanitizedProfile.customSettings.photo, 400, 400, 0.75);
+      sanitizedProfile.customSettings = {
+        ...sanitizedProfile.customSettings,
+        photo: compressed
+      };
+    }
+
     const ref = doc(db, PROFILES_COLLECTION, profile.profileId);
-    await setDoc(ref, profile, { merge: true });
+    
+    // Extra safety guard for Firestore 1MB max document limit
+    const jsonStr = JSON.stringify(sanitizedProfile);
+    if (jsonStr.length > 800000 && sanitizedProfile.customSettings?.photo) {
+      // Fallback photo to clean URL if custom data URL is oversized
+      sanitizedProfile.customSettings = {
+        ...sanitizedProfile.customSettings,
+        photo: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80'
+      };
+    }
+
+    await setDoc(ref, sanitizedProfile, { merge: true });
     console.log(`Saved/Updated profile ${profile.profileId} (${profile.businessName}) to Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${PROFILES_COLLECTION}/${profile.profileId}`);
