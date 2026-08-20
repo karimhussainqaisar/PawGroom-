@@ -1002,26 +1002,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Synchronize with Firebase Firestore profile customSettings
     if (currentProfile?.profileId) {
+      const customSettingsUpdate: Record<string, any> = {
+        ...(currentProfile.customSettings || {}),
+      };
+      if (merged.name !== undefined) customSettingsUpdate.name = merged.name;
+      if (merged.salonName || merged.name) customSettingsUpdate.salonName = merged.salonName || merged.name;
+      if (merged.email !== undefined) customSettingsUpdate.email = merged.email;
+      if (merged.phone !== undefined) customSettingsUpdate.phone = merged.phone;
+      if (merged.address !== undefined) customSettingsUpdate.address = merged.address;
+      if (merged.website !== undefined) customSettingsUpdate.website = merged.website;
+      if (merged.photo !== undefined) customSettingsUpdate.photo = merged.photo;
+      if (merged.open !== undefined) customSettingsUpdate.open = merged.open;
+      if (merged.close !== undefined) customSettingsUpdate.close = merged.close;
+      if (merged.slot !== undefined) customSettingsUpdate.slot = merged.slot;
+      if (merged.currency !== undefined) customSettingsUpdate.currency = merged.currency;
+      if (merged.taxRate !== undefined) customSettingsUpdate.taxRate = merged.taxRate;
+      if (merged.colorTheme !== undefined) customSettingsUpdate.colorTheme = merged.colorTheme;
+
       updateClientProfile(currentProfile.profileId, {
         businessName: merged.salonName || merged.name || currentProfile.businessName,
         phoneNumber: merged.phone || currentProfile.phoneNumber,
         email: merged.email || currentProfile.email,
-        customSettings: {
-          ...(currentProfile.customSettings || {}),
-          name: merged.name,
-          salonName: merged.salonName || merged.name,
-          email: merged.email,
-          phone: merged.phone,
-          address: merged.address,
-          website: merged.website,
-          photo: merged.photo,
-          open: merged.open,
-          close: merged.close,
-          slot: merged.slot,
-          currency: merged.currency,
-          taxRate: merged.taxRate,
-          colorTheme: merged.colorTheme,
-        }
+        customSettings: customSettingsUpdate
       }).catch((err) => {
         console.warn('Could not sync settings to Firestore ClientProfile:', err);
       });

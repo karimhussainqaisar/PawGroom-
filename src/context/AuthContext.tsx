@@ -469,8 +469,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...(existing.customSettings || {}),
         ...(updates.customSettings || {}),
         salonName: updates.businessName || existing.customSettings?.salonName || existing.businessName,
-        email: updates.email || existing.email,
-        phone: updates.phoneNumber || existing.phoneNumber
+        email: updates.email || existing.email || existing.customSettings?.email || '',
+        phone: updates.phoneNumber || existing.phoneNumber || existing.customSettings?.phone || ''
       }
     };
 

@@ -87,6 +87,36 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
+/**
+ * Recursively cleans an object or array for Firestore writes by removing any fields whose values are `undefined`.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return null as unknown as T;
+  }
+
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== undefined)
+      .map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+
+  if (typeof data === 'object') {
+    if (data instanceof Date) {
+      return data;
+    }
+    const cleanObj: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data as Record<string, any>)) {
+      if (value !== undefined) {
+        cleanObj[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleanObj as T;
+  }
+
+  return data;
+}
+
 // 5. Firestore Collection Reference
 export const PROFILES_COLLECTION = 'client_profiles';
 export const ADMIN_COLLECTION = 'admin_config';
@@ -135,7 +165,8 @@ export async function saveProfileToFirestore(profile: ClientProfile): Promise<vo
       };
     }
 
-    await setDoc(ref, sanitizedProfile, { merge: true });
+    const payloadToWrite = sanitizeForFirestore(sanitizedProfile);
+    await setDoc(ref, payloadToWrite, { merge: true });
     console.log(`Saved/Updated profile ${profile.profileId} (${profile.businessName}) to Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${PROFILES_COLLECTION}/${profile.profileId}`);
@@ -272,7 +303,8 @@ export async function getOnlineFirestoreNotifications(): Promise<AdminNotificati
 export async function saveNotificationToFirestore(notification: AdminNotification): Promise<void> {
   try {
     const ref = doc(db, BROADCASTS_COLLECTION, notification.id);
-    await setDoc(ref, notification, { merge: true });
+    const cleanNotification = sanitizeForFirestore(notification);
+    await setDoc(ref, cleanNotification, { merge: true });
     console.log(`Saved notification ${notification.id} to Firebase Firestore.`);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, `${BROADCASTS_COLLECTION}/${notification.id}`);
@@ -303,7 +335,8 @@ export async function markNotificationReadInFirestore(notificationId: string, pr
       const data = snap.data() as AdminNotification;
       const readBy = Array.isArray(data.readBy) ? data.readBy : [];
       if (!readBy.includes(profileId)) {
-        await setDoc(ref, { readBy: [...readBy, profileId] }, { merge: true });
+        const updatePayload = sanitizeForFirestore({ readBy: [...readBy, profileId] });
+        await setDoc(ref, updatePayload, { merge: true });
       }
     }
   } catch (err) {
@@ -322,7 +355,8 @@ export async function markNotificationDismissedInFirestore(notificationId: strin
       const data = snap.data() as AdminNotification;
       const dismissedBy = Array.isArray(data.dismissedBy) ? data.dismissedBy : [];
       if (!dismissedBy.includes(profileId)) {
-        await setDoc(ref, { dismissedBy: [...dismissedBy, profileId] }, { merge: true });
+        const updatePayload = sanitizeForFirestore({ dismissedBy: [...dismissedBy, profileId] });
+        await setDoc(ref, updatePayload, { merge: true });
       }
     }
   } catch (err) {
