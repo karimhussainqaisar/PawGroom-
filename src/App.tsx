@@ -110,21 +110,21 @@ const MainApp: React.FC = () => {
 
       {/* Admin Impersonation Top Floating Banner */}
       {isAdmin && (
-        <div className="w-full px-4 sm:px-8 py-2.5 bg-[#240C0B] text-white border-b border-white/10 flex items-center justify-between text-xs animate-fadeIn sticky top-0 z-40">
-          <div className="flex items-center gap-2 max-w-7xl mx-auto w-full justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse" />
-              <span className="font-bold text-[#4ECDC4]">Admin Live Preview Mode:</span>
-              <span className="text-white font-medium">
-                Viewing as <strong className="text-[#FF6B00]">{currentProfile?.businessName || 'Client Studio'}</strong> ({currentProfile?.profileId})
+        <div className="w-full px-3 sm:px-8 py-2 bg-[#240C0B] text-white border-b border-white/10 flex items-center justify-between text-xs animate-fadeIn sticky top-0 z-40">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 max-w-7xl mx-auto w-full justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-[#2E8A81] animate-pulse shrink-0" />
+              <span className="font-bold text-[#4ECDC4] shrink-0">Admin Preview:</span>
+              <span className="text-white font-medium truncate">
+                <strong className="text-theme-primary">{currentProfile?.businessName || 'Client Studio'}</strong> ({currentProfile?.profileId})
               </span>
             </div>
             <button
               onClick={returnToAdmin}
-              className="flex items-center gap-1.5 px-3 py-1 bg-[#2E8A81] hover:bg-[#236F68] text-white font-bold rounded-xl transition-all cursor-pointer text-xs"
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#2E8A81] hover:bg-[#236F68] text-white font-bold rounded-xl transition-all cursor-pointer text-xs shrink-0 self-end sm:self-auto"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Return to Admin Panel</span>
+              <span>Return to Admin</span>
             </button>
           </div>
         </div>
@@ -146,7 +146,7 @@ const MainApp: React.FC = () => {
             isSidebarOpen={isSidebarOpen}
           />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-4 sm:space-y-6">
             {/* Rendered View or Feature Locked Screen */}
             {renderView()}
           </main>

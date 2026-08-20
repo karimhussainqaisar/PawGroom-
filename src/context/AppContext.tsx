@@ -36,6 +36,7 @@ import {
 } from '../data/initialData';
 import { formatPrice as formatPriceUtil, getCurrencySymbol } from '../utils/format';
 import { formatShortInvoiceNumber } from '../utils/invoice';
+import { useAuth } from './AuthContext';
 
 export interface ToastMessage {
   id: string;
@@ -164,6 +165,8 @@ const STORAGE_KEY = 'pawbook_pro_store_v3';
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentProfile, updateClientProfile } = useAuth();
+
   const [view, setView] = useState<ViewMode>('dashboard');
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('week');
   const [calendarDate, setCalendarDate] = useState<Date>(getFixedToday());
@@ -289,6 +292,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_settings', JSON.stringify(settings));
   }, [settings]);
+
+  // Synchronize settings with ClientProfile customSettings from Firestore
+  useEffect(() => {
+    if (currentProfile) {
+      const cs = currentProfile.customSettings || {};
+      setSettings((prev) => {
+        const merged: Settings = {
+          ...prev,
+          name: cs.name || currentProfile.businessName || prev.name,
+          salonName: cs.salonName || currentProfile.businessName || prev.salonName,
+          email: cs.email || currentProfile.email || prev.email,
+          phone: cs.phone || currentProfile.phoneNumber || prev.phone,
+          address: cs.address !== undefined ? cs.address : prev.address,
+          website: cs.website !== undefined ? cs.website : prev.website,
+          photo: cs.photo || prev.photo,
+          open: cs.open !== undefined ? cs.open : prev.open,
+          close: cs.close !== undefined ? cs.close : prev.close,
+          slot: cs.slot !== undefined ? cs.slot : prev.slot,
+          currency: cs.currency || prev.currency,
+          taxRate: cs.taxRate !== undefined ? cs.taxRate : prev.taxRate,
+          colorTheme: (cs.colorTheme as any) || prev.colorTheme,
+        };
+        if (merged.colorTheme) {
+          document.documentElement.setAttribute('data-theme', merged.colorTheme);
+        }
+        return merged;
+      });
+    }
+  }, [
+    currentProfile?.profileId, 
+    currentProfile?.businessName,
+    currentProfile?.email,
+    currentProfile?.phoneNumber,
+    JSON.stringify(currentProfile?.customSettings)
+  ]);
 
   // Toast Helpers
   const showToast = (text: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
@@ -953,8 +991,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-    showToast('Shop settings saved', 'success');
+    setSettings((prev) => {
+      const merged = { ...prev, ...newSettings };
+      if (merged.colorTheme) {
+        document.documentElement.setAttribute('data-theme', merged.colorTheme);
+      }
+
+      // Synchronize with Firebase Firestore profile customSettings
+      if (currentProfile?.profileId) {
+        updateClientProfile(currentProfile.profileId, {
+          businessName: merged.salonName || merged.name || currentProfile.businessName,
+          phoneNumber: merged.phone || currentProfile.phoneNumber,
+          email: merged.email || currentProfile.email,
+          customSettings: {
+            ...(currentProfile.customSettings || {}),
+            name: merged.name,
+            salonName: merged.salonName || merged.name,
+            email: merged.email,
+            phone: merged.phone,
+            address: merged.address,
+            website: merged.website,
+            photo: merged.photo,
+            open: merged.open,
+            close: merged.close,
+            slot: merged.slot,
+            currency: merged.currency,
+            taxRate: merged.taxRate,
+            colorTheme: merged.colorTheme,
+          }
+        }).catch((err) => {
+          console.warn('Could not sync settings to Firestore ClientProfile:', err);
+        });
+      }
+
+      return merged;
+    });
+
+    showToast('Shop & studio settings saved & synchronized with Firestore!', 'success');
   };
 
   const resetToDemoData = () => {

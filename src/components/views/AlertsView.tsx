@@ -40,19 +40,19 @@ export const AlertsView: React.FC = () => {
   }, [clients]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Banner with Shop & Owner Display + Add Vaccination Schedule Button */}
-      <div className="card-box bg-gradient-to-r from-[#FEF2F2] via-[#FFFBEB] to-[#FFF8E7] border border-[#E7C0B5] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/10 text-[#FF6B00] flex items-center justify-center font-bold flex-none border border-[#FF6B00]/20">
-            <ShieldAlert className="w-6 h-6" />
+      <div className="card-box bg-gradient-to-r from-[#FEF2F2] via-[#FFFBEB] to-[#FFF8E7] border border-[#E7C0B5] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-theme-primary/10 text-theme-primary flex items-center justify-center font-bold shrink-0 border border-theme-primary/20">
+            <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="font-display font-bold text-lg text-[#240C0B]">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h2 className="font-display font-bold text-base sm:text-lg text-[#240C0B]">
                 Vaccination & Health Alert Radar
               </h2>
-              <span className="text-[10px] bg-[#FF6B00]/10 text-[#FF6B00] font-extrabold px-2 py-0.5 rounded-full border border-[#FF6B00]/20">
+              <span className="text-[10px] bg-theme-primary/10 text-theme-primary font-extrabold px-2 py-0.5 rounded-full border border-theme-primary/20">
                 {settings.salonName || 'PawBook Studio'}
               </span>
             </div>
@@ -64,7 +64,7 @@ export const AlertsView: React.FC = () => {
 
         <button
           onClick={() => openModal('vaccineScheduleForm')}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-xl text-xs font-bold shadow-md shadow-[#FF6B00]/20 active:scale-95 transition-all cursor-pointer whitespace-nowrap self-start md:self-center"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-theme-primary hover:opacity-90 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap self-stretch sm:self-start md:self-center shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Add Vaccination Schedule</span>

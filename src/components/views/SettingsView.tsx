@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle, Cloud, Database, ShieldCheck, UserCheck } from 'lucide-react';
 import { ColorTheme } from '../../types';
 
 interface ThemeOption {
@@ -123,6 +124,8 @@ export const SettingsView: React.FC = () => {
     showToast 
   } = useApp();
 
+  const { currentProfile, isAdmin } = useAuth();
+
   const [formData, setFormData] = useState({
     name: settings.name || settings.salonName || 'PawBook Pro Grooming Studio',
     email: settings.email || 'care@pawbookpro.com',
@@ -137,6 +140,38 @@ export const SettingsView: React.FC = () => {
     taxRate: settings.taxRate ?? 8.5,
     colorTheme: (settings.colorTheme || 'terracotta') as ColorTheme,
   });
+
+  // Keep form fields synced when settings update from Firestore profile
+  useEffect(() => {
+    setFormData({
+      name: settings.name || settings.salonName || 'PawBook Pro Grooming Studio',
+      email: settings.email || 'care@pawbookpro.com',
+      website: settings.website || 'www.pawbookpro.com',
+      photo: settings.photo || 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=240&q=80',
+      address: settings.address || '100 Bark Avenue, Suite 4, San Francisco, CA 94107',
+      phone: settings.phone || '(555) 123-PAWS',
+      open: settings.open ?? 8,
+      close: settings.close ?? 18,
+      slot: settings.slot ?? 30,
+      currency: settings.currency || 'USD',
+      taxRate: settings.taxRate ?? 8.5,
+      colorTheme: (settings.colorTheme || 'terracotta') as ColorTheme,
+    });
+  }, [
+    settings.name,
+    settings.salonName,
+    settings.email,
+    settings.phone,
+    settings.address,
+    settings.website,
+    settings.photo,
+    settings.open,
+    settings.close,
+    settings.slot,
+    settings.currency,
+    settings.taxRate,
+    settings.colorTheme
+  ]);
 
   const handleSelectTheme = (themeId: ColorTheme) => {
     setFormData((prev) => ({ ...prev, colorTheme: themeId }));
@@ -217,6 +252,44 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      {/* Real-time Firebase Firestore Profile & Settings Synchronization Banner */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-linear-to-r from-[#240C0B] to-[#3B1412] text-white shadow-lg border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] shrink-0">
+            <Database className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-display font-extrabold text-sm sm:text-base text-white flex items-center gap-2">
+                Firebase Firestore Real-Time Settings Sync
+              </h3>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#2E8A81] text-white flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> {currentProfile ? 'Firestore Synced' : 'Ready'}
+              </span>
+            </div>
+            <p className="text-xs text-[#D8D3C4] mt-0.5">
+              Client input values and settings are synced directly with Firestore database{' '}
+              <span className="font-mono text-[#FFA494] font-semibold">ai-studio-pawbookpro</span> and are editable via Admin Panel.
+            </p>
+          </div>
+        </div>
+
+        {currentProfile && (
+          <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2.5 shrink-0 self-stretch md:self-auto justify-between md:justify-start">
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-[#FF6B00]" />
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#A08E8B] block">Client Profile</span>
+                <span className="font-mono font-bold text-white text-xs">{currentProfile.profileId}</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30">
+              {currentProfile.plan} Plan
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* 1. Global Color Theme Selector */}
       <div className="card-box space-y-4">
         <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-2">

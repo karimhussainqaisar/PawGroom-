@@ -31,6 +31,8 @@ import { Appointment } from '../../types';
 import { formatShortInvoiceNumber } from '../../utils/invoice';
 import { InvoiceQRCode } from '../common/InvoiceQRCode';
 import { openWhatsAppInvoice } from '../../utils/whatsapp';
+import { PremiumReportModal } from '../modals/PremiumReportModal';
+import { generatePremiumInvoicesCSV, downloadCSV, InvoiceReportItem } from '../../utils/reportExport';
 
 export const InvoicesView: React.FC = () => {
   const { 
@@ -57,6 +59,7 @@ export const InvoicesView: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc' | 'invoice_asc'>('date_desc');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [selectedQRAppt, setSelectedQRAppt] = useState<Appointment | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const taxRate = settings?.taxRate !== undefined ? settings.taxRate : 8.5;
   const clinicName = settings?.salonName || settings?.name || 'PawBook Pro Grooming Studio';
@@ -232,53 +235,47 @@ export const InvoicesView: React.FC = () => {
     };
   }, [appointments, clients, services, packages, staff, taxRate]);
 
-  // Export Filtered Invoices as CSV
+  // Export Filtered Invoices as Premium CSV
   const handleExportCSV = () => {
     if (!invoiceList.length) {
       showToast('No invoices match the selected filter to export.', 'warning');
       return;
     }
 
-    const headers = [
-      'Invoice Number',
-      'Date',
-      'Time',
-      'Client Owner',
-      'Pet Name',
-      'Breed',
-      'Service / Package',
-      'Stylist',
-      'Subtotal',
-      'Tax Rate',
-      'Tax Amount',
-      'Total Amount',
-      'Status'
-    ];
+    const items: InvoiceReportItem[] = invoiceList.map((inv) => ({
+      invoiceNum: inv.invoiceNum,
+      date: inv.appt.date,
+      time: inv.appt.start,
+      status: inv.appt.status,
+      isPaid: inv.isPaid,
+      isCancelled: inv.isCancelled,
+      ownerName: inv.ownerName,
+      phone: inv.client?.phone || 'N/A',
+      email: inv.client?.email || 'N/A',
+      petName: inv.petName,
+      petBreed: inv.petBreed,
+      petSize: inv.client?.size || 'medium',
+      serviceName: inv.serviceName,
+      groomerName: inv.groomerName,
+      subtotal: inv.taxableSubtotal,
+      discountAmount: inv.discount,
+      discountCode: inv.appt.discountCode || '',
+      taxRate: taxRate,
+      taxAmount: inv.tax,
+      retailTotal: inv.retailAddon,
+      total: inv.total,
+      notes: inv.appt.notes || '',
+    }));
 
-    const rows = invoiceList.map((inv) => [
-      `"${inv.invoiceNum}"`,
-      `"${inv.appt.date}"`,
-      `"${inv.appt.start}"`,
-      `"${inv.ownerName}"`,
-      `"${inv.petName}"`,
-      `"${inv.petBreed}"`,
-      `"${inv.serviceName}"`,
-      `"${inv.groomerName}"`,
-      inv.taxableSubtotal.toFixed(2),
-      `${taxRate}%`,
-      inv.tax.toFixed(2),
-      inv.total.toFixed(2),
-      inv.isPaid ? 'PAID' : (inv.isCancelled ? 'CANCELLED' : 'DUE')
-    ]);
+    const dateFilterLabel = dateFilter === 'all' ? 'All Dates' : dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'Past 7 Days' : dateFilter === 'month' ? 'This Month' : `${customDateStart} to ${customDateEnd}`;
+    const csvContent = generatePremiumInvoicesCSV(items, settings, {
+      periodLabel: dateFilterLabel,
+      statusLabel: statusFilter.toUpperCase(),
+      staffLabel: staffFilter !== 'all' ? staff.find(s => s.id === staffFilter)?.name : 'All Stylists',
+    });
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `PawBook_Invoices_Export_${new Date().toISOString().substring(0, 10)}.csv`;
-    link.click();
-    showToast(`Exported ${invoiceList.length} invoices to CSV!`, 'success');
+    downloadCSV(csvContent, `PawBook_Invoices_Export_${new Date().toISOString().substring(0, 10)}.csv`);
+    showToast(`Exported ${invoiceList.length} invoices to premium CSV!`, 'success');
   };
 
   // 1-Click Copy Invoice Summary
@@ -355,15 +352,15 @@ export const InvoicesView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 1. Header & Quick Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-[#E6DFD5] p-5 sm:p-6 rounded-3xl shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 bg-white border border-[#E6DFD5] p-4 sm:p-6 rounded-3xl shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#240C0B] text-white flex items-center justify-center shadow-xs">
-              <Receipt className="w-4 h-4 text-[#FF6B00]" />
+            <div className="w-8 h-8 rounded-xl bg-[#240C0B] text-white flex items-center justify-center shadow-xs shrink-0">
+              <Receipt className="w-4 h-4 text-theme-primary" />
             </div>
-            <h1 className="font-display font-extrabold text-xl sm:text-2xl text-[#240C0B] tracking-tight">
+            <h1 className="font-display font-extrabold text-lg sm:text-2xl text-[#240C0B] tracking-tight">
               Invoices & Digital Receipts
             </h1>
           </div>
@@ -372,11 +369,20 @@ export const InvoicesView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          <button
+            onClick={() => setReportModalOpen(true)}
+            className="flex-1 sm:flex-initial px-3.5 py-2 bg-white hover:bg-[#FAF8F5] text-theme-primary border border-theme-primary/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+            title="Open Executive Reports & Graphs"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Executive Reports</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
             className="flex-1 sm:flex-initial px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#F0ECE1] text-[#240C0B] border border-[#D8D3C4] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-            title="Download CSV report of filtered invoices"
+            title="Download formatted CSV ledger of filtered invoices"
           >
             <Download className="w-3.5 h-3.5 text-[#5C716C]" />
             <span>Export CSV</span>
@@ -384,7 +390,7 @@ export const InvoicesView: React.FC = () => {
 
           <button
             onClick={() => openModal('appointmentForm')}
-            className="flex-1 sm:flex-initial px-4 py-2 bg-[#FF6B00] hover:bg-[#E55C00] text-white rounded-2xl text-xs font-black shadow-md shadow-[#FF6B00]/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+            className="flex-1 sm:flex-initial px-4 py-2 bg-theme-primary hover:opacity-90 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>New Invoice</span>
@@ -393,79 +399,79 @@ export const InvoicesView: React.FC = () => {
       </div>
 
       {/* 2. Premium Minimalist KPI Metric Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Metric 1: Total Invoiced */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
             <span>Total Invoiced</span>
             <Receipt className="w-3.5 h-3.5 text-[#240C0B]" />
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-2xl text-[#240C0B]">
+            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
               {formatPrice(stats.totalInvoiced)}
             </span>
           </div>
-          <div className="text-[11px] text-[#A08E8B] mt-0.5">
-            Across {stats.totalCount} total bookings
+          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
+            Across {stats.totalCount} bookings
           </div>
         </div>
 
         {/* Metric 2: Settled & Paid */}
-        <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#166534] uppercase tracking-wider">
+        <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-3 sm:p-4 rounded-2xl">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#166534] uppercase tracking-wider">
             <span>Settled & Paid</span>
             <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
           </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-2xl text-[#166534]">
+          <div className="mt-1.5 flex items-baseline gap-1.5 sm:gap-2">
+            <span className="font-display font-black text-xl sm:text-2xl text-[#166534]">
               {formatPrice(stats.totalPaid)}
             </span>
-            <span className="text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 rounded-md">
+            <span className="text-[9px] sm:text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1 sm:px-1.5 py-0.5 rounded-md">
               {stats.paidRate}%
             </span>
           </div>
-          <div className="text-[11px] text-[#15803d]/80 mt-0.5">
-            {stats.paidCount} completed invoices
+          <div className="text-[10px] sm:text-[11px] text-[#15803d]/80 mt-0.5">
+            {stats.paidCount} paid invoices
           </div>
         </div>
 
         {/* Metric 3: Payment Due */}
-        <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
+        <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-3 sm:p-4 rounded-2xl">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
             <span>Payment Due</span>
             <Clock className="w-3.5 h-3.5 text-[#D97706]" />
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-2xl text-[#92400E]">
+            <span className="font-display font-black text-xl sm:text-2xl text-[#92400E]">
               {formatPrice(stats.totalPending)}
             </span>
           </div>
-          <div className="text-[11px] text-[#B45309]/80 mt-0.5">
+          <div className="text-[10px] sm:text-[11px] text-[#B45309]/80 mt-0.5">
             {stats.pendingCount} pending payment
           </div>
         </div>
 
         {/* Metric 4: Average Invoice */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
-            <span>Average Invoice</span>
+        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
+          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+            <span>Avg Invoice</span>
             <TrendingUp className="w-3.5 h-3.5 text-[#2E8A81]" />
           </div>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-2xl text-[#240C0B]">
+            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
               {formatPrice(stats.avgInvoice)}
             </span>
           </div>
-          <div className="text-[11px] text-[#A08E8B] mt-0.5">
+          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
             Per grooming session
           </div>
         </div>
       </div>
 
       {/* 3. Comprehensive Search & Multi-Filter Control Hub */}
-      <div className="bg-white border border-[#E6DFD5] p-4 sm:p-5 rounded-3xl space-y-4 shadow-xs">
+      <div className="bg-white border border-[#E6DFD5] p-3.5 sm:p-5 rounded-3xl space-y-3.5 sm:space-y-4 shadow-xs">
         {/* Row 1: Search Input + Status Pills + View Mode */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Universal Search Bar */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A08E8B]" />
@@ -473,8 +479,8 @@ export const InvoicesView: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Invoice # (e.g. INV-101), client, dog, breed, service, phone..."
-              className="w-full pl-9 pr-9 py-2.5 bg-[#FAF8F5] border border-[#E6DFD5] rounded-2xl text-xs text-[#240C0B] placeholder-[#A08E8B] focus:bg-white focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/20 outline-none transition-all"
+              placeholder="Search by Invoice # (e.g. INV-101), client, dog, breed..."
+              className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#FAF8F5] border border-[#E6DFD5] rounded-2xl text-xs text-[#240C0B] placeholder-[#A08E8B] focus:bg-white focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/20 outline-none transition-all"
             />
             {search && (
               <button
@@ -487,20 +493,20 @@ export const InvoicesView: React.FC = () => {
           </div>
 
           {/* Status Quick Filter Buttons */}
-          <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-2xl border border-[#E6DFD5] shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-2xl border border-[#E6DFD5] shrink-0 overflow-x-auto scrollbar-none">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'all'
                   ? 'bg-[#240C0B] text-white shadow-xs'
                   : 'text-[#7A6865] hover:text-[#240C0B]'
               }`}
             >
-              All Invoices ({appointments.length})
+              All ({appointments.length})
             </button>
             <button
               onClick={() => setStatusFilter('paid')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'paid'
                   ? 'bg-[#10B981] text-white shadow-xs'
                   : 'text-[#7A6865] hover:text-[#10B981]'
@@ -510,7 +516,7 @@ export const InvoicesView: React.FC = () => {
             </button>
             <button
               onClick={() => setStatusFilter('due')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'due'
                   ? 'bg-[#F59E0B] text-white shadow-xs'
                   : 'text-[#7A6865] hover:text-[#F59E0B]'
@@ -520,7 +526,7 @@ export const InvoicesView: React.FC = () => {
             </button>
             <button
               onClick={() => setStatusFilter('cancelled')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === 'cancelled'
                   ? 'bg-[#64748B] text-white shadow-xs'
                   : 'text-[#7A6865] hover:text-[#64748B]'
@@ -531,7 +537,7 @@ export const InvoicesView: React.FC = () => {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="hidden sm:flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-2xl border border-[#E6DFD5] shrink-0">
+          <div className="flex items-center justify-end gap-1 bg-[#FAF8F5] p-1 rounded-2xl border border-[#E6DFD5] shrink-0 self-end lg:self-auto">
             <button
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-xl transition-all cursor-pointer ${
@@ -1026,6 +1032,14 @@ export const InvoicesView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Executive Report & Visual Graphs Modal */}
+      {reportModalOpen && (
+        <PremiumReportModal 
+          initialTab="invoices" 
+          onClose={() => setReportModalOpen(false)} 
+        />
       )}
     </div>
   );

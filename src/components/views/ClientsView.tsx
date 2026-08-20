@@ -66,16 +66,16 @@ export const ClientsView: React.FC = () => {
   }, [clients, searchQuery, filterType]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Top Filter Bar */}
-      <div className="card-box p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="card-box p-3.5 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         {/* Filter Pills */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-nowrap sm:flex-wrap">
           <button
             onClick={() => setFilterType('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               filterType === 'all'
-                ? 'bg-[#173E39] text-white shadow-sm'
+                ? 'bg-theme-primary text-white shadow-xs'
                 : 'bg-[#EAE7DC] text-[#5C716C] hover:text-[#173E39]'
             }`}
           >
@@ -83,52 +83,52 @@ export const ClientsView: React.FC = () => {
           </button>
           <button
             onClick={() => setFilterType('rabies')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               filterType === 'rabies'
-                ? 'bg-[#C9503A] text-white shadow-sm'
+                ? 'bg-[#C9503A] text-white shadow-xs'
                 : 'bg-[#FEF2F2] text-[#C9503A] hover:bg-[#FCE7F3]'
             }`}
           >
-            ⚠️ Vaccine Warnings
+            ⚠️ Vaccines
           </button>
           <button
             onClick={() => setFilterType('behavior')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               filterType === 'behavior'
-                ? 'bg-[#E7A93C] text-white shadow-sm'
+                ? 'bg-[#E7A93C] text-white shadow-xs'
                 : 'bg-[#FFFBEB] text-[#9A6E1B]'
             }`}
           >
-            🐾 Behavioral Notes
+            🐾 Care Notes
           </button>
           <button
             onClick={() => setFilterType('matting')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               filterType === 'matting'
-                ? 'bg-[#2E8A81] text-white shadow-sm'
+                ? 'bg-[#2E8A81] text-white shadow-xs'
                 : 'bg-[#EAE7DC] text-[#5C716C]'
             }`}
           >
-            ✂️ Prone to Matting
+            ✂️ Coat Matting
           </button>
         </div>
 
         {/* Add Client Button */}
         <button
           onClick={() => openModal('clientForm')}
-          className="btn-primary text-xs px-4 py-2 rounded-full flex items-center gap-1.5 font-bold shadow-md"
+          className="btn-primary text-xs px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-md cursor-pointer shrink-0"
         >
-          <Plus className="w-4 h-4" /> Add Client & Pet
+          <Plus className="w-4 h-4" /> Add Pet & Client
         </button>
       </div>
 
       {/* Clients Cards Grid */}
       {filteredClients.length === 0 ? (
-        <div className="card-box p-12 text-center text-[#5C716C]">
+        <div className="card-box p-8 sm:p-12 text-center text-[#5C716C]">
           No client or pet records found matching search or filter criteria.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredClients.map((client) => {
             // Check Rabies expiry
             const rabiesDate = client.rabiesExpiry ? new Date(client.rabiesExpiry) : null;

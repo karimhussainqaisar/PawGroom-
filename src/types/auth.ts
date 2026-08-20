@@ -57,8 +57,18 @@ export interface ClientProfile {
     address?: string;
     email?: string;
     website?: string;
+    open?: number;
+    close?: number;
+    slot?: number;
+    currency?: string;
+    taxRate?: number;
     colorTheme?: string;
+    photo?: string;
     logoUrl?: string;
+    tagline?: string;
+    ppd?: number;
+    redeem?: number;
+    bday?: number;
   };
 }
 

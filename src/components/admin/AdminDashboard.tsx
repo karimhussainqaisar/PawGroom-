@@ -967,6 +967,16 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
   const [status, setStatus] = useState<AccountStatus>(profile.status);
   const [expiryDate, setExpiryDate] = useState(profile.expiryDate);
 
+  // Synchronized Studio Custom Settings
+  const [taxRate, setTaxRate] = useState<number>(profile.customSettings?.taxRate ?? 8.5);
+  const [currency, setCurrency] = useState<string>(profile.customSettings?.currency ?? 'USD');
+  const [colorTheme, setColorTheme] = useState<string>(profile.customSettings?.colorTheme ?? 'terracotta');
+  const [address, setAddress] = useState<string>(profile.customSettings?.address ?? '');
+  const [website, setWebsite] = useState<string>(profile.customSettings?.website ?? '');
+  const [openHour, setOpenHour] = useState<number>(profile.customSettings?.open ?? 8);
+  const [closeHour, setCloseHour] = useState<number>(profile.customSettings?.close ?? 18);
+  const [showSettingsTab, setShowSettingsTab] = useState<boolean>(false);
+
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -980,13 +990,28 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
       phoneNumber,
       plan,
       status,
-      expiryDate
+      expiryDate,
+      customSettings: {
+        ...(profile.customSettings || {}),
+        name: businessName,
+        salonName: businessName,
+        email,
+        phone: phoneNumber,
+        address: address || profile.customSettings?.address,
+        website: website || profile.customSettings?.website,
+        photo: profile.customSettings?.photo,
+        open: openHour,
+        close: closeHour,
+        currency,
+        taxRate,
+        colorTheme: colorTheme as any,
+      }
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-lg bg-[#1C0908] border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl text-white space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+      <div className="w-full max-w-xl bg-[#1C0908] border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl text-white space-y-6 max-h-[90vh] overflow-y-auto">
         
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
@@ -997,10 +1022,10 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
               <h3 className="font-display font-black text-lg text-white">
                 Edit Profile: {profile.profileId}
               </h3>
-              <p className="text-xs text-[#A08E8B]">{profile.businessName}</p>
+              <p className="text-xs text-[#A08E8B]">{profile.businessName} (Firestore Synchronized)</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-[#A08E8B] hover:text-white text-xs font-bold">
+          <button onClick={onClose} className="text-[#A08E8B] hover:text-white text-xs font-bold cursor-pointer">
             Cancel
           </button>
         </div>
@@ -1013,7 +1038,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 type="text"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none focus:border-[#FF6B00]"
                 required
               />
             </div>
@@ -1023,7 +1048,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 type="text"
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none focus:border-[#FF6B00]"
                 required
               />
             </div>
@@ -1036,7 +1061,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-mono outline-none focus:border-[#FF6B00]"
                 required
               />
             </div>
@@ -1046,7 +1071,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-mono"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-mono outline-none focus:border-[#FF6B00]"
                 required
               />
             </div>
@@ -1059,7 +1084,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
                 type="text"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none"
                 placeholder="(555) 000-0000"
               />
             </div>
@@ -1068,7 +1093,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
               <select
                 value={plan}
                 onChange={(e: any) => setPlan(e.target.value)}
-                className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold"
+                className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
               >
                 <option value="Starter">Starter</option>
                 <option value="Pro">Pro</option>
@@ -1081,7 +1106,7 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
               <select
                 value={status}
                 onChange={(e: any) => setStatus(e.target.value)}
-                className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold"
+                className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -1095,25 +1120,152 @@ const EditClientModal: React.FC<EditModalProps> = ({ profile, onClose, onSave })
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
-              className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white"
+              className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none"
               required
             />
+          </div>
+
+          {/* Expandable Studio Custom Settings Section */}
+          <div className="pt-2 border-t border-white/10">
+            <button
+              type="button"
+              onClick={() => setShowSettingsTab(!showSettingsTab)}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold transition-all text-xs cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-pulse" />
+                Client Custom Studio Settings (Firestore Synchronized)
+              </span>
+              <span className="text-[#FF6B00]">{showSettingsTab ? 'Hide ▲' : 'Edit Studio Settings ▼'}</span>
+            </button>
+
+            {showSettingsTab && (
+              <div className="mt-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-3 animate-fadeIn">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Currency Code</label>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="GBP">GBP (£)</option>
+                      <option value="EUR">EUR (€)</option>
+                      <option value="CAD">CAD (C$)</option>
+                      <option value="AUD">AUD (A$)</option>
+                      <option value="JPY">JPY (¥)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Invoice US Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white font-mono font-bold outline-none focus:border-[#FF6B00]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Studio Color Theme</label>
+                    <select
+                      value={colorTheme}
+                      onChange={(e) => setColorTheme(e.target.value)}
+                      className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
+                    >
+                      <option value="terracotta">Terracotta & Espresso</option>
+                      <option value="emerald">Emerald & Sage Spa</option>
+                      <option value="ocean">Coastal Navy & Blue</option>
+                      <option value="plum">Royal Berry & Plum</option>
+                      <option value="coral">Sunset Coral & Truffle</option>
+                      <option value="slate">Nordic Slate & Amber</option>
+                      <option value="nordic">Glacier Teal & Spruce</option>
+                      <option value="lavender">Lavender Mist & Lilac</option>
+                      <option value="rose">Cyber Rose & Berry</option>
+                      <option value="gold">Imperial Gold & Espresso</option>
+                      <option value="crimson">Crimson Wine & Bordeaux</option>
+                      <option value="monochrome">Obsidian & Platinum</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Clinic Website</label>
+                    <input
+                      type="text"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="www.pawbookpro.com"
+                      className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Opening Hour (AM)</label>
+                    <select
+                      value={openHour}
+                      onChange={(e) => setOpenHour(parseInt(e.target.value))}
+                      className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
+                    >
+                      <option value={6}>6:00 AM</option>
+                      <option value={7}>7:00 AM</option>
+                      <option value={8}>8:00 AM</option>
+                      <option value={9}>9:00 AM</option>
+                      <option value={10}>10:00 AM</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[#A08E8B] font-bold mb-1">Closing Hour (PM)</label>
+                    <select
+                      value={closeHour}
+                      onChange={(e) => setCloseHour(parseInt(e.target.value))}
+                      className="w-full bg-[#240C0B] border border-white/15 rounded-xl px-3 py-2 text-white font-bold outline-none"
+                    >
+                      <option value={16}>4:00 PM</option>
+                      <option value={17}>5:00 PM</option>
+                      <option value={18}>6:00 PM</option>
+                      <option value={19}>7:00 PM</option>
+                      <option value={20}>8:00 PM</option>
+                      <option value={21}>9:00 PM</option>
+                      <option value={22}>10:00 PM</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[#A08E8B] font-bold mb-1">Studio Address</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="100 Bark Avenue, Suite 4, San Francisco, CA"
+                    className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white outline-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold"
+              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2.5 bg-[#2E8A81] hover:bg-[#236F68] text-white rounded-xl font-bold"
+              className="px-5 py-2.5 bg-[#2E8A81] hover:bg-[#236F68] text-white rounded-xl font-bold flex items-center gap-2 cursor-pointer shadow-md"
             >
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? 'Saving to Firestore...' : 'Save Changes & Sync'}
             </button>
           </div>
         </form>

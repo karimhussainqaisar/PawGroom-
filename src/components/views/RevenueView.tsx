@@ -10,15 +10,20 @@ import {
   PieChart as PieIcon, 
   BarChart3,
   LineChart as LineChartIcon,
-  Calendar
+  Calendar,
+  Sparkles,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, BarChart, Bar } from 'recharts';
+import { PremiumReportModal } from '../modals/PremiumReportModal';
+import { generatePremiumRevenueCSV, downloadCSV, RevenueDailyItem, RevenueServiceItem, RevenueStaffItem } from '../../utils/reportExport';
 
 export const RevenueView: React.FC = () => {
-  const { appointments, expenses, services, formatPrice, currencySymbol, showToast } = useApp();
+  const { appointments, expenses, services, staff, clients, settings, formatPrice, currencySymbol, showToast } = useApp();
   const [chartMode, setChartMode] = useState<'line' | 'area'>('line');
   const [lineBreakdown, setLineBreakdown] = useState<'total' | 'breakdown'>('breakdown');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed'>('all');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const today = new Date();
   const currentMonthLabel = today.toLocaleDateString('en-US', { month: 'long' });
@@ -104,39 +109,105 @@ export const RevenueView: React.FC = () => {
   }, [augAppts, services]);
 
   const handleExportCSV = () => {
-    let csv = 'Appointment ID,Date,Client ID,Service Price,Retail,Total,Status\n';
-    augAppts.forEach((a) => {
-      csv += `${a.id},${a.date},${a.clientId},${a.price},${a.retail || 0},${a.price + (a.retail || 0)},${a.status}\n`;
+    const dailyItems: RevenueDailyItem[] = chartData.map((d) => ({
+      date: d.fullDate,
+      dayName: d.date,
+      count: augAppts.filter(a => a.date === d.fullDate).length,
+      groomingRev: d.grooming,
+      retailRev: d.retail,
+      totalRev: d.total,
+      avgTicket: augAppts.filter(a => a.date === d.fullDate).length > 0 
+        ? d.total / augAppts.filter(a => a.date === d.fullDate).length 
+        : 0,
+    }));
+
+    const serviceItems: RevenueServiceItem[] = topServicesData.map((s) => ({
+      name: s.name,
+      category: 'Grooming',
+      count: augAppts.filter(a => services.find(srv => srv.id === a.serviceId)?.name === s.name).length,
+      totalRev: s.total,
+      percentage: grossRev > 0 ? (s.total / grossRev) * 100 : 0,
+    }));
+
+    const staffItems: RevenueStaffItem[] = staff.map((st) => {
+      const stAppts = augAppts.filter(a => a.staffId === st.id);
+      const sRev = stAppts.reduce((sum, a) => sum + a.price, 0);
+      const cRate = st.commission || 50;
+      const cPayout = (sRev * cRate) / 100;
+      return {
+        name: st.name,
+        role: st.role,
+        count: stAppts.length,
+        serviceRev: sRev,
+        commissionRate: cRate,
+        commissionPayout: cPayout,
+        studioNet: sRev - cPayout,
+      };
     });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `PawBook_Revenue_Report_${new Date().toISOString().substring(0, 10)}.csv`;
-    a.click();
-    showToast('Exported revenue CSV report!', 'success');
+    const transactions = augAppts.map((a) => {
+      const cl = clients.find(c => c.id === a.clientId);
+      const srv = services.find(s => s.id === a.serviceId);
+      const st = staff.find(s => s.id === a.staffId);
+      return {
+        id: a.id,
+        date: a.date,
+        time: a.start,
+        client: cl?.owner || 'Client',
+        pet: cl?.name || 'Pet',
+        service: srv?.name || 'Service',
+        staff: st?.name || 'Staff',
+        groomPrice: a.price,
+        retailPrice: a.retail || 0,
+        total: a.price + (a.retail || 0),
+        status: a.status,
+      };
+    });
+
+    const csvContent = generatePremiumRevenueCSV(
+      {
+        periodLabel: `${currentMonthLabel} ${currentYear}`,
+        grossRev,
+        groomRev: totalGroomRev,
+        retailRev: totalRetailRev,
+        expenses: totalExpenses,
+        netProfit,
+        profitMargin: grossRev > 0 ? (netProfit / grossRev) * 100 : 0,
+        totalAppts: augAppts.length,
+        avgTicket,
+        peakDayLabel: peakDay.date,
+        peakDayAmount: peakDay.amount,
+      },
+      dailyItems,
+      serviceItems,
+      staffItems,
+      transactions,
+      settings
+    );
+
+    downloadCSV(csvContent, `PawBook_Revenue_Report_${new Date().toISOString().substring(0, 10)}.csv`);
+    showToast('Exported executive financial CSV report!', 'success');
   };
 
   return (
     <div className="space-y-6">
       {/* Top Banner & Export */}
-      <div className="card-box p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="card-box p-3.5 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="font-display font-bold text-lg text-[#173E39]">
+          <h2 className="font-display font-bold text-base sm:text-lg text-theme-primary">
             Financial & Revenue Analytics
           </h2>
-          <p className="text-xs text-[#5C716C]">
+          <p className="text-xs text-[#5C716C] mt-0.5">
             Gross sales, retail product add-ons, net profit margin & daily earnings trends for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-1 bg-[#F1EEE6] p-1 rounded-full border border-[#D8D3C4]">
             <button
               onClick={() => setFilterStatus('all')}
               className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                filterStatus === 'all' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C] hover:text-[#173E39]'
+                filterStatus === 'all' ? 'bg-theme-primary text-white shadow-xs' : 'text-[#5C716C] hover:text-theme-primary'
               }`}
             >
               All Active
@@ -144,18 +215,28 @@ export const RevenueView: React.FC = () => {
             <button
               onClick={() => setFilterStatus('completed')}
               className={`px-3 py-1 text-xs font-bold rounded-full transition-all cursor-pointer ${
-                filterStatus === 'completed' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C] hover:text-[#173E39]'
+                filterStatus === 'completed' ? 'bg-theme-primary text-white shadow-xs' : 'text-[#5C716C] hover:text-theme-primary'
               }`}
             >
-              Completed Only
+              Completed
             </button>
           </div>
 
           <button
-            onClick={handleExportCSV}
-            className="btn-primary text-xs px-4 py-2 rounded-full flex items-center gap-1.5 font-bold shadow-md cursor-pointer shrink-0"
+            onClick={() => setReportModalOpen(true)}
+            className="px-3.5 py-2 rounded-full border border-theme-primary/40 bg-white hover:bg-[#FAF8F5] text-theme-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all active:scale-95 shrink-0"
+            title="Open Executive Reports & Visual Analytics"
           >
-            <Download className="w-4 h-4" /> Export CSV Report
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Executive Reports</span>
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            className="btn-primary text-xs px-3.5 sm:px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-md cursor-pointer shrink-0 grow sm:grow-0"
+            title="Download formatted CSV report"
+          >
+            <Download className="w-4 h-4" /> <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -392,6 +473,14 @@ export const RevenueView: React.FC = () => {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Executive Report & Visual Graphs Modal */}
+      {reportModalOpen && (
+        <PremiumReportModal 
+          initialTab="revenue" 
+          onClose={() => setReportModalOpen(false)} 
+        />
+      )}
     </div>
   );
 };
