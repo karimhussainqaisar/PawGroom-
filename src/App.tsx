@@ -1,49 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ClientLoginPage } from './components/auth/ClientLoginPage';
-import { AdminLoginPage } from './components/auth/AdminLoginPage';
-import { AdminDashboard } from './components/admin/AdminDashboard';
+import { ViewMode } from './types';
+import { isScreenAllowed } from './data/permissionPresets';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { MobileNav } from './components/MobileNav';
-import { Toast } from './components/Toast';
-import { ModalContainer } from './components/modals/ModalContainer';
-import { ShieldCheck, ArrowLeft } from 'lucide-react';
-import { ClientNotificationPopup } from './components/notifications/ClientNotificationPopup';
-import { ClientNotificationBanner } from './components/notifications/ClientNotificationBanner';
-import { DeletedAccountModal } from './components/notifications/DeletedAccountModal';
-
 import { DashboardView } from './components/views/DashboardView';
 import { CalendarView } from './components/views/CalendarView';
+import { InvoicesView } from './components/views/InvoicesView';
 import { ClientsView } from './components/views/ClientsView';
 import { ServicesView } from './components/views/ServicesView';
 import { StaffView } from './components/views/StaffView';
 import { LoyaltyView } from './components/views/LoyaltyView';
 import { AlertsView } from './components/views/AlertsView';
 import { RevenueView } from './components/views/RevenueView';
-import { InvoicesView } from './components/views/InvoicesView';
 import { BusinessView } from './components/views/BusinessView';
 import { GalleryView } from './components/views/GalleryView';
 import { SettingsView } from './components/views/SettingsView';
+import { FeatureLockedScreen } from './components/common/FeatureLockedScreen';
+import { ModalContainer } from './components/modals/ModalContainer';
+import { Toast } from './components/Toast';
+import { MobileNav } from './components/MobileNav';
+import { ClientLoginPage as ClientLogin } from './components/auth/ClientLoginPage';
+import { AdminLoginPage as AdminLogin } from './components/auth/AdminLoginPage';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { InactiveAccountModal } from './components/auth/InactiveAccountModal';
+import { DeletedAccountModal } from './components/auth/DeletedAccountModal';
+import { ClientNotificationPopup } from './components/notifications/ClientNotificationPopup';
+import { ClientNotificationBanner } from './components/notifications/ClientNotificationBanner';
+import { ArrowLeft } from 'lucide-react';
 
-const MainLayout: React.FC = () => {
+const MainApp: React.FC = () => {
   const { view, settings } = useApp();
-  const { isAdmin, currentProfile, returnToAdmin } = useAuth();
+  const { currentProfile, isAdmin, returnToAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Apply theme to html root element
-  useEffect(() => {
-    const themeName = settings.colorTheme || 'terracotta';
-    document.documentElement.setAttribute('data-theme', themeName);
-  }, [settings.colorTheme]);
-
-  // Retract sidebar on view change
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [view]);
-
-  // Retract sidebar on Escape key
+  // Close sidebar on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -54,7 +46,27 @@ const MainLayout: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const screenTitles: Record<ViewMode, string> = {
+    dashboard: 'Dashboard',
+    calendar: 'Appointments Calendar',
+    invoices: 'Invoices & Billing',
+    clients: 'Pet & Client Records',
+    services: 'Services & Add-ons',
+    staff: 'Groomers & Staff',
+    loyalty: 'Paws Loyalty & Rewards',
+    alerts: 'Health & Vaccine Alerts',
+    revenue: 'Revenue & Financial Analytics',
+    business: 'Activity & Retail Store',
+    gallery: 'Transformations Photo Gallery',
+    settings: 'Studio Settings',
+  };
+
   const renderView = () => {
+    // Check if the current view is permitted for this profile
+    if (!isScreenAllowed(currentProfile?.permissions, view)) {
+      return <FeatureLockedScreen screenId={view} screenTitle={screenTitles[view]} />;
+    }
+
     switch (view) {
       case 'dashboard':
         return <DashboardView />;
@@ -97,9 +109,6 @@ const MainLayout: React.FC = () => {
       {/* Interactive Push Notification Popup Modal */}
       <ClientNotificationPopup />
 
-      {/* Admin Broadcast Banner */}
-      <ClientNotificationBanner />
-
       {/* Admin Impersonation Top Floating Banner */}
       {isAdmin && (
         <div className="w-full max-w-[1600px] mb-3 px-4 py-2 bg-[#240C0B] text-white rounded-2xl border border-[#2E8A81] shadow-lg flex items-center justify-between text-xs animate-fadeIn">
@@ -126,17 +135,21 @@ const MainLayout: React.FC = () => {
         className="w-full max-w-[1600px] min-h-[92vh] text-[#240C0B] rounded-[28px] sm:rounded-[36px] shadow-2xl border border-white/40 overflow-hidden flex flex-col md:flex-row relative transition-colors duration-300 print:hidden"
         style={{ backgroundColor: 'var(--app-bg, #FAF8F5)' }}
       >
-        {/* Side Navigation Bar */}
+        {/* Side Navigation Bar (Fixed left sidebar with responsive toggle) */}
         <Sidebar mobileOpen={isSidebarOpen} setMobileOpen={setIsSidebarOpen} />
 
-        {/* Main Content Area */}
+        {/* Main Content Area (Offset with lg:pl-[240px] to never overlap sidebar) */}
         <div className="flex-1 flex flex-col min-w-0 min-h-full pb-20 lg:pb-0 lg:pl-[240px]">
           <Header 
             onMenuClick={() => setIsSidebarOpen((prev) => !prev)} 
             isSidebarOpen={isSidebarOpen}
           />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-5">
+            {/* Interactive & Responsive Top Announcement Banner - Positioned inside main content container */}
+            <ClientNotificationBanner />
+
+            {/* Rendered View or Feature Locked Screen */}
             {renderView()}
           </main>
         </div>
@@ -159,29 +172,22 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      {/* Inactive Account Alert Modal */}
+      <InactiveAccountModal />
+
+      {/* Real-time Deleted Account Alert Modal */}
       <DeletedAccountModal />
-      {(() => {
-        // If not authenticated, route between Client Login and Admin Login
-        if (!isAuthenticated) {
-          if (authView === 'admin_login') {
-            return <AdminLoginPage />;
-          }
-          return <ClientLoginPage />;
-        }
 
-        // If authenticated as Admin and viewing Admin Dashboard
-        if (isAdmin && authView === 'admin_dashboard') {
-          return <AdminDashboard />;
-        }
-
-        // Otherwise render full Park Grooming Dashboard
-        return <MainLayout />;
-      })()}
+      {/* Routing based on authView */}
+      {authView === 'client_login' && <ClientLogin />}
+      {authView === 'admin_login' && <AdminLogin />}
+      {authView === 'admin_dashboard' && <AdminDashboard />}
+      {authView === 'app' && <MainApp />}
     </>
   );
 };
 
-export default function App() {
+export function App() {
   return (
     <AuthProvider>
       <AppProvider>
@@ -191,3 +197,4 @@ export default function App() {
   );
 }
 
+export default App;

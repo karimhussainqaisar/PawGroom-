@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 import { AdminNotification, NotificationPriority } from '../../types/auth';
 import { 
   Bell, 
   X, 
   Check, 
   CheckCheck, 
-  Trash2, 
   Info, 
   Flame, 
   AlertTriangle, 
@@ -14,7 +14,8 @@ import {
   CheckCircle2, 
   Clock, 
   Inbox,
-  ExternalLink
+  ExternalLink,
+  ArrowRight
 } from 'lucide-react';
 
 export const ClientNotificationDrawer: React.FC<{
@@ -27,6 +28,7 @@ export const ClientNotificationDrawer: React.FC<{
     markNotificationAsRead,
     currentProfile 
   } = useAuth();
+  const { setView } = useApp();
 
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
@@ -53,13 +55,33 @@ export const ClientNotificationDrawer: React.FC<{
       case 'update':
         return <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> UPDATE</span>;
       default:
-        return <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-100 text-cyan-800 border border-cyan-200 flex items-center gap-1"><Info className="w-2.5 h-2.5" /> NOTICE</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-orange-100 text-orange-800 border border-orange-200 flex items-center gap-1"><Info className="w-2.5 h-2.5" /> NOTICE</span>;
     }
   };
 
   const handleMarkAllRead = async () => {
     for (const notif of clientNotifications) {
       await markNotificationAsRead(notif.id);
+    }
+  };
+
+  const handleAction = (notif: AdminNotification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    markNotificationAsRead(notif.id);
+    if (!notif.actionUrl) return;
+
+    const isExternal = notif.actionUrl.startsWith('http://') || 
+                       notif.actionUrl.startsWith('https://') || 
+                       notif.actionTarget === '_blank';
+
+    if (isExternal) {
+      window.open(notif.actionUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      const validViews = ['dashboard', 'calendar', 'invoices', 'clients', 'services', 'alerts', 'loyalty', 'staff', 'revenue', 'business', 'gallery', 'settings'];
+      if (validViews.includes(notif.actionUrl)) {
+        setView(notif.actionUrl as any);
+        onClose();
+      }
     }
   };
 
@@ -139,6 +161,11 @@ export const ClientNotificationDrawer: React.FC<{
           ) : (
             filtered.map((notif) => {
               const isRead = currentProfileId ? (notif.readBy || []).includes(currentProfileId) : false;
+              const isExternal = notif.actionUrl && (
+                notif.actionUrl.startsWith('http://') || 
+                notif.actionUrl.startsWith('https://') || 
+                notif.actionTarget === '_blank'
+              );
 
               return (
                 <div
@@ -164,6 +191,17 @@ export const ClientNotificationDrawer: React.FC<{
                     </span>
                   </div>
 
+                  {notif.imageUrl && (
+                    <div className="w-full h-32 mb-2.5 rounded-xl overflow-hidden border border-[#E6DFD5]">
+                      <img 
+                        src={notif.imageUrl} 
+                        alt={notif.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  )}
+
                   <h4 className="font-display font-bold text-sm text-[#240C0B] mb-1">
                     {notif.title}
                   </h4>
@@ -172,10 +210,23 @@ export const ClientNotificationDrawer: React.FC<{
                     {notif.message}
                   </p>
 
+                  {notif.actionLabel && notif.actionUrl && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={(e) => handleAction(notif, e)}
+                        className="w-full py-2 px-3 bg-[#FF6B00] hover:bg-[#E55C00] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+                      >
+                        <span>{notif.actionLabel}</span>
+                        {isExternal ? <ExternalLink className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mt-2.5 pt-2 border-t border-[#F1EEE6] flex items-center justify-between text-[10px] text-[#A08E8B]">
                     <span>Broadcast from Admin</span>
                     {!isRead ? (
-                      <span className="text-[#FF6B00] font-bold">Click to mark as read</span>
+                      <span className="text-[#FF6B00] font-bold">Unread</span>
                     ) : (
                       <span className="text-[#2E8A81] flex items-center gap-0.5">
                         <Check className="w-3 h-3" /> Read

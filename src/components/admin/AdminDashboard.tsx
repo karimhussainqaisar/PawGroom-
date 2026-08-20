@@ -40,6 +40,8 @@ import {
   Bell
 } from 'lucide-react';
 import { AdminNotificationsManager } from './AdminNotificationsManager';
+import { ClientPermissionsModal } from './ClientPermissionsModal';
+import { ClientPermissions } from '../../types/auth';
 
 export const AdminDashboard: React.FC = () => {
   const { 
@@ -75,8 +77,15 @@ export const AdminDashboard: React.FC = () => {
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [profileForPermissions, setProfileForPermissions] = useState<ClientProfile | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<ClientProfile | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleSavePermissions = async (profileId: string, permissions: ClientPermissions) => {
+    await updateClientProfile(profileId, { permissions });
+    showToast(`Access rules & screen permissions updated for client ${profileId}!`);
+  };
 
   // Stats computation
   const today = new Date().toISOString().split('T')[0];
@@ -504,6 +513,18 @@ export const AdminDashboard: React.FC = () => {
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
 
+                              {/* Configure Screen & Feature Permissions / Trial Controls */}
+                              <button
+                                onClick={() => {
+                                  setProfileForPermissions(p);
+                                  setPermissionsModalOpen(true);
+                                }}
+                                className="p-2 rounded-xl bg-white/5 hover:bg-[#FF6B00] text-white transition-all cursor-pointer"
+                                title={`Configure Screen & Feature Access Controls for ${p.businessName}`}
+                              >
+                                <Sliders className="w-3.5 h-3.5 text-[#FF8833] hover:text-white" />
+                              </button>
+
                               {/* Send Push / Pop-up direct */}
                               <button
                                 onClick={() => {
@@ -683,6 +704,19 @@ export const AdminDashboard: React.FC = () => {
             setSelectedProfile(null);
             showToast(`Updated profile for ${selectedProfile.businessName}!`);
           }}
+        />
+      )}
+
+      {/* Modal 3: Client Screen & Feature Permissions / Trial Controls */}
+      {permissionsModalOpen && profileForPermissions && (
+        <ClientPermissionsModal
+          isOpen={permissionsModalOpen}
+          profile={profileForPermissions}
+          onClose={() => {
+            setPermissionsModalOpen(false);
+            setProfileForPermissions(null);
+          }}
+          onSave={handleSavePermissions}
         />
       )}
     </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { ViewMode } from '../types';
+import { isScreenAllowed } from '../data/permissionPresets';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -17,7 +18,9 @@ import {
   Settings,
   X,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Crown
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -60,6 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
     if (setMobileOpen) setMobileOpen(false);
   };
 
+  const isTrial = currentProfile?.permissions?.isTrialMode;
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -75,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex flex-col gap-6 min-h-0">
+        <div className="flex flex-col gap-5 min-h-0">
           {/* Brand Logo Header */}
           <div className="flex items-center justify-between px-1 relative">
             <div className="flex items-center gap-2.5">
@@ -91,9 +96,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
                 <h1 className="font-display font-extrabold text-base text-white tracking-wide uppercase leading-tight line-clamp-1">
                   {currentProfile?.businessName || settings.salonName || settings.name || 'Paw Grooming'}
                 </h1>
-                <span className="text-[9px] font-bold text-[#A08E8B] tracking-widest uppercase block mt-0.5">
-                  {currentProfile ? `${currentProfile.plan} Tier` : (settings.name || 'Grooming & Spa')}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[9px] font-bold text-[#A08E8B] tracking-widest uppercase block">
+                    {currentProfile ? `${currentProfile.plan} Tier` : (settings.name || 'Grooming & Spa')}
+                  </span>
+                  {isTrial && (
+                    <span className="px-1.5 py-0.2 rounded-md bg-[#FF6B00]/30 text-[#FF8833] text-[8px] font-black uppercase tracking-wider border border-[#FF6B00]/40">
+                      Trial
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -112,22 +124,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
           <nav className="flex-1 flex flex-col gap-1.5 overflow-y-auto pr-1">
             {navItems.map((item) => {
               const isActive = view === item.id;
+              const allowed = isScreenAllowed(currentProfile?.permissions, item.id);
+
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition-all cursor-pointer relative ${
                     isActive
                       ? 'bg-[#FF6B00] text-white shadow-md shadow-[#FF6B00]/30 scale-[1.02]'
-                      : 'text-[#C5B7B4] hover:bg-white/8 hover:text-white'
+                      : allowed 
+                        ? 'text-[#C5B7B4] hover:bg-white/8 hover:text-white'
+                        : 'text-[#7A6865] hover:bg-white/5 hover:text-[#C5B7B4]'
                   }`}
                 >
-                  <span className={isActive ? 'text-white' : 'text-[#A08E8B]'}>
+                  <span className={isActive ? 'text-white' : allowed ? 'text-[#A08E8B]' : 'text-[#7A6865]'}>
                     {item.icon}
                   </span>
-                  <span className="flex-1 truncate">{item.label}</span>
                   
-                  {item.badge !== undefined && item.badge > 0 && (
+                  <span className={`flex-1 truncate ${!allowed ? 'line-through decoration-[#FF6B00]/50 text-white/50' : ''}`}>
+                    {item.label}
+                  </span>
+                  
+                  {!allowed && (
+                    <span className="text-[10px] text-[#FF8833] opacity-80" title="Locked in trial/demo">
+                      <Lock className="w-3 h-3" />
+                    </span>
+                  )}
+
+                  {allowed && item.badge !== undefined && item.badge > 0 && (
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                       isActive ? 'bg-white text-[#FF6B00]' : 'bg-[#FF6B00] text-white'
                     }`}>
@@ -190,4 +215,3 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, setMobileOpen }) =
     </>
   );
 };
-

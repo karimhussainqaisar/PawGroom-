@@ -333,41 +333,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Helper functions for deducting/restoring inventory stock
-  const deductInventoryStock = (items: { itemId: string; quantity: number }[]) => {
-    if (!items || items.length === 0) return;
-    setInventory((prev) => {
-      const nextInv = [...prev];
-      items.forEach((item) => {
+  // Single source-of-truth helper for adjusting inventory stock by exact delta
+  const adjustInventoryByDelta = (
+    prevItems: PurchasedRetailItem[] = [],
+    newItems: PurchasedRetailItem[] = []
+  ) => {
+    // Map of item identifier to net quantity change: (newQty - oldQty)
+    const deltaMap = new Map<string, number>();
+
+    // Subtract old quantities
+    (prevItems || []).forEach((item) => {
+      const key = item.itemId || item.name;
+      if (key) {
         const qty = item.quantity || 1;
-        const idx = nextInv.findIndex((i) => i.id === item.itemId || i.name.toLowerCase() === item.itemId.toLowerCase());
-        if (idx !== -1) {
-          nextInv[idx] = {
-            ...nextInv[idx],
-            stock: Math.max(0, nextInv[idx].stock - qty),
-          };
+        deltaMap.set(key, (deltaMap.get(key) || 0) - qty);
+      }
+    });
+
+    // Add new quantities
+    (newItems || []).forEach((item) => {
+      const key = item.itemId || item.name;
+      if (key) {
+        const qty = item.quantity || 1;
+        deltaMap.set(key, (deltaMap.get(key) || 0) + qty);
+      }
+    });
+
+    // Only update inventory if there is an actual net difference
+    const nonZeroDeltas = Array.from(deltaMap.entries()).filter(([_, delta]) => delta !== 0);
+    if (nonZeroDeltas.length === 0) return;
+
+    setInventory((currentInv) => {
+      return currentInv.map((invItem) => {
+        let itemDelta = 0;
+        for (const [key, delta] of nonZeroDeltas) {
+          if (
+            invItem.id === key ||
+            invItem.name.toLowerCase() === key.toLowerCase()
+          ) {
+            itemDelta += delta;
+          }
         }
+
+        if (itemDelta !== 0) {
+          // If delta > 0 (more bought), subtract from stock. If delta < 0 (returned/cancelled), add to stock.
+          const newStock = Math.max(0, invItem.stock - itemDelta);
+          return { ...invItem, stock: newStock };
+        }
+        return invItem;
       });
-      return nextInv;
     });
   };
 
+  const deductInventoryStock = (items: { itemId: string; quantity: number }[]) => {
+    adjustInventoryByDelta([], items as PurchasedRetailItem[]);
+  };
+
   const restoreInventoryStock = (items: { itemId: string; quantity: number }[]) => {
-    if (!items || items.length === 0) return;
-    setInventory((prev) => {
-      const nextInv = [...prev];
-      items.forEach((item) => {
-        const qty = item.quantity || 1;
-        const idx = nextInv.findIndex((i) => i.id === item.itemId || i.name.toLowerCase() === item.itemId.toLowerCase());
-        if (idx !== -1) {
-          nextInv[idx] = {
-            ...nextInv[idx],
-            stock: nextInv[idx].stock + qty,
-          };
-        }
-      });
-      return nextInv;
-    });
+    adjustInventoryByDelta(items as PurchasedRetailItem[], []);
   };
 
   // CRUD Functions
@@ -384,9 +407,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       invoiceNumber: apptData.invoiceNumber || formatShortInvoiceNumber({ id, ...apptData })
     };
 
-    // Deduct stock for any purchased items
+    // Deduct stock exactly once for any purchased items
     if (newAppt.purchasedItems && newAppt.purchasedItems.length > 0) {
-      deductInventoryStock(newAppt.purchasedItems);
+      adjustInventoryByDelta([], newAppt.purchasedItems);
     }
 
     // Add loyalty points if completed
@@ -415,19 +438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ) => {
     const existing = appointments.find((a) => a.id === id);
     if (existing && purchasedItems !== undefined) {
-      const prevItems = existing.purchasedItems || [];
-      const newItems = purchasedItems || [];
-      const prevKey = JSON.stringify(prevItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
-      const newKey = JSON.stringify(newItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
-
-      if (prevKey !== newKey) {
-        if (prevItems.length > 0) {
-          restoreInventoryStock(prevItems);
-        }
-        if (newItems.length > 0) {
-          deductInventoryStock(newItems);
-        }
-      }
+      adjustInventoryByDelta(existing.purchasedItems || [], purchasedItems);
     }
 
     if (existing && status === 'completed' && existing.status !== 'completed') {
@@ -465,19 +476,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAppointment = (id: string, apptData: Partial<Appointment>) => {
     const existing = appointments.find((a) => a.id === id);
     if (existing && apptData.purchasedItems !== undefined) {
-      const prevItems = existing.purchasedItems || [];
-      const newItems = apptData.purchasedItems || [];
-      const prevKey = JSON.stringify(prevItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
-      const newKey = JSON.stringify(newItems.map(p => ({ id: p.itemId, q: p.quantity || 1 })).sort((a, b) => a.id.localeCompare(b.id)));
-
-      if (prevKey !== newKey) {
-        if (prevItems.length > 0) {
-          restoreInventoryStock(prevItems);
-        }
-        if (newItems.length > 0) {
-          deductInventoryStock(newItems);
-        }
-      }
+      adjustInventoryByDelta(existing.purchasedItems || [], apptData.purchasedItems);
     }
 
     if (existing && apptData.status === 'completed' && existing.status !== 'completed') {
@@ -511,7 +510,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteAppointment = (id: string) => {
     const existing = appointments.find((a) => a.id === id);
     if (existing?.purchasedItems && existing.purchasedItems.length > 0) {
-      restoreInventoryStock(existing.purchasedItems);
+      adjustInventoryByDelta(existing.purchasedItems, []);
     }
     setAppointments((prev) => prev.filter((a) => a.id !== id));
     showToast('Appointment cancelled/removed', 'info');

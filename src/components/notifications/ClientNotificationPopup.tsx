@@ -11,7 +11,7 @@ import {
   Info, 
   CheckCircle2, 
   ArrowRight,
-  ShieldAlert
+  ExternalLink
 } from 'lucide-react';
 
 export const ClientNotificationPopup: React.FC = () => {
@@ -35,8 +35,17 @@ export const ClientNotificationPopup: React.FC = () => {
 
   const handleActionClick = async () => {
     if (currentPopup.actionUrl) {
-      if (['dashboard', 'calendar', 'clients', 'services', 'staff', 'loyalty', 'alerts', 'revenue', 'invoices', 'business', 'gallery', 'settings'].includes(currentPopup.actionUrl)) {
-        setView(currentPopup.actionUrl as any);
+      const isExternal = currentPopup.actionUrl.startsWith('http://') || 
+                         currentPopup.actionUrl.startsWith('https://') || 
+                         currentPopup.actionTarget === '_blank';
+
+      if (isExternal) {
+        window.open(currentPopup.actionUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        const validViews = ['dashboard', 'calendar', 'invoices', 'clients', 'services', 'alerts', 'loyalty', 'staff', 'revenue', 'business', 'gallery', 'settings'];
+        if (validViews.includes(currentPopup.actionUrl)) {
+          setView(currentPopup.actionUrl as any);
+        }
       }
     }
     await handleDismiss();
@@ -88,11 +97,16 @@ export const ClientNotificationPopup: React.FC = () => {
   };
 
   const theme = getPriorityTheme(currentPopup.priority);
+  const isExternalLink = currentPopup.actionUrl && (
+    currentPopup.actionUrl.startsWith('http://') || 
+    currentPopup.actionUrl.startsWith('https://') || 
+    currentPopup.actionTarget === '_blank'
+  );
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-[#FAF8F5] text-[#240C0B] rounded-3xl border border-black/10 shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-5 animate-scaleUp relative overflow-hidden my-6">
-        {/* Subtle decorative glow */}
+    <div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+      <div className="bg-[#FAF8F5] text-[#240C0B] rounded-3xl border border-black/10 shadow-2xl max-w-lg w-full p-6 sm:p-7 space-y-4 animate-scaleUp relative overflow-hidden my-6">
+        {/* Decorative backdrop glow */}
         <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#FF6B00]/10 rounded-full blur-2xl pointer-events-none" />
 
         {/* Top Header */}
@@ -111,17 +125,31 @@ export const ClientNotificationPopup: React.FC = () => {
           </button>
         </div>
 
-        {/* Center Content */}
-        <div className="text-center pt-1 pb-2">
-          <div className={`w-14 h-14 rounded-2xl ${theme.bg} flex items-center justify-center mx-auto mb-4 shadow-lg shadow-black/10`}>
-            {theme.icon}
+        {/* Optional Visual Image */}
+        {currentPopup.imageUrl && (
+          <div className="w-full overflow-hidden rounded-2xl border border-[#E6DFD5] shadow-xs">
+            <img 
+              src={currentPopup.imageUrl} 
+              alt={currentPopup.title}
+              className="w-full h-44 sm:h-52 object-cover transition-transform hover:scale-105 duration-300"
+              referrerPolicy="no-referrer"
+            />
           </div>
+        )}
 
-          <h3 className="font-display font-black text-xl text-[#240C0B] mb-2.5 px-2">
+        {/* Center Content */}
+        <div className="text-center pt-1">
+          {!currentPopup.imageUrl && (
+            <div className={`w-14 h-14 rounded-2xl ${theme.bg} flex items-center justify-center mx-auto mb-3.5 shadow-lg shadow-black/10`}>
+              {theme.icon}
+            </div>
+          )}
+
+          <h3 className="font-display font-black text-xl text-[#240C0B] mb-2 px-1">
             {currentPopup.title}
           </h3>
 
-          <div className="text-xs text-[#5C4A47] leading-relaxed max-h-60 overflow-y-auto px-2 py-1 bg-white/70 rounded-2xl border border-[#E6DFD5] whitespace-pre-line text-left">
+          <div className="text-xs text-[#5C4A47] leading-relaxed max-h-56 overflow-y-auto p-3.5 bg-white rounded-2xl border border-[#E6DFD5] whitespace-pre-line text-left shadow-2xs">
             {currentPopup.message}
           </div>
 
@@ -132,14 +160,19 @@ export const ClientNotificationPopup: React.FC = () => {
 
         {/* Footer Actions */}
         <div className="space-y-2 pt-1">
-          {currentPopup.actionLabel && (
+          {currentPopup.actionLabel && currentPopup.actionUrl && (
             <button
               type="button"
               onClick={handleActionClick}
               className={`w-full py-3 px-5 rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 ${theme.buttonBg}`}
+              title={isExternalLink ? `Opens in new browser tab: ${currentPopup.actionUrl}` : 'Navigate to screen'}
             >
               <span>{currentPopup.actionLabel}</span>
-              <ArrowRight className="w-4 h-4" />
+              {isExternalLink ? (
+                <ExternalLink className="w-4 h-4" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
             </button>
           )}
 
