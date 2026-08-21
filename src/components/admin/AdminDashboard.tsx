@@ -37,10 +37,16 @@ import {
   Calendar,
   AlertTriangle,
   FileText,
-  Bell
+  Bell,
+  Laptop,
+  Smartphone,
+  Tablet,
+  Ban,
+  Power
 } from 'lucide-react';
 import { AdminNotificationsManager } from './AdminNotificationsManager';
 import { ClientPermissionsModal } from './ClientPermissionsModal';
+import { ClientDevicesModal } from './ClientDevicesModal';
 import { ClientPermissions } from '../../types/auth';
 
 export const AdminDashboard: React.FC = () => {
@@ -54,7 +60,11 @@ export const AdminDashboard: React.FC = () => {
     deleteClientProfile, 
     impersonateClient,
     resetAuthDatabase,
-    refreshServerDatabase
+    refreshServerDatabase,
+    logoutClientFromAdmin,
+    terminateDeviceSession,
+    toggleBanDevice,
+    toggleEnforceSingleDevice
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'profiles' | 'notifications' | 'plans' | 'logs' | 'settings'>('profiles');
@@ -78,13 +88,22 @@ export const AdminDashboard: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [permissionsModalOpen, setPermissionsModalOpen] = useState(false);
+  const [devicesModalOpen, setDevicesModalOpen] = useState(false);
   const [profileForPermissions, setProfileForPermissions] = useState<ClientProfile | null>(null);
+  const [profileForDevices, setProfileForDevices] = useState<ClientProfile | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<ClientProfile | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleSavePermissions = async (profileId: string, permissions: ClientPermissions) => {
     await updateClientProfile(profileId, { permissions });
     showToast(`Access rules & screen permissions updated for client ${profileId}!`);
+  };
+
+  const handleRemoteLogout = async (profile: ClientProfile) => {
+    if (confirm(`Immediately terminate all active login sessions and force logout for "${profile.businessName}" (${profile.profileId})?`)) {
+      await logoutClientFromAdmin(profile.profileId);
+      showToast(`Logged out "${profile.businessName}" from all devices.`);
+    }
   };
 
   // Stats computation
@@ -397,17 +416,18 @@ export const AdminDashboard: React.FC = () => {
                   <tr className="border-b border-white/10 bg-white/[0.02] text-[#A08E8B] font-bold uppercase tracking-wider text-[10px]">
                     <th className="py-3.5 px-4">Profile ID</th>
                     <th className="py-3.5 px-4">Business & Owner</th>
+                    <th className="py-3.5 px-4">Live Status & Devices</th>
                     <th className="py-3.5 px-4">Credentials & Contact</th>
                     <th className="py-3.5 px-4">Subscription Plan</th>
                     <th className="py-3.5 px-4">Expiry Date</th>
-                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 px-4 text-center">Account Status</th>
                     <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-white">
                   {filteredProfiles.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#7A6865]">
+                      <td colSpan={8} className="py-12 text-center text-[#7A6865]">
                         <Store className="w-10 h-10 mx-auto text-[#7A6865]/40 mb-2" />
                         <p className="font-bold text-sm">No client profiles found</p>
                         <p className="text-xs text-[#7A6865] mt-1">Try adjusting your filters or create a new client account.</p>
@@ -417,6 +437,10 @@ export const AdminDashboard: React.FC = () => {
                     filteredProfiles.map((p) => {
                       const isActive = p.status === 'active';
                       const isExpired = p.expiryDate < today;
+                      const activeSessions = (p.activeSessions || []).filter(s => s.status === 'active');
+                      const deviceCount = activeSessions.length || (p.isCurrentlyLoggedIn ? 1 : 0);
+                      const isSingleDeviceEnforced = !!p.enforceSingleDeviceLogin;
+                      const bannedCount = (p.bannedDevices || []).length;
 
                       return (
                         <tr key={p.profileId} className="hover:bg-white/[0.02] transition-colors">
@@ -426,7 +450,7 @@ export const AdminDashboard: React.FC = () => {
                               <span>{p.profileId}</span>
                               <button
                                 onClick={() => handleCopy(p.profileId, `id_${p.profileId}`)}
-                                className="text-[#A08E8B] hover:text-white p-1 rounded"
+                                className="text-[#A08E8B] hover:text-white p-1 rounded cursor-pointer"
                                 title="Copy ID"
                               >
                                 {copiedId === `id_${p.profileId}` ? <Check className="w-3 h-3 text-[#2E8A81]" /> : <Copy className="w-3 h-3" />}
@@ -441,6 +465,48 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                             <div className="text-[11px] text-[#A08E8B]">
                               Owner: {p.ownerName}
+                            </div>
+                          </td>
+
+                          {/* Live Status & Device Tracking */}
+                          <td className="py-3.5 px-4 space-y-1">
+                            <div className="flex items-center gap-2">
+                              {p.isCurrentlyLoggedIn ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  ONLINE
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                                  Offline
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProfileForDevices(p);
+                                  setDevicesModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 transition-colors cursor-pointer"
+                                title="Click to view and manage logged-in devices"
+                              >
+                                <Laptop className="w-3 h-3" />
+                                <span>{deviceCount} {deviceCount === 1 ? 'Device' : 'Devices'}</span>
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {isSingleDeviceEnforced && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[8px] font-black uppercase rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                  1-Device Lock
+                                </span>
+                              )}
+                              {bannedCount > 0 && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[8px] font-black uppercase rounded bg-red-500/15 text-red-400 border border-red-500/30">
+                                  {bannedCount} Banned
+                                </span>
+                              )}
                             </div>
                           </td>
 
@@ -504,6 +570,27 @@ export const AdminDashboard: React.FC = () => {
                           {/* Actions */}
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* Remote Logout Client Profile */}
+                              <button
+                                onClick={() => handleRemoteLogout(p)}
+                                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white transition-all cursor-pointer"
+                                title={`Remote Logout & End All Device Sessions for ${p.businessName}`}
+                              >
+                                <LogOut className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Manage Devices & Ban Credentials */}
+                              <button
+                                onClick={() => {
+                                  setProfileForDevices(p);
+                                  setDevicesModalOpen(true);
+                                }}
+                                className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-600 text-indigo-400 hover:text-white transition-all cursor-pointer"
+                                title={`Manage Logged-in Devices & Ban Credentials for ${p.businessName}`}
+                              >
+                                <Laptop className="w-3.5 h-3.5" />
+                              </button>
+
                               {/* Impersonate / Preview Dashboard */}
                               <button
                                 onClick={() => impersonateClient(p.profileId)}
@@ -717,6 +804,19 @@ export const AdminDashboard: React.FC = () => {
             setProfileForPermissions(null);
           }}
           onSave={handleSavePermissions}
+        />
+      )}
+
+      {/* Modal 4: Client Devices & Session Management */}
+      {devicesModalOpen && profileForDevices && (
+        <ClientDevicesModal
+          isOpen={devicesModalOpen}
+          profile={authDatabase.profiles.find(p => p.profileId === profileForDevices.profileId) || profileForDevices}
+          onClose={() => {
+            setDevicesModalOpen(false);
+            setProfileForDevices(null);
+          }}
+          onSuccess={(msg) => showToast(msg)}
         />
       )}
     </div>

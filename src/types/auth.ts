@@ -1,6 +1,21 @@
 export type SubscriptionPlan = 'Starter' | 'Pro' | 'Premium' | 'Enterprise';
 export type AccountStatus = 'active' | 'inactive';
 
+export interface ClientDeviceSession {
+  sessionId: string;
+  deviceId: string;
+  deviceType: 'desktop' | 'mobile' | 'tablet';
+  deviceName: string; // e.g. "MacBook Pro 16", "iPhone 15 Pro", "Windows PC"
+  browser: string; // e.g. "Chrome 128", "Safari 18", "Firefox 130"
+  os: string; // e.g. "macOS Sequoia", "Windows 11", "iOS 18", "Android 15"
+  ipAddress?: string;
+  location?: string; // e.g. "New York, US", "London, UK", "Local Network"
+  loginAt: string; // ISO string
+  lastActiveAt: string; // ISO string
+  isCurrentDevice?: boolean;
+  status: 'active' | 'terminated' | 'banned';
+}
+
 export interface ScreenPermissions {
   dashboard?: boolean;
   calendar?: boolean;
@@ -49,6 +64,15 @@ export interface ClientProfile {
   createdAt: string; // 'YYYY-MM-DD'
   expiryDate: string; // 'YYYY-MM-DD'
   status: AccountStatus;
+  
+  // Device & Session Management
+  isCurrentlyLoggedIn?: boolean;
+  lastActiveAt?: string;
+  lastActiveDevice?: string;
+  enforceSingleDeviceLogin?: boolean; // When true, only 1 device can stay active at a time
+  activeSessions?: ClientDeviceSession[]; // List of registered / active device sessions
+  bannedDevices?: string[]; // List of banned device IDs for this profile
+
   permissions?: ClientPermissions; // Feature & Screen granular permissions for demo & trials
   customSettings?: {
     salonName?: string;
@@ -87,6 +111,8 @@ export interface AuthSession {
   profile?: ClientProfile;
   admin?: AdminUser;
   token: string;
+  sessionId?: string;
+  deviceId?: string;
   loginTime: string;
   rememberMe: boolean;
 }
@@ -109,7 +135,20 @@ export type NotificationType =
   | 'toast_stack' 
   | 'sidebar_alert' 
   | 'modal_takeover' 
-  | 'message';
+  | 'message'
+  // 10+ New Delivery Formats
+  | 'email_digest'
+  | 'sms_text'
+  | 'whatsapp_msg'
+  | 'telegram_bot'
+  | 'discord_webhook'
+  | 'slack_webhook'
+  | 'voice_tts'
+  | 'floating_dock'
+  | 'matrix_teams'
+  | 'system_tray_fcm'
+  | 'inbox_badge_modal';
+
 export type NotificationPriority = 'info' | 'warning' | 'urgent' | 'promotion' | 'update';
 
 export interface AdminNotification {
@@ -117,7 +156,7 @@ export interface AdminNotification {
   targetType: 'all' | 'specific';
   targetProfileId?: string; // profileId or 'all'
   targetBusinessName?: string;
-  type: NotificationType; // 'popup' modal on client screen, 'banner', or 'push'
+  type: NotificationType;
   priority: NotificationPriority;
   title: string;
   message: string;
@@ -131,5 +170,15 @@ export interface AdminNotification {
   readBy: string[]; // profileIds that have read this
   dismissedBy: string[]; // profileIds that have dismissed the popup/banner
   isActive: boolean;
+  
+  // Format-specific metadata
+  metadata?: {
+    channelName?: string;
+    senderHandle?: string;
+    audioVoice?: string;
+    phoneRecipient?: string;
+    emailRecipient?: string;
+    digestSections?: { label: string; value: string }[];
+  };
 }
 

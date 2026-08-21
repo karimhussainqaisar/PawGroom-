@@ -8,7 +8,8 @@ import {
   AccountStatus,
   AdminNotification,
   NotificationType,
-  NotificationPriority
+  NotificationPriority,
+  ClientDeviceSession
 } from '../types/auth';
 import { 
   loadAuthDatabase, 
@@ -35,6 +36,7 @@ import {
   FULL_ACCESS_SCREENS, 
   FULL_ACCESS_FEATURES 
 } from '../data/permissionPresets';
+import { detectCurrentDevice, getOrCreateDeviceId } from '../utils/deviceDetector';
 
 export type AuthViewMode = 'client_login' | 'admin_login' | 'admin_dashboard' | 'app';
 
@@ -63,6 +65,16 @@ interface AuthContextType {
   returnToAdmin: () => void;
   refreshServerDatabase: () => Promise<void>;
   
+  // Device & Remote Session Management from Admin
+  logoutClientFromAdmin: (profileId: string) => Promise<boolean>;
+  terminateDeviceSession: (profileId: string, sessionId: string) => Promise<boolean>;
+  toggleBanDevice: (profileId: string, deviceId: string) => Promise<boolean>;
+  toggleEnforceSingleDevice: (profileId: string) => Promise<boolean>;
+  
+  // Remote Logout Notice State
+  remoteLogoutNotice: { isOpen: boolean; reason: 'admin_logout' | 'single_device_conflict' | 'device_banned' };
+  setRemoteLogoutNotice: (notice: { isOpen: boolean; reason: 'admin_logout' | 'single_device_conflict' | 'device_banned' }) => void;
+
   // Profile Management Methods
   createClientProfile: (profile: Omit<ClientProfile, 'profileId' | 'createdAt'> & { profileId?: string }) => Promise<ClientProfile>;
   updateClientProfile: (profileId: string, updates: Partial<ClientProfile>) => Promise<boolean>;
@@ -121,6 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inactiveModalOpen, setInactiveModalOpen] = useState<boolean>(false);
   const [inactiveProfileDetails, setInactiveProfileDetails] = useState<ClientProfile | null>(null);
   const [deletedAccountNotice, setDeletedAccountNotice] = useState<boolean>(false);
+  const [remoteLogoutNotice, setRemoteLogoutNotice] = useState<{
+    isOpen: boolean;
+    reason: 'admin_logout' | 'single_device_conflict' | 'device_banned';
+  }>({
+    isOpen: false,
+    reason: 'admin_logout'
+  });
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   // Manual refresh from Firestore database
@@ -190,11 +209,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshServerDatabase]);
 
-  // 2. SIMULTANEOUS AUTO-LOGOUT: Synchronize active session when profiles in Firestore change
+  // 2. SIMULTANEOUS AUTO-LOGOUT & DEVICE CONFLICT DETECTION:
+  // Synchronize active session when profiles in Firestore change
   useEffect(() => {
     if (session && session.userType === 'client' && session.profile) {
       const profileId = session.profile.profileId;
-      // If we have profiles in database (or database is non-empty)
+      const currentSessionId = session.sessionId;
+      const currentDeviceId = session.deviceId || getOrCreateDeviceId();
+
       if (authDatabase.profiles && authDatabase.profiles.length > 0) {
         const updatedProfile = authDatabase.profiles.find(p => p.profileId === profileId);
         
@@ -203,25 +225,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setInactiveProfileDetails(updatedProfile);
             setInactiveModalOpen(true);
             logout();
-          } else {
-            // Keep active session in sync with any profile edits if there are changes
-            setSession(prev => {
-              if (!prev || JSON.stringify(prev.profile) === JSON.stringify(updatedProfile)) {
-                return prev;
-              }
-              return { ...prev, profile: updatedProfile };
-            });
+            return;
           }
+
+          // Check if current device is banned
+          const isBanned = updatedProfile.bannedDevices && updatedProfile.bannedDevices.includes(currentDeviceId);
+          if (isBanned) {
+            setRemoteLogoutNotice({ isOpen: true, reason: 'device_banned' });
+            logout();
+            return;
+          }
+
+          // Check if admin logged out this profile or terminated this session
+          if (updatedProfile.isCurrentlyLoggedIn === false && session.token && !session.token.startsWith('impersonate_')) {
+            setRemoteLogoutNotice({ isOpen: true, reason: 'admin_logout' });
+            logout();
+            return;
+          }
+
+          // Check if this specific session was terminated (e.g., single device conflict or admin terminated)
+          if (currentSessionId && updatedProfile.activeSessions) {
+            const matchedSession = updatedProfile.activeSessions.find(s => s.sessionId === currentSessionId);
+            if (matchedSession && matchedSession.status === 'terminated') {
+              const reason = updatedProfile.enforceSingleDeviceLogin ? 'single_device_conflict' : 'admin_logout';
+              setRemoteLogoutNotice({ isOpen: true, reason });
+              logout();
+              return;
+            }
+          }
+
+          // Keep active session in sync with profile edits
+          setSession(prev => {
+            if (!prev || JSON.stringify(prev.profile) === JSON.stringify(updatedProfile)) {
+              return prev;
+            }
+            return { ...prev, profile: updatedProfile };
+          });
         } else {
           // PROFILE WAS DELETED FROM DATABASE!
-          // Immediately perform simultaneous logout and display notice!
           console.warn(`Profile ${profileId} no longer exists in Firestore. Triggering simultaneous logout.`);
           setDeletedAccountNotice(true);
           logout();
         }
       }
     }
-  }, [authDatabase.profiles]);
+  }, [authDatabase.profiles, session?.sessionId, session?.deviceId]);
 
   // Save session to storage
   const persistSession = (newSession: AuthSession | null, rememberMe: boolean = true) => {
@@ -242,89 +290,113 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Client Login: Authenticates directly against the live Firebase Firestore Database
+   * Client Login: Authenticates and registers device session in Firestore
    */
   const loginClient = async (email: string, password: string, rememberMe: boolean = true): Promise<LoginResult> => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
+    const currentDeviceRaw = detectCurrentDevice();
 
     try {
       const firestoreResult = await authenticateWithFirestore(cleanEmail, cleanPassword);
-      if (firestoreResult.success && firestoreResult.profile) {
+      let targetProfile = firestoreResult.profile;
+
+      if (!targetProfile) {
+        targetProfile = authDatabase.profiles.find(
+          p => p.email.toLowerCase() === cleanEmail && p.password === cleanPassword
+        );
+      }
+
+      if (targetProfile) {
+        if (targetProfile.status === 'inactive') {
+          setInactiveProfileDetails(targetProfile);
+          setInactiveModalOpen(true);
+          return {
+            success: false,
+            status: 'inactive',
+            error: 'Your account is currently inactive. Please contact support.',
+            profile: targetProfile
+          };
+        }
+
+        // Check if device is banned
+        if (targetProfile.bannedDevices && targetProfile.bannedDevices.includes(currentDeviceRaw.deviceId)) {
+          return {
+            success: false,
+            status: 'invalid',
+            error: 'Access Denied: This device has been restricted/banned from accessing this account by your administrator.'
+          };
+        }
+
+        // Prepare new Device Session
+        const newDeviceSession: ClientDeviceSession = {
+          ...currentDeviceRaw,
+          loginAt: new Date().toISOString(),
+          lastActiveAt: new Date().toISOString(),
+          status: 'active',
+          isCurrentDevice: true
+        };
+
+        // Handle single device enforcement: terminate prior sessions if enabled
+        let updatedSessions: ClientDeviceSession[] = Array.isArray(targetProfile.activeSessions) 
+          ? [...targetProfile.activeSessions] 
+          : [];
+
+        if (targetProfile.enforceSingleDeviceLogin) {
+          updatedSessions = updatedSessions.map(s => ({
+            ...s,
+            status: 'terminated' as const
+          }));
+        }
+
+        // Append new session (limit history to last 15)
+        updatedSessions = [newDeviceSession, ...updatedSessions.filter(s => s.sessionId !== newDeviceSession.sessionId)].slice(0, 15);
+
+        const updatedProfile: ClientProfile = {
+          ...targetProfile,
+          isCurrentlyLoggedIn: true,
+          lastActiveAt: new Date().toISOString(),
+          lastActiveDevice: newDeviceSession.deviceName,
+          activeSessions: updatedSessions
+        };
+
+        // Create AuthSession
         const newSession: AuthSession = {
           userType: 'client',
-          profile: firestoreResult.profile,
-          token: `firebase_token_${firestoreResult.profile.profileId}_${Date.now()}`,
+          profile: updatedProfile,
+          sessionId: newDeviceSession.sessionId,
+          deviceId: newDeviceSession.deviceId,
+          token: `firebase_token_${updatedProfile.profileId}_${Date.now()}`,
           loginTime: new Date().toISOString(),
           rememberMe
         };
+
         persistSession(newSession, rememberMe);
         setAuthView('app');
-        return { success: true, status: 'active', profile: firestoreResult.profile };
-      } else if (firestoreResult.status === 'inactive' && firestoreResult.profile) {
-        setInactiveProfileDetails(firestoreResult.profile);
-        setInactiveModalOpen(true);
-        return {
-          success: false,
-          status: 'inactive',
-          error: firestoreResult.error || 'Your account is currently inactive. Please contact support.',
-          profile: firestoreResult.profile
-        };
-      } else if (firestoreResult.error) {
-        return {
-          success: false,
-          status: 'invalid',
-          error: firestoreResult.error
-        };
+
+        // Save updated sessions and online status to Firestore
+        await saveProfileToFirestore(updatedProfile);
+
+        return { success: true, status: 'active', profile: updatedProfile };
       }
-    } catch (firebaseErr) {
-      console.warn('Direct Firestore authentication exception:', firebaseErr);
-    }
 
-    // Check local snapshot as fallback
-    const matchedProfile = authDatabase.profiles.find(
-      p => p.email.toLowerCase() === cleanEmail && p.password === cleanPassword
-    );
-
-    if (!matchedProfile) {
+      // Check wrong password vs email not found
       const emailExists = authDatabase.profiles.some(p => p.email.toLowerCase() === cleanEmail);
-      if (emailExists) {
-        return {
-          success: false,
-          status: 'invalid',
-          error: 'Incorrect password for this account. Please verify case-sensitivity.'
-        };
-      }
-
       return {
         success: false,
         status: 'invalid',
-        error: 'No registered client profile found in Firebase database for this email address.'
+        error: emailExists 
+          ? 'Incorrect password for this account. Please verify case-sensitivity.'
+          : 'No registered client profile found for this email address.'
       };
-    }
-
-    if (matchedProfile.status === 'inactive') {
-      setInactiveProfileDetails(matchedProfile);
-      setInactiveModalOpen(true);
+    } catch (firebaseErr) {
+      console.warn('Direct Firestore authentication exception:', firebaseErr);
       return {
         success: false,
-        status: 'inactive',
-        error: 'Your account is currently inactive. Please contact support.',
-        profile: matchedProfile
+        status: 'invalid',
+        error: 'Authentication connection error. Please try again.'
       };
     }
-
-    const newSession: AuthSession = {
-      userType: 'client',
-      profile: matchedProfile,
-      token: `token_${matchedProfile.profileId}_${Date.now()}`,
-      loginTime: new Date().toISOString(),
-      rememberMe
-    };
-
-    persistSession(newSession, rememberMe);
-    setAuthView('app');
-    return { success: true, status: 'active', profile: matchedProfile };
   };
 
   const loginAdmin = async (email: string, password: string, rememberMe: boolean = true): Promise<{ success: boolean; error?: string }> => {
@@ -355,8 +427,157 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    // If currently logged in client, mark logged out in state
+    if (session && session.userType === 'client' && session.profile) {
+      const pId = session.profile.profileId;
+      const target = authDatabase.profiles.find(p => p.profileId === pId);
+      if (target) {
+        const updated = {
+          ...target,
+          isCurrentlyLoggedIn: false,
+          activeSessions: Array.isArray(target.activeSessions)
+            ? target.activeSessions.map(s => s.sessionId === session.sessionId ? { ...s, status: 'terminated' as const } : s)
+            : []
+        };
+        saveProfileToFirestore(updated).catch(() => {});
+      }
+    }
+
     persistSession(null);
     setAuthView('client_login');
+  };
+
+  /**
+   * Remote Logout Client from Admin Console: Immediately terminates client sessions across all devices
+   */
+  const logoutClientFromAdmin = async (profileId: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const updatedProfile: ClientProfile = {
+      ...target,
+      isCurrentlyLoggedIn: false,
+      activeSessions: Array.isArray(target.activeSessions)
+        ? target.activeSessions.map(s => ({ ...s, status: 'terminated' as const }))
+        : []
+    };
+
+    setAuthDatabase(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => p.profileId === profileId ? updatedProfile : p),
+      lastUpdated: new Date().toISOString()
+    }));
+
+    await saveProfileToFirestore(updatedProfile);
+    return true;
+  };
+
+  /**
+   * Terminate a specific device session
+   */
+  const terminateDeviceSession = async (profileId: string, sessionId: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const updatedSessions = Array.isArray(target.activeSessions)
+      ? target.activeSessions.map(s => s.sessionId === sessionId ? { ...s, status: 'terminated' as const } : s)
+      : [];
+
+    const hasRemainingActive = updatedSessions.some(s => s.status === 'active');
+
+    const updatedProfile: ClientProfile = {
+      ...target,
+      isCurrentlyLoggedIn: hasRemainingActive,
+      activeSessions: updatedSessions
+    };
+
+    setAuthDatabase(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => p.profileId === profileId ? updatedProfile : p),
+      lastUpdated: new Date().toISOString()
+    }));
+
+    await saveProfileToFirestore(updatedProfile);
+    return true;
+  };
+
+  /**
+   * Ban or Unban a specific Device ID from this client profile
+   */
+  const toggleBanDevice = async (profileId: string, deviceId: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const currentBanned = Array.isArray(target.bannedDevices) ? [...target.bannedDevices] : [];
+    const isAlreadyBanned = currentBanned.includes(deviceId);
+
+    const nextBanned = isAlreadyBanned
+      ? currentBanned.filter(d => d !== deviceId)
+      : [...currentBanned, deviceId];
+
+    // Terminate any sessions associated with this device if banning
+    const updatedSessions = Array.isArray(target.activeSessions)
+      ? target.activeSessions.map(s => s.deviceId === deviceId ? { ...s, status: 'terminated' as const } : s)
+      : [];
+
+    const hasRemainingActive = updatedSessions.some(s => s.status === 'active');
+
+    const updatedProfile: ClientProfile = {
+      ...target,
+      bannedDevices: nextBanned,
+      isCurrentlyLoggedIn: hasRemainingActive,
+      activeSessions: updatedSessions
+    };
+
+    setAuthDatabase(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => p.profileId === profileId ? updatedProfile : p),
+      lastUpdated: new Date().toISOString()
+    }));
+
+    await saveProfileToFirestore(updatedProfile);
+    return true;
+  };
+
+  /**
+   * Toggle Enforce Single Device Login Mode
+   */
+  const toggleEnforceSingleDevice = async (profileId: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const nextEnforce = !target.enforceSingleDeviceLogin;
+
+    // If enabling single-device and there are multiple active sessions, keep only the latest active one
+    let updatedSessions = Array.isArray(target.activeSessions) ? [...target.activeSessions] : [];
+    if (nextEnforce && updatedSessions.length > 0) {
+      let foundFirstActive = false;
+      updatedSessions = updatedSessions.map(s => {
+        if (s.status === 'active') {
+          if (!foundFirstActive) {
+            foundFirstActive = true;
+            return s;
+          }
+          return { ...s, status: 'terminated' as const };
+        }
+        return s;
+      });
+    }
+
+    const updatedProfile: ClientProfile = {
+      ...target,
+      enforceSingleDeviceLogin: nextEnforce,
+      activeSessions: updatedSessions
+    };
+
+    setAuthDatabase(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => p.profileId === profileId ? updatedProfile : p),
+      lastUpdated: new Date().toISOString()
+    }));
+
+    await saveProfileToFirestore(updatedProfile);
+    return true;
   };
 
   const impersonateClient = (profileId: string) => {
@@ -402,6 +623,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: today,
       status: profileData.status || 'active',
       plan: profileData.plan || 'Premium',
+      isCurrentlyLoggedIn: false,
+      enforceSingleDeviceLogin: profileData.enforceSingleDeviceLogin ?? true,
+      activeSessions: [],
+      bannedDevices: [],
       permissions: profileData.permissions || {
         isTrialMode: false,
         trialTierName: profileData.plan ? `${profileData.plan} Tier` : 'Standard',
@@ -707,6 +932,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         impersonateClient,
         returnToAdmin,
         refreshServerDatabase,
+        logoutClientFromAdmin,
+        terminateDeviceSession,
+        toggleBanDevice,
+        toggleEnforceSingleDevice,
+        remoteLogoutNotice,
+        setRemoteLogoutNotice,
         createClientProfile,
         updateClientProfile,
         toggleProfileStatus,
@@ -742,3 +973,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
