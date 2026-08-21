@@ -52,84 +52,82 @@ export interface ScreenSectionPermissions {
     petSummaryTable?: boolean;
     revenueMiniChart?: boolean;
     vaccineAlertsCard?: boolean;
+    [key: string]: boolean | undefined;
   };
   calendar?: {
-    viewControls?: boolean;
-    addBookingBtn?: boolean;
-    calendarGrid?: boolean;
-    groomerFilters?: boolean;
-    appointmentModal?: boolean;
+    viewModeToggle?: boolean;
+    staffFilter?: boolean;
+    printSchedule?: boolean;
+    appointmentGrid?: boolean;
+    [key: string]: boolean | undefined;
   };
   invoices?: {
-    summaryKpis?: boolean;
-    searchFilters?: boolean;
-    createInvoiceBtn?: boolean;
-    invoicesTable?: boolean;
-    qrPaymentModal?: boolean;
-    pdfExportAction?: boolean;
+    summaryCards?: boolean;
+    searchAndFilters?: boolean;
+    invoiceTable?: boolean;
+    exportButtons?: boolean;
+    actionButtons?: boolean;
+    [key: string]: boolean | undefined;
   };
   clients?: {
-    metricsBar?: boolean;
-    searchFilterBar?: boolean;
-    addClientBtn?: boolean;
-    clientCardsList?: boolean;
-    medicalHistory?: boolean;
-    whatsappReminders?: boolean;
+    searchAndFilters?: boolean;
+    clientsList?: boolean;
+    addClientButton?: boolean;
+    [key: string]: boolean | undefined;
   };
   services?: {
-    categoryTabs?: boolean;
-    servicesCatalog?: boolean;
-    pricingTable?: boolean;
-    addServiceBtn?: boolean;
-    packageAddons?: boolean;
+    servicesGrid?: boolean;
+    packagesSection?: boolean;
+    addServiceButton?: boolean;
+    [key: string]: boolean | undefined;
   };
   staff?: {
-    staffSummaryKpis?: boolean;
-    addStaffBtn?: boolean;
-    staffRoster?: boolean;
-    commissionCalculator?: boolean;
-    skillsCapacity?: boolean;
+    staffList?: boolean;
+    addStaffButton?: boolean;
+    scheduleEditor?: boolean;
+    performanceMetrics?: boolean;
+    [key: string]: boolean | undefined;
   };
   loyalty?: {
-    loyaltyKpis?: boolean;
-    tierStructure?: boolean;
-    pointsRules?: boolean;
-    clientBalances?: boolean;
-    redeemVoucher?: boolean;
+    statsOverview?: boolean;
+    rulesConfig?: boolean;
+    tierManagement?: boolean;
+    redemptionsHistory?: boolean;
+    [key: string]: boolean | undefined;
   };
   alerts?: {
-    criticalSummary?: boolean;
-    alertFilterTabs?: boolean;
-    alertsList?: boolean;
-    whatsappNotice?: boolean;
-    certificateUpload?: boolean;
+    vaccineAlerts?: boolean;
+    automatedTriggers?: boolean;
+    notificationComposer?: boolean;
+    [key: string]: boolean | undefined;
   };
   revenue?: {
-    financialKpis?: boolean;
-    revenueTrends?: boolean;
-    serviceBreakdown?: boolean;
-    paymentMethods?: boolean;
-    exportCsv?: boolean;
+    financialOverview?: boolean;
+    profitReports?: boolean;
+    exportAccounting?: boolean;
+    [key: string]: boolean | undefined;
   };
   business?: {
-    retailKpis?: boolean;
-    productCatalog?: boolean;
-    addProductBtn?: boolean;
-    activityStream?: boolean;
+    inventory?: boolean;
+    giftCards?: boolean;
+    expenses?: boolean;
+    waitlist?: boolean;
+    [key: string]: boolean | undefined;
   };
   gallery?: {
     transformationsGrid?: boolean;
     uploadPhotoBtn?: boolean;
     categoryFilters?: boolean;
     portfolioShare?: boolean;
+    [key: string]: boolean | undefined;
   };
   settings?: {
-    studioProfile?: boolean;
-    operatingHours?: boolean;
-    taxAndCurrency?: boolean;
-    colorThemes?: boolean;
-    backupExport?: boolean;
+    generalInfo?: boolean;
+    colorTheme?: boolean;
+    backupRestore?: boolean;
+    [key: string]: boolean | undefined;
   };
+  [key: string]: Record<string, boolean | undefined> | undefined;
 }
 
 export interface FeaturePermissions {
