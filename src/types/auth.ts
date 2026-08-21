@@ -16,6 +16,18 @@ export interface ClientDeviceSession {
   status: 'active' | 'terminated' | 'banned';
 }
 
+export interface BannedDeviceRecord {
+  deviceId: string;
+  deviceName?: string;
+  bannedAt: string; // ISO string
+  reason?: string;
+  bannedBy?: string;
+  os?: string;
+  browser?: string;
+  ipAddress?: string;
+  location?: string;
+}
+
 export interface ScreenPermissions {
   dashboard?: boolean;
   calendar?: boolean;
@@ -72,6 +84,7 @@ export interface ClientProfile {
   enforceSingleDeviceLogin?: boolean; // When true, only 1 device can stay active at a time
   activeSessions?: ClientDeviceSession[]; // List of registered / active device sessions
   bannedDevices?: string[]; // List of banned device IDs for this profile
+  bannedDeviceRecords?: BannedDeviceRecord[]; // Rich metadata list of banned devices for this profile
 
   permissions?: ClientPermissions; // Feature & Screen granular permissions for demo & trials
   customSettings?: {

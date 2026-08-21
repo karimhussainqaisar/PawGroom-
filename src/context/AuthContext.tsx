@@ -9,7 +9,8 @@ import {
   AdminNotification,
   NotificationType,
   NotificationPriority,
-  ClientDeviceSession
+  ClientDeviceSession,
+  BannedDeviceRecord
 } from '../types/auth';
 import { 
   loadAuthDatabase, 
@@ -68,8 +69,11 @@ interface AuthContextType {
   // Device & Remote Session Management from Admin
   logoutClientFromAdmin: (profileId: string) => Promise<boolean>;
   terminateDeviceSession: (profileId: string, sessionId: string) => Promise<boolean>;
-  toggleBanDevice: (profileId: string, deviceId: string) => Promise<boolean>;
+  banDevice: (profileId: string, deviceId: string, reason?: string, deviceInfo?: Partial<ClientDeviceSession>) => Promise<boolean>;
+  unbanDevice: (profileId: string, deviceId: string) => Promise<boolean>;
+  toggleBanDevice: (profileId: string, deviceId: string, reason?: string) => Promise<boolean>;
   toggleEnforceSingleDevice: (profileId: string) => Promise<boolean>;
+  updateSessionActivity: () => Promise<void>;
   
   // Remote Logout Notice State
   remoteLogoutNotice: { isOpen: boolean; reason: 'admin_logout' | 'single_device_conflict' | 'device_banned' };
@@ -221,6 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedProfile = authDatabase.profiles.find(p => p.profileId === profileId);
         
         if (updatedProfile) {
+          // 1. Account Suspended / Inactive
           if (updatedProfile.status === 'inactive') {
             setInactiveProfileDetails(updatedProfile);
             setInactiveModalOpen(true);
@@ -228,23 +233,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          // Check if current device is banned
-          const isBanned = updatedProfile.bannedDevices && updatedProfile.bannedDevices.includes(currentDeviceId);
+          // 2. Check if current device ID is banned
+          const isBanned = (
+            (Array.isArray(updatedProfile.bannedDevices) && updatedProfile.bannedDevices.some(d => d.toLowerCase() === currentDeviceId.toLowerCase())) ||
+            (Array.isArray(updatedProfile.bannedDeviceRecords) && updatedProfile.bannedDeviceRecords.some(r => r.deviceId.toLowerCase() === currentDeviceId.toLowerCase()))
+          );
+
           if (isBanned) {
             setRemoteLogoutNotice({ isOpen: true, reason: 'device_banned' });
             logout();
             return;
           }
 
-          // Check if admin logged out this profile or terminated this session
-          if (updatedProfile.isCurrentlyLoggedIn === false && session.token && !session.token.startsWith('impersonate_')) {
-            setRemoteLogoutNotice({ isOpen: true, reason: 'admin_logout' });
-            logout();
-            return;
-          }
-
-          // Check if this specific session was terminated (e.g., single device conflict or admin terminated)
-          if (currentSessionId && updatedProfile.activeSessions) {
+          // 3. Check if this specific session was terminated (e.g. Remote Admin Logout, single-device conflict, or session termination)
+          if (currentSessionId && Array.isArray(updatedProfile.activeSessions)) {
             const matchedSession = updatedProfile.activeSessions.find(s => s.sessionId === currentSessionId);
             if (matchedSession && matchedSession.status === 'terminated') {
               const reason = updatedProfile.enforceSingleDeviceLogin ? 'single_device_conflict' : 'admin_logout';
@@ -254,7 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          // Keep active session in sync with profile edits
+          // 4. Keep active session profile in sync with profile edits
           setSession(prev => {
             if (!prev || JSON.stringify(prev.profile) === JSON.stringify(updatedProfile)) {
               return prev;
@@ -320,11 +322,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // Check if device is banned
-        if (targetProfile.bannedDevices && targetProfile.bannedDevices.includes(currentDeviceRaw.deviceId)) {
+        const isDeviceBanned = (
+          (Array.isArray(targetProfile.bannedDevices) && targetProfile.bannedDevices.some(d => d.toLowerCase() === currentDeviceRaw.deviceId.toLowerCase())) ||
+          (Array.isArray(targetProfile.bannedDeviceRecords) && targetProfile.bannedDeviceRecords.some(r => r.deviceId.toLowerCase() === currentDeviceRaw.deviceId.toLowerCase()))
+        );
+
+        if (isDeviceBanned) {
+          const banRecord = targetProfile.bannedDeviceRecords?.find(r => r.deviceId.toLowerCase() === currentDeviceRaw.deviceId.toLowerCase());
+          const reasonNotice = banRecord?.reason ? ` Reason: ${banRecord.reason}.` : '';
           return {
             success: false,
             status: 'invalid',
-            error: 'Access Denied: This device has been restricted/banned from accessing this account by your administrator.'
+            error: `Access Denied: This device (ID: ${currentDeviceRaw.deviceId}) is restricted/banned from this account.${reasonNotice} Contact your salon administrator to unban this device.`
           };
         }
 
@@ -349,8 +358,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }));
         }
 
-        // Append new session (limit history to last 15)
-        updatedSessions = [newDeviceSession, ...updatedSessions.filter(s => s.sessionId !== newDeviceSession.sessionId)].slice(0, 15);
+        // Append new session (keep active on top, limit history to last 20)
+        updatedSessions = [newDeviceSession, ...updatedSessions.filter(s => s.sessionId !== newDeviceSession.sessionId)].slice(0, 20);
 
         const updatedProfile: ClientProfile = {
           ...targetProfile,
@@ -502,22 +511,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Ban or Unban a specific Device ID from this client profile
+   * Ban a specific Device ID from this client profile with optional reason and metadata
    */
-  const toggleBanDevice = async (profileId: string, deviceId: string): Promise<boolean> => {
+  const banDevice = async (
+    profileId: string, 
+    deviceId: string, 
+    reason?: string,
+    deviceInfo?: Partial<ClientDeviceSession>
+  ): Promise<boolean> => {
     const target = authDatabase.profiles.find(p => p.profileId === profileId);
     if (!target) return false;
 
+    const cleanDeviceId = deviceId.trim();
+    if (!cleanDeviceId) return false;
+
     const currentBanned = Array.isArray(target.bannedDevices) ? [...target.bannedDevices] : [];
-    const isAlreadyBanned = currentBanned.includes(deviceId);
+    const nextBanned = currentBanned.some(d => d.toLowerCase() === cleanDeviceId.toLowerCase())
+      ? currentBanned
+      : [...currentBanned, cleanDeviceId];
 
-    const nextBanned = isAlreadyBanned
-      ? currentBanned.filter(d => d !== deviceId)
-      : [...currentBanned, deviceId];
+    // Find existing session info if available to populate record details
+    const matchedSession = target.activeSessions?.find(s => s.deviceId.toLowerCase() === cleanDeviceId.toLowerCase());
 
-    // Terminate any sessions associated with this device if banning
+    const existingRecords = Array.isArray(target.bannedDeviceRecords) ? [...target.bannedDeviceRecords] : [];
+    const newRecord: BannedDeviceRecord = {
+      deviceId: cleanDeviceId,
+      deviceName: deviceInfo?.deviceName || matchedSession?.deviceName || `Device (${cleanDeviceId.slice(-6)})`,
+      bannedAt: new Date().toISOString(),
+      reason: reason?.trim() || 'Banned by salon administrator',
+      bannedBy: authDatabase.admin?.email || 'Administrator',
+      os: deviceInfo?.os || matchedSession?.os,
+      browser: deviceInfo?.browser || matchedSession?.browser,
+      ipAddress: deviceInfo?.ipAddress || matchedSession?.ipAddress || '192.168.1.1',
+      location: deviceInfo?.location || matchedSession?.location
+    };
+
+    const nextRecords = [
+      newRecord,
+      ...existingRecords.filter(r => r.deviceId.toLowerCase() !== cleanDeviceId.toLowerCase())
+    ];
+
+    // Terminate any active sessions associated with this device
     const updatedSessions = Array.isArray(target.activeSessions)
-      ? target.activeSessions.map(s => s.deviceId === deviceId ? { ...s, status: 'terminated' as const } : s)
+      ? target.activeSessions.map(s => s.deviceId.toLowerCase() === cleanDeviceId.toLowerCase() ? { ...s, status: 'terminated' as const } : s)
       : [];
 
     const hasRemainingActive = updatedSessions.some(s => s.status === 'active');
@@ -525,6 +561,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedProfile: ClientProfile = {
       ...target,
       bannedDevices: nextBanned,
+      bannedDeviceRecords: nextRecords,
       isCurrentlyLoggedIn: hasRemainingActive,
       activeSessions: updatedSessions
     };
@@ -537,6 +574,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     await saveProfileToFirestore(updatedProfile);
     return true;
+  };
+
+  /**
+   * Unban a specific Device ID from this client profile
+   */
+  const unbanDevice = async (profileId: string, deviceId: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const cleanDeviceId = deviceId.trim();
+    const currentBanned = Array.isArray(target.bannedDevices) ? [...target.bannedDevices] : [];
+    const nextBanned = currentBanned.filter(d => d.toLowerCase() !== cleanDeviceId.toLowerCase());
+
+    const currentRecords = Array.isArray(target.bannedDeviceRecords) ? [...target.bannedDeviceRecords] : [];
+    const nextRecords = currentRecords.filter(r => r.deviceId.toLowerCase() !== cleanDeviceId.toLowerCase());
+
+    const updatedProfile: ClientProfile = {
+      ...target,
+      bannedDevices: nextBanned,
+      bannedDeviceRecords: nextRecords
+    };
+
+    setAuthDatabase(prev => ({
+      ...prev,
+      profiles: prev.profiles.map(p => p.profileId === profileId ? updatedProfile : p),
+      lastUpdated: new Date().toISOString()
+    }));
+
+    await saveProfileToFirestore(updatedProfile);
+    return true;
+  };
+
+  /**
+   * Ban or Unban a specific Device ID from this client profile
+   */
+  const toggleBanDevice = async (profileId: string, deviceId: string, reason?: string): Promise<boolean> => {
+    const target = authDatabase.profiles.find(p => p.profileId === profileId);
+    if (!target) return false;
+
+    const cleanDeviceId = deviceId.trim();
+    const isAlreadyBanned = (
+      (Array.isArray(target.bannedDevices) && target.bannedDevices.some(d => d.toLowerCase() === cleanDeviceId.toLowerCase())) ||
+      (Array.isArray(target.bannedDeviceRecords) && target.bannedDeviceRecords.some(r => r.deviceId.toLowerCase() === cleanDeviceId.toLowerCase()))
+    );
+
+    if (isAlreadyBanned) {
+      return unbanDevice(profileId, cleanDeviceId);
+    } else {
+      return banDevice(profileId, cleanDeviceId, reason);
+    }
+  };
+
+  /**
+   * Update active heartbeat for current client session
+   */
+  const updateSessionActivity = async (): Promise<void> => {
+    if (session && session.userType === 'client' && session.profile && session.sessionId) {
+      const pId = session.profile.profileId;
+      const currentSessId = session.sessionId;
+      const target = authDatabase.profiles.find(p => p.profileId === pId);
+      if (target && Array.isArray(target.activeSessions)) {
+        const now = new Date().toISOString();
+        const updatedSessions = target.activeSessions.map(s =>
+          s.sessionId === currentSessId ? { ...s, lastActiveAt: now, status: 'active' as const } : s
+        );
+        const updatedProfile: ClientProfile = {
+          ...target,
+          isCurrentlyLoggedIn: true,
+          lastActiveAt: now,
+          activeSessions: updatedSessions
+        };
+        setAuthDatabase(prev => ({
+          ...prev,
+          profiles: prev.profiles.map(p => p.profileId === pId ? updatedProfile : p),
+          lastUpdated: now
+        }));
+        await saveProfileToFirestore(updatedProfile);
+      }
+    }
   };
 
   /**
@@ -934,8 +1050,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshServerDatabase,
         logoutClientFromAdmin,
         terminateDeviceSession,
+        banDevice,
+        unbanDevice,
         toggleBanDevice,
         toggleEnforceSingleDevice,
+        updateSessionActivity,
         remoteLogoutNotice,
         setRemoteLogoutNotice,
         createClientProfile,
