@@ -35,6 +35,7 @@ import {
 } from '../lib/firebase';
 import { 
   FULL_ACCESS_SCREENS, 
+  FULL_ACCESS_SECTIONS,
   FULL_ACCESS_FEATURES 
 } from '../data/permissionPresets';
 import { detectCurrentDevice, getOrCreateDeviceId } from '../utils/deviceDetector';
@@ -799,6 +800,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ...(existing.permissions?.screens || {}),
               ...(updates.permissions.screens || {})
             },
+            sections: updates.permissions.sections !== undefined 
+              ? updates.permissions.sections 
+              : (existing.permissions?.sections || { ...FULL_ACCESS_SECTIONS }),
             features: {
               ...FULL_ACCESS_FEATURES,
               ...(existing.permissions?.features || {}),
