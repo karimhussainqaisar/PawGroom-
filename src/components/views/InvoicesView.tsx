@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { 
   Receipt, 
   Search, 
@@ -48,6 +50,13 @@ export const InvoicesView: React.FC = () => {
     showToast, 
     formatPrice 
   } = useApp();
+  const { currentProfile } = useAuth();
+
+  const showSummaryCards = isSectionAllowed(currentProfile?.permissions, 'invoices', 'summaryCards');
+  const showSearchAndFilters = isSectionAllowed(currentProfile?.permissions, 'invoices', 'searchAndFilters');
+  const showInvoiceTable = isSectionAllowed(currentProfile?.permissions, 'invoices', 'invoiceTable');
+  const showExportButtons = isSectionAllowed(currentProfile?.permissions, 'invoices', 'exportButtons');
+  const showActionButtons = isSectionAllowed(currentProfile?.permissions, 'invoices', 'actionButtons');
 
   // Filter & Search State
   const [search, setSearch] = useState('');
@@ -361,23 +370,27 @@ export const InvoicesView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-          <button
-            onClick={() => setReportModalOpen(true)}
-            className="flex-1 sm:flex-initial px-3.5 py-2 bg-white hover:bg-[#FAF8F5] text-theme-primary border border-theme-primary/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-            title="Open Executive Reports & Graphs"
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Executive Reports</span>
-          </button>
+          {showExportButtons && (
+            <>
+              <button
+                onClick={() => setReportModalOpen(true)}
+                className="flex-1 sm:flex-initial px-3.5 py-2 bg-white hover:bg-[#FAF8F5] text-theme-primary border border-theme-primary/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                title="Open Executive Reports & Graphs"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Executive Reports</span>
+              </button>
 
-          <button
-            onClick={handleExportCSV}
-            className="flex-1 sm:flex-initial px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#F0ECE1] text-[#240C0B] border border-[#D8D3C4] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
-            title="Download formatted CSV ledger of filtered invoices"
-          >
-            <Download className="w-3.5 h-3.5 text-[#5C716C]" />
-            <span>Export CSV</span>
-          </button>
+              <button
+                onClick={handleExportCSV}
+                className="flex-1 sm:flex-initial px-3.5 py-2 bg-[#FAF8F5] hover:bg-[#F0ECE1] text-[#240C0B] border border-[#D8D3C4] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                title="Download formatted CSV ledger of filtered invoices"
+              >
+                <Download className="w-3.5 h-3.5 text-[#5C716C]" />
+                <span>Export CSV</span>
+              </button>
+            </>
+          )}
 
           <button
             onClick={() => openModal('appointmentForm')}
@@ -390,79 +403,82 @@ export const InvoicesView: React.FC = () => {
       </div>
 
       {/* 2. Premium Minimalist KPI Metric Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Metric 1: Total Invoiced */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
-            <span>Total Invoiced</span>
-            <Receipt className="w-3.5 h-3.5 text-[#240C0B]" />
+      {showSummaryCards && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+          {/* Metric 1: Total Invoiced */}
+          <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+              <span>Total Invoiced</span>
+              <Receipt className="w-3.5 h-3.5 text-[#240C0B]" />
+            </div>
+            <div className="mt-1.5 flex items-baseline gap-2">
+              <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
+                {formatPrice(stats.totalInvoiced)}
+              </span>
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
+              Across {stats.totalCount} bookings
+            </div>
           </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
-              {formatPrice(stats.totalInvoiced)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
-            Across {stats.totalCount} bookings
-          </div>
-        </div>
 
-        {/* Metric 2: Settled & Paid */}
-        <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-3 sm:p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#166534] uppercase tracking-wider">
-            <span>Settled & Paid</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
+          {/* Metric 2: Settled & Paid */}
+          <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-3 sm:p-4 rounded-2xl">
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#166534] uppercase tracking-wider">
+              <span>Settled & Paid</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
+            </div>
+            <div className="mt-1.5 flex items-baseline gap-1.5 sm:gap-2">
+              <span className="font-display font-black text-xl sm:text-2xl text-[#166534]">
+                {formatPrice(stats.totalPaid)}
+              </span>
+              <span className="text-[9px] sm:text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1 sm:px-1.5 py-0.5 rounded-md">
+                {stats.paidRate}%
+              </span>
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#15803d]/80 mt-0.5">
+              {stats.paidCount} paid invoices
+            </div>
           </div>
-          <div className="mt-1.5 flex items-baseline gap-1.5 sm:gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#166534]">
-              {formatPrice(stats.totalPaid)}
-            </span>
-            <span className="text-[9px] sm:text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1 sm:px-1.5 py-0.5 rounded-md">
-              {stats.paidRate}%
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#15803d]/80 mt-0.5">
-            {stats.paidCount} paid invoices
-          </div>
-        </div>
 
-        {/* Metric 3: Payment Due */}
-        <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-3 sm:p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
-            <span>Payment Due</span>
-            <Clock className="w-3.5 h-3.5 text-[#D97706]" />
+          {/* Metric 3: Payment Due */}
+          <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-3 sm:p-4 rounded-2xl">
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
+              <span>Payment Due</span>
+              <Clock className="w-3.5 h-3.5 text-[#D97706]" />
+            </div>
+            <div className="mt-1.5 flex items-baseline gap-2">
+              <span className="font-display font-black text-xl sm:text-2xl text-[#92400E]">
+                {formatPrice(stats.totalPending)}
+              </span>
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#B45309]/80 mt-0.5">
+              {stats.pendingCount} pending payment
+            </div>
           </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#92400E]">
-              {formatPrice(stats.totalPending)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#B45309]/80 mt-0.5">
-            {stats.pendingCount} pending payment
-          </div>
-        </div>
 
-        {/* Metric 4: Average Invoice */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
-            <span>Avg Invoice</span>
-            <TrendingUp className="w-3.5 h-3.5 text-[#2E8A81]" />
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
-              {formatPrice(stats.avgInvoice)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
-            Per grooming session
+          {/* Metric 4: Average Invoice */}
+          <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3 sm:p-4 rounded-2xl">
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+              <span>Avg Invoice</span>
+              <TrendingUp className="w-3.5 h-3.5 text-[#2E8A81]" />
+            </div>
+            <div className="mt-1.5 flex items-baseline gap-2">
+              <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
+                {formatPrice(stats.avgInvoice)}
+              </span>
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
+              Per grooming session
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Comprehensive Search & Multi-Filter Control Hub */}
-      <div className="bg-white border border-[#E6DFD5] p-3.5 sm:p-5 rounded-3xl space-y-3.5 sm:space-y-4 shadow-xs">
-        {/* Row 1: Search Input + Status Pills + View Mode */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      {showSearchAndFilters && (
+        <div className="bg-white border border-[#E6DFD5] rounded-3xl p-4 sm:p-5 space-y-4 shadow-xs">
+          {/* Row 1: Search Input + Status Pills + View Mode */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Universal Search Bar */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A08E8B]" />
@@ -662,34 +678,36 @@ export const InvoicesView: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* 4. Invoices Display: Table View or Card Grid */}
-      {invoiceList.length === 0 ? (
-        /* Empty State */
-        <div className="bg-white border border-[#E6DFD5] rounded-3xl p-12 text-center space-y-4">
-          <div className="w-14 h-14 bg-[#FAF8F5] border border-[#E6DFD5] rounded-2xl flex items-center justify-center mx-auto text-[#A08E8B]">
-            <Receipt className="w-7 h-7" />
+      {showInvoiceTable && (
+        invoiceList.length === 0 ? (
+          /* Empty State */
+          <div className="bg-white border border-[#E6DFD5] rounded-3xl p-12 text-center space-y-4">
+            <div className="w-14 h-14 bg-[#FAF8F5] border border-[#E6DFD5] rounded-2xl flex items-center justify-center mx-auto text-[#A08E8B]">
+              <Receipt className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-display font-bold text-base text-[#240C0B]">
+                No invoices found
+              </h3>
+              <p className="text-xs text-[#7A6865] max-w-sm mx-auto">
+                {hasActiveFilters
+                  ? 'No invoices match your current search query or filter criteria. Try clearing some filters.'
+                  : 'No appointments or invoices have been recorded yet.'}
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="px-4 py-2 bg-[#240C0B] text-white rounded-xl text-xs font-bold hover:bg-[#3D1816] transition-colors cursor-pointer"
+              >
+                Reset All Filters
+              </button>
+            )}
           </div>
-          <div className="space-y-1">
-            <h3 className="font-display font-bold text-base text-[#240C0B]">
-              No invoices found
-            </h3>
-            <p className="text-xs text-[#7A6865] max-w-sm mx-auto">
-              {hasActiveFilters
-                ? 'No invoices match your current search query or filter criteria. Try clearing some filters.'
-                : 'No appointments or invoices have been recorded yet.'}
-            </p>
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 bg-[#240C0B] text-white rounded-xl text-xs font-bold hover:bg-[#3D1816] transition-colors cursor-pointer"
-            >
-              Reset All Filters
-            </button>
-          )}
-        </div>
-      ) : viewMode === 'list' ? (
+        ) : viewMode === 'list' ? (
         /* Dense Minimalist Table View */
         <div className="bg-white border border-[#E6DFD5] rounded-3xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -967,7 +985,7 @@ export const InvoicesView: React.FC = () => {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* 5. QR Code Quick View / Verification Popover Modal */}
       {selectedQRAppt && (

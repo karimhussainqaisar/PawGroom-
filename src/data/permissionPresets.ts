@@ -1,4 +1,4 @@
-import { ClientPermissions, ScreenPermissions, FeaturePermissions, NotificationType, NotificationPriority } from '../types/auth';
+import { ClientPermissions, ScreenPermissions, ScreenSectionPermissions, FeaturePermissions, NotificationType, NotificationPriority } from '../types/auth';
 import { ViewMode } from '../types';
 
 export interface ScreenDefinition {
@@ -74,11 +74,197 @@ export const FULL_ACCESS_FEATURES: FeaturePermissions = {
   allowAiAssistant: true,
 };
 
+export interface SectionDefinition {
+  id: string;
+  screenId: ViewMode;
+  label: string;
+  description: string;
+}
+
+export const ALL_SCREEN_SECTIONS: Record<ViewMode, SectionDefinition[]> = {
+  dashboard: [
+    { id: 'kpiCards', screenId: 'dashboard', label: 'Key Metric Stat Cards', description: 'Total Revenue, Appointments Count, Active Clients, Grooming Rating' },
+    { id: 'quickActions', screenId: 'dashboard', label: 'Quick Action Command Buttons', description: 'New Appointment, Quick Invoice, Add Pet Owner, Send WhatsApp' },
+    { id: 'todaySchedule', screenId: 'dashboard', label: "Today's Appointment Schedule", description: 'Live dog lineup, appointment status toggles, time slots' },
+    { id: 'stationOccupancy', screenId: 'dashboard', label: 'Grooming Station & Staff Load', description: 'Bathing tub, scissoring tables, drying station occupancy monitors' },
+    { id: 'petSummaryTable', screenId: 'dashboard', label: 'Pet Directory & Medical Overview', description: 'Quick search, rabies expiration tags, VIP client markers' },
+    { id: 'revenueMiniChart', screenId: 'dashboard', label: 'Monthly Revenue Matrix Mini-Chart', description: 'Daily earnings histogram with interactive tooltip breakdowns' },
+    { id: 'vaccineAlertsCard', screenId: 'dashboard', label: 'Health & Vaccine Expiry Warning Banner', description: 'Top emergency banner for upcoming rabies/distemper renewals' },
+  ],
+  calendar: [
+    { id: 'viewControls', screenId: 'calendar', label: 'Calendar View Switcher', description: 'Day / Week / Month / Agenda / Groomer multi-column views' },
+    { id: 'addBookingBtn', screenId: 'calendar', label: 'New Booking Action Button', description: 'Primary action to create and schedule grooming sessions' },
+    { id: 'calendarGrid', screenId: 'calendar', label: 'Interactive Booking Grid', description: 'Drag-and-drop slots, time markers, and live bookings' },
+    { id: 'groomerFilters', screenId: 'calendar', label: 'Groomer Staff Filter Bar', description: 'Filter appointments by assigned stylist or assistant' },
+    { id: 'appointmentModal', screenId: 'calendar', label: 'Appointment Details & Reschedule Modal', description: 'Inspect coat notes, add services, cancel or reschedule' },
+  ],
+  invoices: [
+    { id: 'summaryKpis', screenId: 'invoices', label: 'Financial Billing Summary KPIs', description: 'Unpaid balances, Paid total, Average ticket amount' },
+    { id: 'searchFilters', screenId: 'invoices', label: 'Invoice Search & Status Filters', description: 'Filter by paid/pending status, client name, and date range' },
+    { id: 'createInvoiceBtn', screenId: 'invoices', label: 'New Invoice & POS Checkout Button', description: 'Action button to build manual invoice or retail cart' },
+    { id: 'invoicesTable', screenId: 'invoices', label: 'Invoices History & Customer Ledger Table', description: 'Detailed invoice rows, status badges, and payment methods' },
+    { id: 'qrPaymentModal', screenId: 'invoices', label: 'QR Code Instant Payment Modal', description: 'Customer scan-to-pay QR generator for Apple Pay/Google Pay' },
+    { id: 'pdfExportAction', screenId: 'invoices', label: 'PDF Invoice & Print Receipts', description: 'Download branded printable receipts with tax breakdowns' },
+  ],
+  clients: [
+    { id: 'metricsBar', screenId: 'clients', label: 'Client CRM Statistics Bar', description: 'Total pets, VIP accounts, rabies expiring, new clients' },
+    { id: 'searchFilterBar', screenId: 'clients', label: 'Client Search & Breed Filter Bar', description: 'Keyword search across pet names, phone numbers, and breeds' },
+    { id: 'addClientBtn', screenId: 'clients', label: 'Register New Pet Owner Button', description: 'Action to create new client files and pet profiles' },
+    { id: 'clientCardsList', screenId: 'clients', label: 'Client & Pet Directory List', description: 'Expandable client cards, appointment history, VIP status' },
+    { id: 'medicalHistory', screenId: 'clients', label: 'Rabies Expiry & Medical Alerts', description: 'Veterinary certificates, allergies, aggression warning flags' },
+    { id: 'whatsappReminders', screenId: 'clients', label: '1-Click WhatsApp Client Reminder', description: 'Direct chat trigger to send client reminders' },
+  ],
+  services: [
+    { id: 'categoryTabs', screenId: 'services', label: 'Service Category Filter Tabs', description: 'Full Groom, Bath & Tidy, Spa Treatments, Add-ons' },
+    { id: 'servicesCatalog', screenId: 'services', label: 'Services Menu Catalog', description: 'Core grooming packages, descriptions, and duration badges' },
+    { id: 'pricingTable', screenId: 'services', label: 'Breed Size Pricing Matrix', description: 'Small, Medium, Large, Giant tier-based pricing rates' },
+    { id: 'addServiceBtn', screenId: 'services', label: 'Add New Service Action', description: 'Button to introduce custom grooming packages or treatments' },
+    { id: 'packageAddons', screenId: 'services', label: 'Spa Extras & Add-on Products', description: 'Teeth brushing, deshedding, blueberry facials, paw balm' },
+  ],
+  staff: [
+    { id: 'staffSummaryKpis', screenId: 'staff', label: 'Staff Roster & Performance Overview', description: 'Active stylists, top performer, monthly payroll estimates' },
+    { id: 'addStaffBtn', screenId: 'staff', label: 'Onboard New Staff Member Button', description: 'Action button to register groomers and assistants' },
+    { id: 'staffRoster', screenId: 'staff', label: 'Stylist Roster & Profiles Cards', description: 'Groomer specialties, working shifts, and contact details' },
+    { id: 'commissionCalculator', screenId: 'staff', label: 'Groomer Commission & Payroll Calculator', description: 'Automatic commission calculation based on service revenue' },
+    { id: 'skillsCapacity', screenId: 'staff', label: 'Skills & Daily Pet Capacity Manager', description: 'Breed specialties, scissoring mastery, max daily pets' },
+  ],
+  loyalty: [
+    { id: 'loyaltyKpis', screenId: 'loyalty', label: 'VIP Loyalty Program Statistics', description: 'Points in circulation, VIP members, lifetime discount rewards' },
+    { id: 'tierStructure', screenId: 'loyalty', label: 'Membership Tier Definitions', description: 'Bronze, Silver, Gold, VIP Platinum threshold configurations' },
+    { id: 'pointsRules', screenId: 'loyalty', label: 'Point Accumulation & Redeem Rules', description: 'Points per dollar spent, birthday bonuses, reward rules' },
+    { id: 'clientBalances', screenId: 'loyalty', label: 'Client Points Ledger & History', description: 'Client point balances, redemption records, voucher statuses' },
+    { id: 'redeemVoucher', screenId: 'loyalty', label: 'Redeem Points & Issue Voucher Action', description: 'Convert points to salon discounts and grooming vouchers' },
+  ],
+  alerts: [
+    { id: 'criticalSummary', screenId: 'alerts', label: 'Critical Compliance Summary Banner', description: 'Total urgent rabies warnings, overdue pets, health holds' },
+    { id: 'alertFilterTabs', screenId: 'alerts', label: 'Alert Type Filter Tabs', description: 'Filter by Rabies, Health Conditions, Behavioral Caution' },
+    { id: 'alertsList', screenId: 'alerts', label: 'Active Alerts & Pet Directory Table', description: 'Detailed list of pets with expired records or cautions' },
+    { id: 'whatsappNotice', screenId: 'alerts', label: 'Send Automated WhatsApp Warning', description: 'Trigger compliance notification directly to owner' },
+    { id: 'certificateUpload', screenId: 'alerts', label: 'Renew & Verify Vaccine Certificate', description: 'Update rabies expiration dates with vet certificate logs' },
+  ],
+  revenue: [
+    { id: 'financialKpis', screenId: 'revenue', label: 'Financial Summary KPI Strip', description: 'Gross Revenue, Net Income, Tax Collected, Tips Payouts' },
+    { id: 'revenueTrends', screenId: 'revenue', label: 'Interactive Revenue Trend Chart', description: 'Daily, weekly, monthly revenue visualizations' },
+    { id: 'serviceBreakdown', screenId: 'revenue', label: 'Service vs Retail Revenue Share', description: 'Percentage breakdown of grooming cuts vs retail sales' },
+    { id: 'paymentMethods', screenId: 'revenue', label: 'Payment Channel Distribution', description: 'Credit Card, Cash, QR Pay, Bank Transfer proportions' },
+    { id: 'exportCsv', screenId: 'revenue', label: 'Export Financial Audit & Tax CSV', description: 'Download spreadsheet audit reports for bookkeeping' },
+  ],
+  business: [
+    { id: 'retailKpis', screenId: 'business', label: 'Retail Store Inventory Metrics', description: 'Total SKU count, stock valuation, low stock warnings' },
+    { id: 'productCatalog', screenId: 'business', label: 'Retail Pet Products Catalog', description: 'Shampoos, brushes, treats, accessories inventory list' },
+    { id: 'addProductBtn', screenId: 'business', label: 'Add New Retail Product Action', description: 'Create new inventory items, set barcode/price' },
+    { id: 'activityStream', screenId: 'business', label: 'Studio Live Activity & Audit Stream', description: 'Real-time timeline of appointments, payments, and updates' },
+  ],
+  gallery: [
+    { id: 'transformationsGrid', screenId: 'gallery', label: 'Transformations Photo Showcase Grid', description: 'Before & After grooming transformations cards' },
+    { id: 'uploadPhotoBtn', screenId: 'gallery', label: 'Upload Transformation Photos Button', description: 'Attach Before/After dog images and tag groomers' },
+    { id: 'categoryFilters', screenId: 'gallery', label: 'Breed & Styling Category Filters', description: 'Filter gallery by Doodles, Teddy Bears, Deshedding' },
+    { id: 'portfolioShare', screenId: 'gallery', label: 'Social Media Export & Download', description: 'Export transformation photos for Instagram Stories' },
+  ],
+  settings: [
+    { id: 'studioProfile', screenId: 'settings', label: 'Salon Identity & Contact Profile', description: 'Business name, owner, phone, email, address, logo' },
+    { id: 'operatingHours', screenId: 'settings', label: 'Salon Business Hours & Slot Sizing', description: 'Opening/closing times, appointment slot duration' },
+    { id: 'taxAndCurrency', screenId: 'settings', label: 'Tax Rates, Currency & Pricing Defaults', description: 'Currency symbol, sales tax %, invoice numbering' },
+    { id: 'colorThemes', screenId: 'settings', label: 'Studio Color Palette Customizer', description: 'Terracotta, Sage Green, Ocean Teal, Berry, Sunset themes' },
+    { id: 'backupExport', screenId: 'settings', label: 'Studio Data Backup & Security', description: 'Export JSON data backup and reset configurations' },
+  ],
+};
+
+export const FULL_ACCESS_SECTIONS: ScreenSectionPermissions = {
+  dashboard: {
+    kpiCards: true,
+    quickActions: true,
+    todaySchedule: true,
+    stationOccupancy: true,
+    petSummaryTable: true,
+    revenueMiniChart: true,
+    vaccineAlertsCard: true,
+  },
+  calendar: {
+    viewControls: true,
+    addBookingBtn: true,
+    calendarGrid: true,
+    groomerFilters: true,
+    appointmentModal: true,
+  },
+  invoices: {
+    summaryKpis: true,
+    searchFilters: true,
+    createInvoiceBtn: true,
+    invoicesTable: true,
+    qrPaymentModal: true,
+    pdfExportAction: true,
+  },
+  clients: {
+    metricsBar: true,
+    searchFilterBar: true,
+    addClientBtn: true,
+    clientCardsList: true,
+    medicalHistory: true,
+    whatsappReminders: true,
+  },
+  services: {
+    categoryTabs: true,
+    servicesCatalog: true,
+    pricingTable: true,
+    addServiceBtn: true,
+    packageAddons: true,
+  },
+  staff: {
+    staffSummaryKpis: true,
+    addStaffBtn: true,
+    staffRoster: true,
+    commissionCalculator: true,
+    skillsCapacity: true,
+  },
+  loyalty: {
+    loyaltyKpis: true,
+    tierStructure: true,
+    pointsRules: true,
+    clientBalances: true,
+    redeemVoucher: true,
+  },
+  alerts: {
+    criticalSummary: true,
+    alertFilterTabs: true,
+    alertsList: true,
+    whatsappNotice: true,
+    certificateUpload: true,
+  },
+  revenue: {
+    financialKpis: true,
+    revenueTrends: true,
+    serviceBreakdown: true,
+    paymentMethods: true,
+    exportCsv: true,
+  },
+  business: {
+    retailKpis: true,
+    productCatalog: true,
+    addProductBtn: true,
+    activityStream: true,
+  },
+  gallery: {
+    transformationsGrid: true,
+    uploadPhotoBtn: true,
+    categoryFilters: true,
+    portfolioShare: true,
+  },
+  settings: {
+    studioProfile: true,
+    operatingHours: true,
+    taxAndCurrency: true,
+    colorThemes: true,
+    backupExport: true,
+  },
+};
+
 export const DEFAULT_CLIENT_PERMISSIONS: ClientPermissions = {
   isTrialMode: false,
   trialTierName: 'Standard',
   trialMessage: '',
   screens: { ...FULL_ACCESS_SCREENS },
+  sections: { ...FULL_ACCESS_SECTIONS },
   features: { ...FULL_ACCESS_FEATURES },
 };
 
@@ -90,6 +276,7 @@ export interface PermissionPreset {
   isTrial: boolean;
   trialMessage?: string;
   screens: ScreenPermissions;
+  sections?: ScreenSectionPermissions;
   features: FeaturePermissions;
 }
 
@@ -213,6 +400,20 @@ export const PERMISSION_PRESETS: PermissionPreset[] = [
 export function isScreenAllowed(permissions: ClientPermissions | undefined, screen: ViewMode): boolean {
   if (!permissions || !permissions.screens) return true; // Default true if unspecified
   return permissions.screens[screen] !== false;
+}
+
+// Helper: Check if a specific section of a screen is allowed for a profile
+export function isSectionAllowed(
+  permissions: ClientPermissions | undefined, 
+  screen: ViewMode, 
+  sectionKey: string
+): boolean {
+  if (!permissions) return true;
+  // If the whole screen is disabled, its sections are disabled
+  if (permissions.screens && permissions.screens[screen] === false) return false;
+  if (!permissions.sections || !permissions.sections[screen]) return true; // Default true if unspecified
+  const screenSections = permissions.sections[screen] as Record<string, boolean | undefined>;
+  return screenSections[sectionKey] !== false;
 }
 
 // Helper: Check if feature is allowed for a profile

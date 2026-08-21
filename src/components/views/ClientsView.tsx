@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { 
   Dog, 
   Phone, 
@@ -26,6 +28,11 @@ export const ClientsView: React.FC = () => {
     searchQuery, 
     setSearchQuery 
   } = useApp();
+  const { currentProfile } = useAuth();
+
+  const showSearchAndFilters = isSectionAllowed(currentProfile?.permissions, 'clients', 'searchAndFilters');
+  const showClientsList = isSectionAllowed(currentProfile?.permissions, 'clients', 'clientsList');
+  const showAddClientButton = isSectionAllowed(currentProfile?.permissions, 'clients', 'addClientButton');
 
   const [filterType, setFilterType] = useState<string>('all');
 
@@ -68,67 +75,74 @@ export const ClientsView: React.FC = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Top Filter Bar */}
-      <div className="card-box p-3.5 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-nowrap sm:flex-wrap">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              filterType === 'all'
-                ? 'bg-theme-primary text-white shadow-xs'
-                : 'bg-[#EAE7DC] text-[#5C716C] hover:text-[#173E39]'
-            }`}
-          >
-            All Pets ({clients.length})
-          </button>
-          <button
-            onClick={() => setFilterType('rabies')}
-            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              filterType === 'rabies'
-                ? 'bg-[#C9503A] text-white shadow-xs'
-                : 'bg-[#FEF2F2] text-[#C9503A] hover:bg-[#FCE7F3]'
-            }`}
-          >
-            ⚠️ Vaccines
-          </button>
-          <button
-            onClick={() => setFilterType('behavior')}
-            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              filterType === 'behavior'
-                ? 'bg-[#E7A93C] text-white shadow-xs'
-                : 'bg-[#FFFBEB] text-[#9A6E1B]'
-            }`}
-          >
-            🐾 Care Notes
-          </button>
-          <button
-            onClick={() => setFilterType('matting')}
-            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-              filterType === 'matting'
-                ? 'bg-[#2E8A81] text-white shadow-xs'
-                : 'bg-[#EAE7DC] text-[#5C716C]'
-            }`}
-          >
-            ✂️ Coat Matting
-          </button>
-        </div>
+      {(showSearchAndFilters || showAddClientButton) && (
+        <div className="card-box p-3.5 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+          {/* Filter Pills */}
+          {showSearchAndFilters && (
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none flex-nowrap sm:flex-wrap">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterType === 'all'
+                    ? 'bg-theme-primary text-white shadow-xs'
+                    : 'bg-[#EAE7DC] text-[#5C716C] hover:text-[#173E39]'
+                }`}
+              >
+                All Pets ({clients.length})
+              </button>
+              <button
+                onClick={() => setFilterType('rabies')}
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterType === 'rabies'
+                    ? 'bg-[#C9503A] text-white shadow-xs'
+                    : 'bg-[#FEF2F2] text-[#C9503A] hover:bg-[#FCE7F3]'
+                }`}
+              >
+                ⚠️ Vaccines
+              </button>
+              <button
+                onClick={() => setFilterType('behavior')}
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterType === 'behavior'
+                    ? 'bg-[#E7A93C] text-white shadow-xs'
+                    : 'bg-[#FFFBEB] text-[#9A6E1B]'
+                }`}
+              >
+                🐾 Care Notes
+              </button>
+              <button
+                onClick={() => setFilterType('matting')}
+                className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterType === 'matting'
+                    ? 'bg-[#2E8A81] text-white shadow-xs'
+                    : 'bg-[#EAE7DC] text-[#5C716C]'
+                }`}
+              >
+                ✂️ Coat Matting
+              </button>
+            </div>
+          )}
 
-        {/* Add Client Button */}
-        <button
-          onClick={() => openModal('clientForm')}
-          className="btn-primary text-xs px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-md cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4" /> Add Pet & Client
-        </button>
-      </div>
+          {/* Add Client Button */}
+          {showAddClientButton && (
+            <button
+              onClick={() => openModal('clientForm')}
+              className="btn-primary text-xs px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-md cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" /> Add Pet & Client
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Clients Cards Grid */}
-      {filteredClients.length === 0 ? (
-        <div className="card-box p-8 sm:p-12 text-center text-[#5C716C]">
-          No client or pet records found matching search or filter criteria.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      {showClientsList && (
+        filteredClients.length === 0 ? (
+          <div className="card-box p-8 sm:p-12 text-center text-[#5C716C]">
+            No client or pet records found matching search or filter criteria.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredClients.map((client) => {
             // Check Rabies expiry
             const rabiesDate = client.rabiesExpiry ? new Date(client.rabiesExpiry) : null;
@@ -351,7 +365,7 @@ export const ClientsView: React.FC = () => {
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 };

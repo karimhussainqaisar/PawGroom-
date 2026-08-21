@@ -1,5 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { Service, Package } from '../../types';
 import { 
   Scissors, 
@@ -24,6 +26,11 @@ export const ServicesView: React.FC = () => {
     searchQuery,
     formatPrice 
   } = useApp();
+  const { currentProfile } = useAuth();
+
+  const showServicesGrid = isSectionAllowed(currentProfile?.permissions, 'services', 'servicesGrid');
+  const showAddServiceButton = isSectionAllowed(currentProfile?.permissions, 'services', 'addServiceButton');
+  const showPackagesSection = isSectionAllowed(currentProfile?.permissions, 'services', 'packagesSection');
 
   // Category label map
   const catLabels: Record<string, string> = {
@@ -65,24 +72,26 @@ export const ServicesView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => openModal('packageForm')}
-            className="btn-ghost text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 font-bold"
-          >
-            <PackageIcon className="w-4 h-4 text-[#8B6D9C]" /> + Add Spa Package
-          </button>
-          <button
-            onClick={() => openModal('serviceForm')}
-            className="btn-primary text-xs px-4 py-2 rounded-full flex items-center gap-1.5 font-bold shadow-md"
-          >
-            <Plus className="w-4 h-4" /> + Add Service
-          </button>
-        </div>
+        {showAddServiceButton && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openModal('packageForm')}
+              className="btn-ghost text-xs px-3.5 py-2 rounded-full flex items-center gap-1.5 font-bold"
+            >
+              <PackageIcon className="w-4 h-4 text-[#8B6D9C]" /> + Add Spa Package
+            </button>
+            <button
+              onClick={() => openModal('serviceForm')}
+              className="btn-primary text-xs px-4 py-2 rounded-full flex items-center gap-1.5 font-bold shadow-md"
+            >
+              <Plus className="w-4 h-4" /> + Add Service
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Spa Package Bundles */}
-      {packages.length > 0 && (
+      {showPackagesSection && packages.length > 0 && (
         <div className="space-y-3">
           <h3 className="font-display font-bold text-lg text-[#173E39] flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-[#E7A93C]" />
@@ -149,7 +158,8 @@ export const ServicesView: React.FC = () => {
       )}
 
       {/* Categorized Services List */}
-      <div className="space-y-6">
+      {showServicesGrid && (
+        <div className="space-y-6">
         {Object.keys(catLabels).map((catKey) => {
           const list = groupedServices[catKey];
           if (!list || list.length === 0) return null;
@@ -244,6 +254,7 @@ export const ServicesView: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

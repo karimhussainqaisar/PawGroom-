@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { formatISO, getFixedToday } from '../../data/initialData';
 import { 
   DollarSign, 
@@ -46,6 +48,11 @@ export const RevenueView: React.FC = () => {
   const [timePeriod, setTimePeriod] = useState<'all' | 'month' | 'week' | 'today'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'completed' | 'due'>('all');
   const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  const { currentProfile } = useAuth();
+  const showFinancialOverview = isSectionAllowed(currentProfile?.permissions, 'revenue', 'financialOverview');
+  const showProfitReports = isSectionAllowed(currentProfile?.permissions, 'revenue', 'profitReports');
+  const showExportAccounting = isSectionAllowed(currentProfile?.permissions, 'revenue', 'exportAccounting');
 
   const today = getFixedToday();
   const currentMonthLabel = today.toLocaleDateString('en-US', { month: 'long' });
@@ -421,370 +428,382 @@ export const RevenueView: React.FC = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => setReportModalOpen(true)}
-            className="px-3.5 py-2 rounded-full border border-[#E6DFD5] bg-white hover:bg-[#FAF8F5] text-[#240C0B] text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all active:scale-95 shrink-0"
-            title="Open Executive Reports & Visual Analytics"
-          >
-            <TrendingUp className="w-3.5 h-3.5 text-theme-primary" />
-            <span>Reports</span>
-          </button>
+          {showExportAccounting && (
+            <>
+              <button
+                onClick={() => setReportModalOpen(true)}
+                className="px-3.5 py-2 rounded-full border border-[#E6DFD5] bg-white hover:bg-[#FAF8F5] text-[#240C0B] text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all active:scale-95 shrink-0"
+                title="Open Executive Reports & Visual Analytics"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-theme-primary" />
+                <span>Reports</span>
+              </button>
 
-          <button
-            onClick={handleExportCSV}
-            className="btn-primary text-xs px-3.5 sm:px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-xs cursor-pointer shrink-0"
-            title="Download formatted CSV report"
-          >
-            <Download className="w-4 h-4" /> 
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">CSV</span>
-          </button>
+              <button
+                onClick={handleExportCSV}
+                className="btn-primary text-xs px-3.5 sm:px-4 py-2 rounded-full flex items-center justify-center gap-1.5 font-bold shadow-xs cursor-pointer shrink-0"
+                title="Download formatted CSV report"
+              >
+                <Download className="w-4 h-4" /> 
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">CSV</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* 2. Synchronized 4 Primary Financial KPI Cards (Exact match with Invoices Section) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-        
-        {/* Metric 1: Total Revenue / Total Invoiced */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
-            <span>{timePeriod === 'all' ? 'Total Revenue (Invoiced)' : 'Period Revenue'}</span>
-            <Receipt className="w-3.5 h-3.5 text-[#240C0B]" />
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
-              {formatPrice(timePeriod === 'all' ? allTimeStats.totalInvoiced : activeStats.grossRev)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5 truncate">
-            {timePeriod === 'all' ? `Across ${allTimeStats.totalCount} bookings` : `${formatPrice(activeStats.totalGrooming)} svc + ${formatPrice(activeStats.totalRetail)} retail`}
-          </div>
-        </div>
-
-        {/* Metric 2: Settled & Paid Revenue */}
-        <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#166534] uppercase tracking-wider">
-            <span>Settled & Paid</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-1.5 sm:gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#166534]">
-              {formatPrice(timePeriod === 'all' ? allTimeStats.totalPaid : activeStats.paidRev)}
-            </span>
-            <span className="text-[9px] sm:text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 rounded-md">
-              {timePeriod === 'all' ? allTimeStats.paidRate : activeStats.paidRate}%
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#15803d]/80 mt-0.5">
-            {timePeriod === 'all' ? `${allTimeStats.paidCount} paid invoices` : `${activeStats.paidCount} completed`}
-          </div>
-        </div>
-
-        {/* Metric 3: Payment Due / Pending Invoices */}
-        <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
-            <span>Payment Due</span>
-            <Clock className="w-3.5 h-3.5 text-[#D97706]" />
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#92400E]">
-              {formatPrice(timePeriod === 'all' ? allTimeStats.totalPending : activeStats.pendingRev)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#B45309]/80 mt-0.5">
-            {timePeriod === 'all' ? `${allTimeStats.pendingCount} pending payment` : `${activeStats.pendingCount} unpaid`}
-          </div>
-        </div>
-
-        {/* Metric 4: Average Ticket / Invoice */}
-        <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
-          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
-            <span>Average Invoice</span>
-            <DollarSign className="w-3.5 h-3.5 text-[#240C0B]" />
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
-              {formatPrice(timePeriod === 'all' ? allTimeStats.avgInvoice : activeStats.avgTicket)}
-            </span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
-            Per scheduled session
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Secondary Metrics: Today's Revenue & Net Operating Profit Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-        {/* Today's Live Invoiced Revenue */}
-        <div className="card-box p-4 bg-gradient-to-br from-theme-light via-white to-[#FAF8F5] border border-theme-subtle">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-theme-primary" />
-              <span className="text-xs font-bold text-[#240C0B] uppercase tracking-wider">
-                Today's Invoiced Revenue ({today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
-              </span>
-            </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <div className="text-2xl sm:text-3xl font-display font-black text-[#240C0B] tracking-tight mt-1.5">
-            {formatPrice(todayRevenue)}
-          </div>
-          <p className="text-xs text-[#7A6865] mt-1">
-            Calculated in real-time from today's client bookings, retail add-ons, and taxes.
-          </p>
-        </div>
-
-        {/* Net Operating Profit Margin */}
-        <div className="card-box p-4 bg-[#F0FDF4] border border-[#DCFCE7]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                Net Operating Margin ({timePeriod === 'all' ? 'All Time' : currentMonthLabel})
-              </span>
-            </div>
-            <span className="text-xs font-black text-emerald-700 bg-emerald-200/70 px-2 py-0.5 rounded-full">
-              {activeStats.profitMargin}% Margin
-            </span>
-          </div>
-          <div className="text-2xl sm:text-3xl font-display font-black text-emerald-900 tracking-tight mt-1.5">
-            {formatPrice(activeStats.netProfit)}
-          </div>
-          <p className="text-xs text-emerald-800/80 mt-1">
-            Gross revenue minus {formatPrice(activeStats.totalExpenses)} operational studio expenses.
-          </p>
-        </div>
-      </div>
-
-      {/* 4. Daily Earnings Chart (Recharts) */}
-      <div className="card-box p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E6DFD5] pb-3">
-          <div>
-            <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
-              <LineChartIcon className="w-5 h-5 text-theme-primary" />
-              Daily {currentMonthLabel} {currentYear} Earnings Matrix
-            </h3>
-            <p className="text-xs text-[#7A6865] mt-0.5">
-              Visualizing daily revenue trajectory across grooming services and retail merchandise.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap bg-[#F1EEE6]/80 p-1.5 rounded-2xl border border-[#D8D3C4]">
-            {/* Breakdown Toggle Group */}
-            <div className="flex items-center gap-1 bg-white/80 p-1 rounded-xl border border-[#D8D3C4]/60">
-              <button
-                type="button"
-                onClick={() => setLineBreakdown('breakdown')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  lineBreakdown === 'breakdown'
-                    ? 'bg-[#240C0B] text-white shadow-xs'
-                    : 'text-[#7A6865] hover:text-[#240C0B]'
-                }`}
-              >
-                <PieIcon className="w-3.5 h-3.5 text-theme-primary" />
-                <span>Grooming vs Retail</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setLineBreakdown('total')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  lineBreakdown === 'total'
-                    ? 'bg-[#240C0B] text-white shadow-xs'
-                    : 'text-[#7A6865] hover:text-[#240C0B]'
-                }`}
-              >
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Total Daily</span>
-              </button>
+      {showFinancialOverview && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+            
+            {/* Metric 1: Total Revenue / Total Invoiced */}
+            <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+                <span>{timePeriod === 'all' ? 'Total Revenue (Invoiced)' : 'Period Revenue'}</span>
+                <Receipt className="w-3.5 h-3.5 text-[#240C0B]" />
+              </div>
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
+                  {formatPrice(timePeriod === 'all' ? allTimeStats.totalInvoiced : activeStats.grossRev)}
+                </span>
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5 truncate">
+                {timePeriod === 'all' ? `Across ${allTimeStats.totalCount} bookings` : `${formatPrice(activeStats.totalGrooming)} svc + ${formatPrice(activeStats.totalRetail)} retail`}
+              </div>
             </div>
 
-            {/* Chart Type Toggle */}
-            <div className="flex items-center gap-1 bg-white/80 p-1 rounded-xl border border-[#D8D3C4]/60">
-              <button
-                type="button"
-                onClick={() => setChartMode('line')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  chartMode === 'line'
-                    ? 'bg-theme-primary text-white shadow-xs'
-                    : 'text-[#7A6865] hover:text-[#240C0B]'
-                }`}
-                title="Line View"
-              >
-                <LineChartIcon className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Line</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartMode('area')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  chartMode === 'area'
-                    ? 'bg-theme-primary text-white shadow-xs'
-                    : 'text-[#7A6865] hover:text-[#240C0B]'
-                }`}
-                title="Area Fill View"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Area</span>
-              </button>
+            {/* Metric 2: Settled & Paid Revenue */}
+            <div className="bg-[#F0FDF4] border border-[#DCFCE7] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#166534] uppercase tracking-wider">
+                <span>Settled & Paid</span>
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#16a34a]" />
+              </div>
+              <div className="mt-1.5 flex items-baseline gap-1.5 sm:gap-2">
+                <span className="font-display font-black text-xl sm:text-2xl text-[#166534]">
+                  {formatPrice(timePeriod === 'all' ? allTimeStats.totalPaid : activeStats.paidRev)}
+                </span>
+                <span className="text-[9px] sm:text-[10px] font-black bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 rounded-md">
+                  {timePeriod === 'all' ? allTimeStats.paidRate : activeStats.paidRate}%
+                </span>
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-[#15803d]/80 mt-0.5">
+                {timePeriod === 'all' ? `${allTimeStats.paidCount} paid invoices` : `${activeStats.paidCount} completed`}
+              </div>
+            </div>
+
+            {/* Metric 3: Payment Due / Pending Invoices */}
+            <div className="bg-[#FFFBEB] border border-[#FEF3C7] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#92400E] uppercase tracking-wider">
+                <span>Payment Due</span>
+                <Clock className="w-3.5 h-3.5 text-[#D97706]" />
+              </div>
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <span className="font-display font-black text-xl sm:text-2xl text-[#92400E]">
+                  {formatPrice(timePeriod === 'all' ? allTimeStats.totalPending : activeStats.pendingRev)}
+                </span>
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-[#B45309]/80 mt-0.5">
+                {timePeriod === 'all' ? `${allTimeStats.pendingCount} pending payment` : `${activeStats.pendingCount} unpaid`}
+              </div>
+            </div>
+
+            {/* Metric 4: Average Ticket / Invoice */}
+            <div className="bg-[#FAF8F5] border border-[#E6DFD5] p-3.5 sm:p-4 rounded-2xl shadow-2xs">
+              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-[#7A6865] uppercase tracking-wider">
+                <span>Average Invoice</span>
+                <DollarSign className="w-3.5 h-3.5 text-[#240C0B]" />
+              </div>
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <span className="font-display font-black text-xl sm:text-2xl text-[#240C0B]">
+                  {formatPrice(timePeriod === 'all' ? allTimeStats.avgInvoice : activeStats.avgTicket)}
+                </span>
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-[#A08E8B] mt-0.5">
+                Per scheduled session
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Recharts Chart Canvas Container */}
-        <div className="h-[280px] w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartMode === 'line' ? (
-              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E6DFD5" vertical={false} />
-                <XAxis dataKey="date" stroke="#7A6865" fontSize={10} tickLine={false} interval={2} />
-                <YAxis stroke="#7A6865" fontSize={11} tickLine={false} tickFormatter={(v) => formatPrice(v)} />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#240C0B',
-                    borderColor: '#4A2A28',
-                    color: '#ffffff',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                  }}
-                  formatter={(val: any, name: any) => [formatPrice(val), name]}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+          {/* 3. Secondary Metrics: Today's Revenue & Net Operating Profit Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {/* Today's Live Invoiced Revenue */}
+            <div className="card-box p-4 bg-gradient-to-br from-theme-light via-white to-[#FAF8F5] border border-theme-subtle">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-theme-primary" />
+                  <span className="text-xs font-bold text-[#240C0B] uppercase tracking-wider">
+                    Today's Invoiced Revenue ({today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                  </span>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-display font-black text-[#240C0B] tracking-tight mt-1.5">
+                {formatPrice(todayRevenue)}
+              </div>
+              <p className="text-xs text-[#7A6865] mt-1">
+                Calculated in real-time from today's client bookings, retail add-ons, and taxes.
+              </p>
+            </div>
 
-                {lineBreakdown === 'breakdown' ? (
-                  <>
-                    <Line 
-                      type="monotone" 
-                      dataKey="grooming" 
-                      name="Grooming Services" 
-                      stroke="#2E8A81" 
-                      strokeWidth={3} 
-                      dot={{ r: 3, fill: '#2E8A81' }} 
-                      activeDot={{ r: 6, fill: '#2E8A81', stroke: '#fff', strokeWidth: 2 }} 
+            {/* Net Operating Profit Margin */}
+            <div className="card-box p-4 bg-[#F0FDF4] border border-[#DCFCE7]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                    Net Operating Margin ({timePeriod === 'all' ? 'All Time' : currentMonthLabel})
+                  </span>
+                </div>
+                <span className="text-xs font-black text-emerald-700 bg-emerald-200/70 px-2 py-0.5 rounded-full">
+                  {activeStats.profitMargin}% Margin
+                </span>
+              </div>
+              <div className="text-2xl sm:text-3xl font-display font-black text-emerald-900 tracking-tight mt-1.5">
+                {formatPrice(activeStats.netProfit)}
+              </div>
+              <p className="text-xs text-emerald-800/80 mt-1">
+                Gross revenue minus {formatPrice(activeStats.totalExpenses)} operational studio expenses.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 4. Daily Earnings Chart & Breakdown */}
+      {showProfitReports && (
+        <>
+          <div className="card-box p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E6DFD5] pb-3">
+              <div>
+                <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
+                  <LineChartIcon className="w-5 h-5 text-theme-primary" />
+                  Daily {currentMonthLabel} {currentYear} Earnings Matrix
+                </h3>
+                <p className="text-xs text-[#7A6865] mt-0.5">
+                  Visualizing daily revenue trajectory across grooming services and retail merchandise.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap bg-[#F1EEE6]/80 p-1.5 rounded-2xl border border-[#D8D3C4]">
+                {/* Breakdown Toggle Group */}
+                <div className="flex items-center gap-1 bg-white/80 p-1 rounded-xl border border-[#D8D3C4]/60">
+                  <button
+                    type="button"
+                    onClick={() => setLineBreakdown('breakdown')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      lineBreakdown === 'breakdown'
+                        ? 'bg-[#240C0B] text-white shadow-xs'
+                        : 'text-[#7A6865] hover:text-[#240C0B]'
+                    }`}
+                  >
+                    <PieIcon className="w-3.5 h-3.5 text-theme-primary" />
+                    <span>Grooming vs Retail</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLineBreakdown('total')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      lineBreakdown === 'total'
+                        ? 'bg-[#240C0B] text-white shadow-xs'
+                        : 'text-[#7A6865] hover:text-[#240C0B]'
+                    }`}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Total Daily</span>
+                  </button>
+                </div>
+
+                {/* Chart Type Toggle */}
+                <div className="flex items-center gap-1 bg-white/80 p-1 rounded-xl border border-[#D8D3C4]/60">
+                  <button
+                    type="button"
+                    onClick={() => setChartMode('line')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                      chartMode === 'line'
+                        ? 'bg-theme-primary text-white shadow-xs'
+                        : 'text-[#7A6865] hover:text-[#240C0B]'
+                    }`}
+                    title="Line View"
+                  >
+                    <LineChartIcon className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">Line</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartMode('area')}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                      chartMode === 'area'
+                        ? 'bg-theme-primary text-white shadow-xs'
+                        : 'text-[#7A6865] hover:text-[#240C0B]'
+                    }`}
+                    title="Area Fill View"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">Area</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Recharts Chart Canvas Container */}
+            <div className="h-[280px] w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                {chartMode === 'line' ? (
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E6DFD5" vertical={false} />
+                    <XAxis dataKey="date" stroke="#7A6865" fontSize={10} tickLine={false} interval={2} />
+                    <YAxis stroke="#7A6865" fontSize={11} tickLine={false} tickFormatter={(v) => formatPrice(v)} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: '#240C0B',
+                        borderColor: '#4A2A28',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }}
+                      formatter={(val: any, name: any) => [formatPrice(val), name]}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="retail" 
-                      name="Retail Products" 
-                      stroke="#EA580C" 
-                      strokeWidth={2} 
-                      strokeDasharray="4 4"
-                      dot={{ r: 2, fill: '#EA580C' }} 
-                    />
-                  </>
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+
+                    {lineBreakdown === 'breakdown' ? (
+                      <>
+                        <Line 
+                          type="monotone" 
+                          dataKey="grooming" 
+                          name="Grooming Services" 
+                          stroke="#2E8A81" 
+                          strokeWidth={3} 
+                          dot={{ r: 3, fill: '#2E8A81' }} 
+                          activeDot={{ r: 6, fill: '#2E8A81', stroke: '#fff', strokeWidth: 2 }} 
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="retail" 
+                          name="Retail Products" 
+                          stroke="#EA580C" 
+                          strokeWidth={2} 
+                          strokeDasharray="4 4"
+                          dot={{ r: 2, fill: '#EA580C' }} 
+                        />
+                      </>
+                    ) : (
+                      <Line 
+                        type="monotone" 
+                        dataKey="total" 
+                        name="Total Revenue" 
+                        stroke="#240C0B" 
+                        strokeWidth={3.5} 
+                        dot={{ r: 4, fill: '#240C0B' }} 
+                        activeDot={{ r: 7, fill: '#EA580C' }} 
+                      />
+                    )}
+                  </LineChart>
                 ) : (
-                  <Line 
-                    type="monotone" 
-                    dataKey="total" 
-                    name="Total Revenue" 
-                    stroke="#240C0B" 
-                    strokeWidth={3.5} 
-                    dot={{ r: 4, fill: '#240C0B' }} 
-                    activeDot={{ r: 7, fill: '#EA580C' }} 
-                  />
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorGrooming" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2E8A81" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#2E8A81" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorRetail" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#EA580C" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#EA580C" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E6DFD5" vertical={false} />
+                    <XAxis dataKey="date" stroke="#7A6865" fontSize={10} interval={2} />
+                    <YAxis stroke="#7A6865" fontSize={11} tickFormatter={(v) => formatPrice(v)} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#240C0B', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val: any) => formatPrice(val)}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Area type="monotone" dataKey="grooming" name="Grooming Revenue" stroke="#2E8A81" strokeWidth={2.5} fillOpacity={1} fill="url(#colorGrooming)" />
+                    <Area type="monotone" dataKey="retail" name="Retail Revenue" stroke="#EA580C" strokeWidth={2} fillOpacity={1} fill="url(#colorRetail)" />
+                  </AreaChart>
                 )}
-              </LineChart>
-            ) : (
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorGrooming" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2E8A81" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#2E8A81" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorRetail" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EA580C" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#EA580C" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E6DFD5" vertical={false} />
-                <XAxis dataKey="date" stroke="#7A6865" fontSize={10} interval={2} />
-                <YAxis stroke="#7A6865" fontSize={11} tickFormatter={(v) => formatPrice(v)} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#240C0B', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val: any) => formatPrice(val)}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Area type="monotone" dataKey="grooming" name="Grooming Revenue" stroke="#2E8A81" strokeWidth={2.5} fillOpacity={1} fill="url(#colorGrooming)" />
-                <Area type="monotone" dataKey="retail" name="Retail Revenue" stroke="#EA580C" strokeWidth={2} fillOpacity={1} fill="url(#colorRetail)" />
-              </AreaChart>
-            )}
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* 5. Two-Column Matrix: Top Grossing Services & Staff Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Top Grossing Services Card */}
-        <div className="card-box p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
-              <Scissors className="w-4 h-4 text-theme-primary" />
-              Top Grossing Grooming Services
-            </h3>
-            <span className="text-xs text-[#7A6865]">
-              {timePeriod === 'all' ? 'All Time' : currentMonthLabel}
-            </span>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="h-[220px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topServicesData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <XAxis type="number" stroke="#7A6865" fontSize={10} tickFormatter={(v) => formatPrice(v)} />
-                <YAxis dataKey="name" type="category" stroke="#7A6865" fontSize={11} width={130} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#240C0B', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
-                  formatter={(val: any) => formatPrice(val)}
-                />
-                <Bar dataKey="total" fill="#EA580C" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+          {/* 5. Two-Column Matrix: Top Grossing Services & Staff Performance */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Grossing Services Card */}
+            <div className="card-box p-4 sm:p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
+                  <Scissors className="w-4 h-4 text-theme-primary" />
+                  Top Grossing Grooming Services
+                </h3>
+                <span className="text-xs text-[#7A6865]">
+                  {timePeriod === 'all' ? 'All Time' : currentMonthLabel}
+                </span>
+              </div>
 
-        {/* Staff Performance & Commission Table */}
-        <div className="card-box p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
-              <Users className="w-4 h-4 text-theme-primary" />
-              Groomer Production & Payout
-            </h3>
-            <span className="text-xs text-[#7A6865]">
-              {staffBreakdown.length} Stylists
-            </span>
-          </div>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topServicesData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                    <XAxis type="number" stroke="#7A6865" fontSize={10} tickFormatter={(v) => formatPrice(v)} />
+                    <YAxis dataKey="name" type="category" stroke="#7A6865" fontSize={11} width={130} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#240C0B', color: '#fff', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val: any) => formatPrice(val)}
+                    />
+                    <Bar dataKey="total" fill="#EA580C" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-[#E6DFD5] text-[#7A6865] font-bold">
-                  <th className="pb-2">Stylist</th>
-                  <th className="pb-2 text-center">Grooms</th>
-                  <th className="pb-2 text-right">Service Rev</th>
-                  <th className="pb-2 text-right">Commission</th>
-                  <th className="pb-2 text-right">Studio Net</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E6DFD5]/60">
-                {staffBreakdown.map((st) => (
-                  <tr key={st.id} className="hover:bg-[#FAF8F5] transition-colors">
-                    <td className="py-2.5 font-bold text-[#240C0B]">
-                      {st.name}
-                      <span className="block text-[10px] text-[#A08E8B] font-normal">{st.role}</span>
-                    </td>
-                    <td className="py-2.5 text-center font-bold text-[#7A6865]">{st.count}</td>
-                    <td className="py-2.5 text-right font-bold text-[#240C0B]">{formatPrice(st.serviceRev)}</td>
-                    <td className="py-2.5 text-right font-medium text-emerald-700">
-                      {formatPrice(st.commissionPayout)}
-                      <span className="text-[9px] text-[#A08E8B] ml-1 font-mono">({st.commissionRate}%)</span>
-                    </td>
-                    <td className="py-2.5 text-right font-extrabold text-[#240C0B]">{formatPrice(st.studioNet)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Staff Performance & Commission Table */}
+            <div className="card-box p-4 sm:p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-base text-[#240C0B] flex items-center gap-2">
+                  <Users className="w-4 h-4 text-theme-primary" />
+                  Groomer Production & Payout
+                </h3>
+                <span className="text-xs text-[#7A6865]">
+                  {staffBreakdown.length} Stylists
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#E6DFD5] text-[#7A6865] font-bold">
+                      <th className="pb-2">Stylist</th>
+                      <th className="pb-2 text-center">Grooms</th>
+                      <th className="pb-2 text-right">Service Rev</th>
+                      <th className="pb-2 text-right">Commission</th>
+                      <th className="pb-2 text-right">Studio Net</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E6DFD5]/60">
+                    {staffBreakdown.map((st) => (
+                      <tr key={st.id} className="hover:bg-[#FAF8F5] transition-colors">
+                        <td className="py-2.5 font-bold text-[#240C0B]">
+                          {st.name}
+                          <span className="block text-[10px] text-[#A08E8B] font-normal">{st.role}</span>
+                        </td>
+                        <td className="py-2.5 text-center font-bold text-[#7A6865]">{st.count}</td>
+                        <td className="py-2.5 text-right font-bold text-[#240C0B]">{formatPrice(st.serviceRev)}</td>
+                        <td className="py-2.5 text-right font-medium text-emerald-700">
+                          {formatPrice(st.commissionPayout)}
+                          <span className="text-[9px] text-[#A08E8B] ml-1 font-mono">({st.commissionRate}%)</span>
+                        </td>
+                        <td className="py-2.5 text-right font-extrabold text-[#240C0B]">{formatPrice(st.studioNet)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Executive Report & Visual Graphs Modal */}
       {reportModalOpen && (

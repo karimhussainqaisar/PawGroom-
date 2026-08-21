@@ -43,6 +43,95 @@ export interface ScreenPermissions {
   settings?: boolean;
 }
 
+export interface ScreenSectionPermissions {
+  dashboard?: {
+    kpiCards?: boolean;
+    quickActions?: boolean;
+    todaySchedule?: boolean;
+    stationOccupancy?: boolean;
+    petSummaryTable?: boolean;
+    revenueMiniChart?: boolean;
+    vaccineAlertsCard?: boolean;
+  };
+  calendar?: {
+    viewControls?: boolean;
+    addBookingBtn?: boolean;
+    calendarGrid?: boolean;
+    groomerFilters?: boolean;
+    appointmentModal?: boolean;
+  };
+  invoices?: {
+    summaryKpis?: boolean;
+    searchFilters?: boolean;
+    createInvoiceBtn?: boolean;
+    invoicesTable?: boolean;
+    qrPaymentModal?: boolean;
+    pdfExportAction?: boolean;
+  };
+  clients?: {
+    metricsBar?: boolean;
+    searchFilterBar?: boolean;
+    addClientBtn?: boolean;
+    clientCardsList?: boolean;
+    medicalHistory?: boolean;
+    whatsappReminders?: boolean;
+  };
+  services?: {
+    categoryTabs?: boolean;
+    servicesCatalog?: boolean;
+    pricingTable?: boolean;
+    addServiceBtn?: boolean;
+    packageAddons?: boolean;
+  };
+  staff?: {
+    staffSummaryKpis?: boolean;
+    addStaffBtn?: boolean;
+    staffRoster?: boolean;
+    commissionCalculator?: boolean;
+    skillsCapacity?: boolean;
+  };
+  loyalty?: {
+    loyaltyKpis?: boolean;
+    tierStructure?: boolean;
+    pointsRules?: boolean;
+    clientBalances?: boolean;
+    redeemVoucher?: boolean;
+  };
+  alerts?: {
+    criticalSummary?: boolean;
+    alertFilterTabs?: boolean;
+    alertsList?: boolean;
+    whatsappNotice?: boolean;
+    certificateUpload?: boolean;
+  };
+  revenue?: {
+    financialKpis?: boolean;
+    revenueTrends?: boolean;
+    serviceBreakdown?: boolean;
+    paymentMethods?: boolean;
+    exportCsv?: boolean;
+  };
+  business?: {
+    retailKpis?: boolean;
+    productCatalog?: boolean;
+    addProductBtn?: boolean;
+    activityStream?: boolean;
+  };
+  gallery?: {
+    transformationsGrid?: boolean;
+    uploadPhotoBtn?: boolean;
+    categoryFilters?: boolean;
+    portfolioShare?: boolean;
+  };
+  settings?: {
+    studioProfile?: boolean;
+    operatingHours?: boolean;
+    taxAndCurrency?: boolean;
+    colorThemes?: boolean;
+    backupExport?: boolean;
+  };
+}
+
 export interface FeaturePermissions {
   allowBooking?: boolean; // Can book new grooming appointments
   allowCheckout?: boolean; // POS & retail checkout
@@ -62,6 +151,7 @@ export interface ClientPermissions {
   trialTierName?: string;
   trialMessage?: string;
   screens?: ScreenPermissions;
+  sections?: ScreenSectionPermissions;
   features?: FeaturePermissions;
 }
 

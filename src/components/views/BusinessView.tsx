@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { 
   Package, 
   Gift, 
@@ -34,7 +36,33 @@ export const BusinessView: React.FC = () => {
     showToast
   } = useApp();
 
+  const { currentProfile } = useAuth();
+  const showInventory = isSectionAllowed(currentProfile?.permissions, 'business', 'inventory');
+  const showGiftCards = isSectionAllowed(currentProfile?.permissions, 'business', 'giftCards');
+  const showExpenses = isSectionAllowed(currentProfile?.permissions, 'business', 'expenses');
+  const showWaitlist = isSectionAllowed(currentProfile?.permissions, 'business', 'waitlist');
+
   const [tab, setTab] = useState<'inventory' | 'gift' | 'expenses' | 'waitlist'>('inventory');
+
+  useEffect(() => {
+    if (tab === 'inventory' && !showInventory) {
+      if (showGiftCards) setTab('gift');
+      else if (showExpenses) setTab('expenses');
+      else if (showWaitlist) setTab('waitlist');
+    } else if (tab === 'gift' && !showGiftCards) {
+      if (showInventory) setTab('inventory');
+      else if (showExpenses) setTab('expenses');
+      else if (showWaitlist) setTab('waitlist');
+    } else if (tab === 'expenses' && !showExpenses) {
+      if (showInventory) setTab('inventory');
+      else if (showGiftCards) setTab('gift');
+      else if (showWaitlist) setTab('waitlist');
+    } else if (tab === 'waitlist' && !showWaitlist) {
+      if (showInventory) setTab('inventory');
+      else if (showGiftCards) setTab('gift');
+      else if (showExpenses) setTab('expenses');
+    }
+  }, [showInventory, showGiftCards, showExpenses, showWaitlist, tab]);
   const [reloadModalCard, setReloadModalCard] = useState<any>(null);
   const [reloadAmount, setReloadAmount] = useState<number>(25);
 
@@ -45,43 +73,51 @@ export const BusinessView: React.FC = () => {
     <div className="space-y-6">
       {/* Operations Navigation Tabs */}
       <div className="card-box p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="bg-[#EAE7DC] p-1 rounded-2xl flex items-center gap-1 w-full sm:w-auto">
-          <button
-            onClick={() => setTab('inventory')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              tab === 'inventory' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
-            }`}
-          >
-            📦 Retail Stock ({inventory.length})
-          </button>
-          <button
-            onClick={() => setTab('gift')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              tab === 'gift' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
-            }`}
-          >
-            🎁 Gift Cards ({giftCards.length})
-          </button>
-          <button
-            onClick={() => setTab('expenses')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              tab === 'expenses' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
-            }`}
-          >
-            💸 Expenses ({expenses.length})
-          </button>
-          <button
-            onClick={() => setTab('waitlist')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              tab === 'waitlist' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
-            }`}
-          >
-            ⏳ Waitlist ({waitlist.length})
-          </button>
+        <div className="bg-[#EAE7DC] p-1 rounded-2xl flex items-center gap-1 w-full sm:w-auto flex-wrap">
+          {showInventory && (
+            <button
+              onClick={() => setTab('inventory')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                tab === 'inventory' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
+              }`}
+            >
+              📦 Retail Stock ({inventory.length})
+            </button>
+          )}
+          {showGiftCards && (
+            <button
+              onClick={() => setTab('gift')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                tab === 'gift' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
+              }`}
+            >
+              🎁 Gift Cards ({giftCards.length})
+            </button>
+          )}
+          {showExpenses && (
+            <button
+              onClick={() => setTab('expenses')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                tab === 'expenses' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
+              }`}
+            >
+              💸 Expenses ({expenses.length})
+            </button>
+          )}
+          {showWaitlist && (
+            <button
+              onClick={() => setTab('waitlist')}
+              className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                tab === 'waitlist' ? 'bg-[#173E39] text-white shadow-xs' : 'text-[#5C716C]'
+              }`}
+            >
+              ⏳ Waitlist ({waitlist.length})
+            </button>
+          )}
         </div>
 
         <div>
-          {tab === 'inventory' && (
+          {tab === 'inventory' && showInventory && (
             <button
               onClick={() => openModal('inventoryForm')}
               className="btn-primary text-xs px-4 py-2 rounded-full font-bold shadow-md cursor-pointer"
@@ -89,7 +125,7 @@ export const BusinessView: React.FC = () => {
               + Add Product
             </button>
           )}
-          {tab === 'gift' && (
+          {tab === 'gift' && showGiftCards && (
             <button
               onClick={() => openModal('giftCardForm')}
               className="btn-primary text-xs px-4 py-2 rounded-full font-bold shadow-md cursor-pointer"
@@ -97,7 +133,7 @@ export const BusinessView: React.FC = () => {
               + Issue Gift Card
             </button>
           )}
-          {tab === 'expenses' && (
+          {tab === 'expenses' && showExpenses && (
             <button
               onClick={() => openModal('expenseForm')}
               className="btn-primary text-xs px-4 py-2 rounded-full font-bold shadow-md cursor-pointer"
@@ -105,7 +141,7 @@ export const BusinessView: React.FC = () => {
               + Log Expense
             </button>
           )}
-          {tab === 'waitlist' && (
+          {tab === 'waitlist' && showWaitlist && (
             <button
               onClick={() => openModal('waitlistForm')}
               className="btn-primary text-xs px-4 py-2 rounded-full font-bold shadow-md cursor-pointer"

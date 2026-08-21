@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { formatISO } from '../../data/initialData';
 import { calculateAppointmentInvoice } from '../../utils/invoice';
 import { 
@@ -61,6 +63,14 @@ export const DashboardView: React.FC = () => {
     formatPrice,
     settings
   } = useApp();
+  const { currentProfile } = useAuth();
+
+  const showKpis = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'kpiCards');
+  const showQuickActions = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'quickActions');
+  const showTodaySchedule = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'todaySchedule');
+  const showPetSummaryTable = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'petSummaryTable');
+  const showRevenueMiniChart = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'revenueMiniChart');
+  const showVaccineAlertsCard = isSectionAllowed(currentProfile?.permissions, 'dashboard', 'vaccineAlertsCard');
 
   const today = new Date();
   const todayStr = formatISO(today);
@@ -301,30 +311,35 @@ export const DashboardView: React.FC = () => {
         transition={{ duration: 0.3 }}
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
       >
-        <div>
-          <h1 className="font-display font-black text-3xl sm:text-4xl text-[#240C0B] tracking-tight flex items-center gap-2">
-            GOOD MORNING GUYS <span className="text-3xl sm:text-4xl">🐕</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-[#7A6865] font-semibold mt-1">
-            Salon operations overview for <span className="text-[#FF6B00] font-bold">{featuredPetsText}</span>.
-          </p>
-        </div>
+        {/* Playful Hero Greeting Banner & Quick Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="font-display font-black text-3xl sm:text-4xl text-[#240C0B] tracking-tight flex items-center gap-2">
+              GOOD MORNING GUYS <span className="text-3xl sm:text-4xl">🐕</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-[#7A6865] font-semibold mt-1">
+              Salon operations overview for <span className="text-[#FF6B00] font-bold">{featuredPetsText}</span>.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => openModal('transformationForm')}
-            className="px-4 py-2.5 bg-white hover:bg-[#FAF8F5] text-[#240C0B] border border-[#D8D3C4] rounded-full text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-          >
-            <Camera className="w-3.5 h-3.5 text-[#FF6B00]" />
-            <span>Add Transformation</span>
-          </button>
-          <button
-            onClick={() => openModal('appointmentForm', { date: todayStr })}
-            className="px-5 py-2.5 bg-[#240C0B] hover:bg-[#381514] text-white rounded-full text-xs font-extrabold shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4 text-[#FF6B00]" />
-            <span>New Booking</span>
-          </button>
+          {showQuickActions && (
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => openModal('transformationForm')}
+                className="px-4 py-2.5 bg-white hover:bg-[#FAF8F5] text-[#240C0B] border border-[#D8D3C4] rounded-full text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span>Add Transformation</span>
+              </button>
+              <button
+                onClick={() => openModal('appointmentForm', { date: todayStr })}
+                className="px-5 py-2.5 bg-[#240C0B] hover:bg-[#381514] text-white rounded-full text-xs font-extrabold shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4 text-[#FF6B00]" />
+                <span>New Booking</span>
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -332,120 +347,124 @@ export const DashboardView: React.FC = () => {
       <ClientNotificationSpotlight />
 
       {/* Top Row: 3 Premium Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Total Appointments Today (Lavender) */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          onClick={() => setView('calendar')}
-          className="bg-gradient-to-br from-[#ECE5FF] via-[#E1D4FF] to-[#D3C0FF] text-[#321360] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
-        >
-          <div className="relative z-10 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-[#321360] text-white flex items-center justify-center">
-                <Calendar className="w-3.5 h-3.5" />
+      {showKpis && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Card 1: Total Appointments Today (Lavender) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+            whileHover={{ y: -4, scale: 1.01 }}
+            onClick={() => setView('calendar')}
+            className="bg-gradient-to-br from-[#ECE5FF] via-[#E1D4FF] to-[#D3C0FF] text-[#321360] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
+          >
+            <div className="relative z-10 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#321360] text-white flex items-center justify-center">
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Appointments Today</span>
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Appointments Today</span>
-            </div>
-            <div className="font-display font-black text-4xl tracking-tight text-[#321360]">
-              {todaysAppts.length}
-            </div>
-            <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#321360] rounded-full shadow-2xs">
-              <span>{appointments.length} Total</span>
-              <span className="opacity-70 font-normal">on calendar</span>
-            </div>
-          </div>
-
-          <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-12 pointer-events-none">
-            <svg viewBox="0 0 100 100" className="w-full h-full fill-[#A885EE]">
-              <ellipse cx="50" cy="65" rx="22" ry="18" />
-              <circle cx="28" cy="40" r="10" />
-              <circle cx="50" cy="30" r="11" />
-              <circle cx="72" cy="40" r="10" />
-            </svg>
-          </div>
-        </motion.div>
-
-        {/* Card 2: Total Revenue Today (Peach) */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          onClick={() => setView('revenue')}
-          className="bg-gradient-to-br from-[#FFE4D3] via-[#FFD7BE] to-[#FFC5A1] text-[#541900] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
-        >
-          <div className="relative z-10 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-[#541900] text-white flex items-center justify-center">
-                <DollarSign className="w-3.5 h-3.5" />
+              <div className="font-display font-black text-4xl tracking-tight text-[#321360]">
+                {todaysAppts.length}
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Revenue Today</span>
-            </div>
-            <div className="font-display font-black text-4xl tracking-tight text-[#541900]">
-              {formatPrice(todayRevenue)}
-            </div>
-            <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#541900] rounded-full shadow-2xs">
-              <span>{formatPrice(mtdRevenue)}</span>
-              <span className="opacity-70 font-normal">MTD {formattedMonthLabel.slice(0, 3)}</span>
-            </div>
-          </div>
-
-          <div className="w-20 h-20 opacity-90 shrink-0 transform -rotate-6 pointer-events-none">
-            <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E27C44]">
-              <path d="M 15 50 Q 50 85 85 50 Z" />
-              <ellipse cx="50" cy="50" rx="35" ry="10" fill="#F49561" />
-              <circle cx="50" cy="48" r="4" fill="#541900" />
-            </svg>
-          </div>
-        </motion.div>
-
-        {/* Card 3: Active Clients / Pets (Pink) */}
-        <motion.div 
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          onClick={() => setView('clients')}
-          className="bg-gradient-to-br from-[#FFE2F2] via-[#FFD0E8] to-[#FFBBDC] text-[#560A38] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
-        >
-          <div className="relative z-10 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-[#560A38] text-white flex items-center justify-center">
-                <Users className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#321360] rounded-full shadow-2xs">
+                <span>{appointments.length} Total</span>
+                <span className="opacity-70 font-normal">on calendar</span>
               </div>
-              <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Registered Dogs & Clients</span>
             </div>
-            <div className="font-display font-black text-4xl tracking-tight text-[#560A38]">
-              {clients.length}
-            </div>
-            <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#560A38] rounded-full shadow-2xs">
-              <span>{clients.filter(c => c.points > 0).length} Rewards</span>
-              <span className="opacity-70 font-normal">members</span>
-            </div>
-          </div>
 
-          <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-6 pointer-events-none">
-            <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E25C9E]">
-              <path d="M 25 35 L 75 35 L 80 80 Q 80 85 75 85 L 25 85 Q 20 85 20 80 Z" />
-              <path d="M 30 25 L 70 25 L 75 35 L 25 35 Z" fill="#F47BB4" />
-              <ellipse cx="50" cy="60" rx="8" ry="6" fill="#560A38" />
-            </svg>
-          </div>
-        </motion.div>
-      </div>
+            <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-12 pointer-events-none">
+              <svg viewBox="0 0 100 100" className="w-full h-full fill-[#A885EE]">
+                <ellipse cx="50" cy="65" rx="22" ry="18" />
+                <circle cx="28" cy="40" r="10" />
+                <circle cx="50" cy="30" r="11" />
+                <circle cx="72" cy="40" r="10" />
+              </svg>
+            </div>
+          </motion.div>
+
+          {/* Card 2: Total Revenue Today (Peach) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            whileHover={{ y: -4, scale: 1.01 }}
+            onClick={() => setView('revenue')}
+            className="bg-gradient-to-br from-[#FFE4D3] via-[#FFD7BE] to-[#FFC5A1] text-[#541900] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
+          >
+            <div className="relative z-10 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#541900] text-white flex items-center justify-center">
+                  <DollarSign className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Revenue Today</span>
+              </div>
+              <div className="font-display font-black text-4xl tracking-tight text-[#541900]">
+                {formatPrice(todayRevenue)}
+              </div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#541900] rounded-full shadow-2xs">
+                <span>{formatPrice(mtdRevenue)}</span>
+                <span className="opacity-70 font-normal">MTD {formattedMonthLabel.slice(0, 3)}</span>
+              </div>
+            </div>
+
+            <div className="w-20 h-20 opacity-90 shrink-0 transform -rotate-6 pointer-events-none">
+              <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E27C44]">
+                <path d="M 15 50 Q 50 85 85 50 Z" />
+                <ellipse cx="50" cy="50" rx="35" ry="10" fill="#F49561" />
+                <circle cx="50" cy="48" r="4" fill="#541900" />
+              </svg>
+            </div>
+          </motion.div>
+
+          {/* Card 3: Active Clients / Pets (Pink) */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+            whileHover={{ y: -4, scale: 1.01 }}
+            onClick={() => setView('clients')}
+            className="bg-gradient-to-br from-[#FFE2F2] via-[#FFD0E8] to-[#FFBBDC] text-[#560A38] p-6 rounded-[28px] relative overflow-hidden shadow-xs hover:shadow-md transition-all border border-white/60 flex justify-between items-center cursor-pointer"
+          >
+            <div className="relative z-10 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#560A38] text-white flex items-center justify-center">
+                  <Users className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold opacity-80 uppercase tracking-wider">Registered Dogs & Clients</span>
+              </div>
+              <div className="font-display font-black text-4xl tracking-tight text-[#560A38]">
+                {clients.length}
+              </div>
+              <div className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 bg-white/70 text-[#560A38] rounded-full shadow-2xs">
+                <span>{clients.filter(c => c.points > 0).length} Rewards</span>
+                <span className="opacity-70 font-normal">members</span>
+              </div>
+            </div>
+
+            <div className="w-20 h-20 opacity-90 shrink-0 transform rotate-6 pointer-events-none">
+              <svg viewBox="0 0 100 100" className="w-full h-full fill-[#E25C9E]">
+                <path d="M 25 35 L 75 35 L 80 80 Q 80 85 75 85 L 25 85 Q 20 85 20 80 Z" />
+                <path d="M 30 25 L 70 25 L 75 35 L 25 35 Z" fill="#F47BB4" />
+                <ellipse cx="50" cy="60" rx="8" ry="6" fill="#560A38" />
+              </svg>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Center Operational Hub: Cohesive 2-Column Balanced Architecture */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {(showTodaySchedule || showPetSummaryTable) && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Col (7 of 12 cols): Today's Grooming Operations & Live Queue */}
+        {/* Left Col: Today's Grooming Operations & Live Queue */}
+        {showTodaySchedule && (
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
-          className="lg:col-span-7 bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-5 flex flex-col justify-between"
+          className={`${showPetSummaryTable ? 'lg:col-span-7' : 'lg:col-span-12'} bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-5 flex flex-col justify-between`}
         >
           {/* Header & Filter Switcher */}
           <div>
@@ -673,13 +692,15 @@ export const DashboardView: React.FC = () => {
             )}
           </div>
         </motion.div>
+        )}
 
-        {/* Right Col (5 of 12 cols): Pet Health & VIP Directory */}
+        {/* Right Col: Pet Health & VIP Directory */}
+        {showPetSummaryTable && (
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.25 }}
-          className="lg:col-span-5 bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-4 flex flex-col justify-between"
+          className={`${showTodaySchedule ? 'lg:col-span-5' : 'lg:col-span-12'} bg-white text-[#240C0B] p-6 rounded-[28px] border border-[#E6DFD5] shadow-xs space-y-4 flex flex-col justify-between`}
         >
           {/* Header */}
           <div>
@@ -872,9 +893,12 @@ export const DashboardView: React.FC = () => {
             )}
           </div>
         </motion.div>
+        )}
       </div>
+      )}
 
       {/* Dog Before & After Transformation Gallery Bar */}
+      {showVaccineAlertsCard && (
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -974,8 +998,10 @@ export const DashboardView: React.FC = () => {
           ))}
         </div>
       </motion.div>
+      )}
 
       {/* Bottom Row: Care & Services Radial Index & Monthly Revenue Matrix */}
+      {showRevenueMiniChart && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Care & Services Index Radial Card */}
         <motion.div 
@@ -1113,6 +1139,7 @@ export const DashboardView: React.FC = () => {
           </div>
         </motion.div>
       </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { isSectionAllowed } from '../../data/permissionPresets';
 import { CalendarMode } from '../../types';
 import { 
   ChevronLeft, 
@@ -28,6 +30,12 @@ export const CalendarView: React.FC = () => {
     settings,
     openModal 
   } = useApp();
+  const { currentProfile } = useAuth();
+
+  const showViewModeToggle = isSectionAllowed(currentProfile?.permissions, 'calendar', 'viewModeToggle');
+  const showStaffFilter = isSectionAllowed(currentProfile?.permissions, 'calendar', 'staffFilter');
+  const showPrintSchedule = isSectionAllowed(currentProfile?.permissions, 'calendar', 'printSchedule');
+  const showAppointmentGrid = isSectionAllowed(currentProfile?.permissions, 'calendar', 'appointmentGrid');
 
   const openHour = settings?.open ?? 8;
   const closeHour = settings?.close ?? 18;
@@ -93,30 +101,32 @@ export const CalendarView: React.FC = () => {
       {/* Top Toolbar: Mode Switcher, Date Nav, Staff Filter */}
       <div className="card-box p-3.5 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 sm:gap-4">
         {/* Left: Mode Buttons & Today */}
-        <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
-          <div className="bg-[#EAE7DC] p-1 rounded-xl flex items-center gap-1">
-            {(['day', 'week', 'month'] as CalendarMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setCalendarMode(mode)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
-                  calendarMode === mode
-                    ? 'bg-[#173E39] text-white shadow-xs'
-                    : 'text-[#5C716C] hover:text-[#173E39]'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+        {showViewModeToggle && (
+          <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+            <div className="bg-[#EAE7DC] p-1 rounded-xl flex items-center gap-1">
+              {(['day', 'week', 'month'] as CalendarMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setCalendarMode(mode)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all cursor-pointer ${
+                    calendarMode === mode
+                      ? 'bg-[#173E39] text-white shadow-xs'
+                      : 'text-[#5C716C] hover:text-[#173E39]'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
 
-          <button
-            onClick={setToday}
-            className="btn-ghost text-xs px-3 py-1.5 rounded-xl font-bold cursor-pointer"
-          >
-            Today ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
-          </button>
-        </div>
+            <button
+              onClick={setToday}
+              className="btn-ghost text-xs px-3 py-1.5 rounded-xl font-bold cursor-pointer"
+            >
+              Today ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+            </button>
+          </div>
+        )}
 
         {/* Center: Date Title Navigation */}
         <div className="flex items-center justify-center gap-2 sm:gap-3 font-display text-base sm:text-lg font-bold text-[#173E39] order-first lg:order-none">
@@ -147,36 +157,40 @@ export const CalendarView: React.FC = () => {
 
         {/* Right: Staff Filter Selector & Print Schedule Button */}
         <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
-            <Filter className="w-3.5 h-3.5 text-[#5C716C] shrink-0" />
-            <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="text-xs bg-white border border-[#D8D3C4] rounded-xl px-2.5 py-1.5 font-bold outline-none w-full sm:w-auto"
-            >
-              <option value="all">All Stylists</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {showStaffFilter && (
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-none">
+              <Filter className="w-3.5 h-3.5 text-[#5C716C] shrink-0" />
+              <select
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                className="text-xs bg-white border border-[#D8D3C4] rounded-xl px-2.5 py-1.5 font-bold outline-none w-full sm:w-auto"
+              >
+                <option value="all">All Stylists</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          <button
-            type="button"
-            onClick={() => openModal('printScheduleModal', { dateISO: formatISO(calendarDate), staffId: selectedStaffId })}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white border border-[#D8D3C4] hover:bg-[#EAE7DC] text-[#173E39] rounded-xl font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
-            title="Print Daily Schedule PDF"
-          >
-            <Printer className="w-3.5 h-3.5 text-[#2E8A81]" />
-            <span>Print</span>
-          </button>
+          {showPrintSchedule && (
+            <button
+              type="button"
+              onClick={() => openModal('printScheduleModal', { dateISO: formatISO(calendarDate), staffId: selectedStaffId })}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-white border border-[#D8D3C4] hover:bg-[#EAE7DC] text-[#173E39] rounded-xl font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0"
+              title="Print Daily Schedule PDF"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#2E8A81]" />
+              <span>Print</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Calendar Body Grid */}
-      {calendarMode === 'week' && (
+      {showAppointmentGrid && calendarMode === 'week' && (
         <div className="card-box p-0 overflow-hidden border border-[#D8D3C4]">
           <div className="text-[11px] text-[#7A6865] px-4 py-1.5 bg-[#FAF8F5] border-b border-[#D8D3C4] flex items-center justify-between lg:hidden">
             <span>👈 Swipe horizontally to view full week</span>
@@ -273,7 +287,7 @@ export const CalendarView: React.FC = () => {
       )}
 
       {/* Day Mode */}
-      {calendarMode === 'day' && (
+      {showAppointmentGrid && calendarMode === 'day' && (
         <div className="card-box p-3.5 sm:p-5 space-y-3">
           <div className="text-xs sm:text-sm font-bold text-[#173E39] border-b pb-2.5 flex flex-wrap items-center justify-between gap-2">
             <span>
@@ -343,7 +357,7 @@ export const CalendarView: React.FC = () => {
       )}
 
       {/* Month Mode */}
-      {calendarMode === 'month' && (
+      {showAppointmentGrid && calendarMode === 'month' && (
         <div className="card-box p-3 sm:p-5">
           <div className="text-center text-xs text-[#5C716C] mb-3">
             Click any day to view detailed appointments for that date.

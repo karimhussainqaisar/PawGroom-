@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
-import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle, Cloud, Database, ShieldCheck, UserCheck } from 'lucide-react';
+import { isSectionAllowed } from '../../data/permissionPresets';
+import { Settings, Download, Upload, RotateCcw, Award, CheckCircle2, Palette, Sparkles, Trash2, AlertTriangle, Cloud, Database, ShieldCheck, UserCheck, Smartphone } from 'lucide-react';
 import { ColorTheme } from '../../types';
 import { compressImageFile } from '../../utils/imageCompressor';
 
@@ -126,6 +127,9 @@ export const SettingsView: React.FC = () => {
   } = useApp();
 
   const { currentProfile, isAdmin } = useAuth();
+  const showColorTheme = isSectionAllowed(currentProfile?.permissions, 'settings', 'colorTheme');
+  const showGeneralInfo = isSectionAllowed(currentProfile?.permissions, 'settings', 'generalInfo');
+  const showBackupRestore = isSectionAllowed(currentProfile?.permissions, 'settings', 'backupRestore');
 
   const [formData, setFormData] = useState({
     name: settings.name || settings.salonName || 'PawBook Pro Grooming Studio',
@@ -287,79 +291,82 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* 1. Global Color Theme Selector */}
-      <div className="card-box space-y-4">
-        <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-2">
-          <div>
-            <h2 className="font-display font-bold text-lg text-[#240C0B] flex items-center gap-2">
-              <Palette className="w-5 h-5 text-theme-primary" />
-              Website Color Themes (12 Synchronized Themes)
-            </h2>
-            <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
-              Pick your preferred studio color palette. Every section, screen, header, sidebar, button, and invoice adapts instantly.
-            </p>
+      {showColorTheme && (
+        <div className="card-box space-y-4">
+          <div className="flex items-center justify-between border-b pb-3 flex-wrap gap-2">
+            <div>
+              <h2 className="font-display font-bold text-lg text-[#240C0B] flex items-center gap-2">
+                <Palette className="w-5 h-5 text-theme-primary" />
+                Website Color Themes (12 Synchronized Themes)
+              </h2>
+              <p className="text-xs text-[#7A6865] font-semibold mt-0.5">
+                Pick your preferred studio color palette. Every section, screen, header, sidebar, button, and invoice adapts instantly.
+              </p>
+            </div>
+            <span className="text-[11px] font-extrabold px-3 py-1 bg-theme-light text-theme-primary rounded-full border border-theme-primary/30">
+              Active: {THEMES.find(t => t.id === (settings.colorTheme || 'terracotta'))?.name}
+            </span>
           </div>
-          <span className="text-[11px] font-extrabold px-3 py-1 bg-theme-light text-theme-primary rounded-full border border-theme-primary/30">
-            Active: {THEMES.find(t => t.id === (settings.colorTheme || 'terracotta'))?.name}
-          </span>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-          {THEMES.map((theme) => {
-            const isSelected = (settings.colorTheme || 'terracotta') === theme.id;
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => handleSelectTheme(theme.id)}
-                className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 cursor-pointer group hover:scale-[1.02] ${
-                  isSelected 
-                    ? 'border-[#240C0B] bg-white ring-2 ring-[#FF6B00] shadow-md' 
-                    : 'border-[#D8D3C4] bg-[#FAF8F5] hover:bg-white hover:border-[#240C0B]/40'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span 
-                      className="w-5 h-5 rounded-full shadow-xs border border-white"
-                      style={{ backgroundColor: theme.canvasColor }} 
-                    />
-                    <span 
-                      className="w-4 h-4 rounded-full shadow-xs -ml-3 border border-white"
-                      style={{ backgroundColor: theme.primaryColor }} 
-                    />
-                    <span 
-                      className="w-3.5 h-3.5 rounded-full shadow-xs -ml-3 border border-white"
-                      style={{ backgroundColor: theme.accentColor }} 
-                    />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+            {THEMES.map((theme) => {
+              const isSelected = (settings.colorTheme || 'terracotta') === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => handleSelectTheme(theme.id)}
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 cursor-pointer group hover:scale-[1.02] ${
+                    isSelected 
+                      ? 'border-[#240C0B] bg-white ring-2 ring-[#FF6B00] shadow-md' 
+                      : 'border-[#D8D3C4] bg-[#FAF8F5] hover:bg-white hover:border-[#240C0B]/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span 
+                        className="w-5 h-5 rounded-full shadow-xs border border-white"
+                        style={{ backgroundColor: theme.canvasColor }} 
+                      />
+                      <span 
+                        className="w-4 h-4 rounded-full shadow-xs -ml-3 border border-white"
+                        style={{ backgroundColor: theme.primaryColor }} 
+                      />
+                      <span 
+                        className="w-3.5 h-3.5 rounded-full shadow-xs -ml-3 border border-white"
+                        style={{ backgroundColor: theme.accentColor }} 
+                      />
+                    </div>
+
+                    {isSelected ? (
+                      <span className="text-[10px] font-black text-white bg-[#FF6B00] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                        <CheckCircle2 className="w-3 h-3" /> Active
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-[#7A6865] opacity-0 group-hover:opacity-100 transition-opacity">
+                        Select
+                      </span>
+                    )}
                   </div>
 
-                  {isSelected ? (
-                    <span className="text-[10px] font-black text-white bg-[#FF6B00] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
-                      <CheckCircle2 className="w-3 h-3" /> Active
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-[#7A6865] opacity-0 group-hover:opacity-100 transition-opacity">
-                      Select
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <h4 className="font-display font-extrabold text-sm text-[#240C0B]">
-                    {theme.name}
-                  </h4>
-                  <p className="text-[11px] text-[#7A6865] leading-snug mt-0.5">
-                    {theme.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+                  <div>
+                    <h4 className="font-display font-extrabold text-sm text-[#240C0B]">
+                      {theme.name}
+                    </h4>
+                    <p className="text-[11px] text-[#7A6865] leading-snug mt-0.5">
+                      {theme.desc}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. Shop Profile & Settings Form */}
-      <form onSubmit={handleSubmit} className="card-box space-y-5">
+      {showGeneralInfo && (
+        <form onSubmit={handleSubmit} className="card-box space-y-5">
         <div className="flex items-center justify-between border-b pb-3">
           <div>
             <h2 className="font-display font-bold text-lg text-[#173E39]">
@@ -664,94 +671,97 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </form>
+      )}
 
       {/* 3. Data Backup & Reset Management */}
-      <div className="card-box space-y-5">
-        <div className="border-b border-[#E6DFD5] pb-3 flex items-center justify-between">
-          <div>
-            <h3 className="font-display font-bold text-lg text-[#240C0B]">
-              Data Management & System Reset
-            </h3>
-            <p className="text-xs text-[#7A6865] mt-0.5">
-              Export full studio database backups, restore JSON files, or wipe/reset website data.
+      {showBackupRestore && (
+        <div className="card-box space-y-5">
+          <div className="border-b border-[#E6DFD5] pb-3 flex items-center justify-between">
+            <div>
+              <h3 className="font-display font-bold text-lg text-[#240C0B]">
+                Data Management & System Reset
+              </h3>
+              <p className="text-xs text-[#7A6865] mt-0.5">
+                Export full studio database backups, restore JSON files, or wipe/reset website data.
+              </p>
+            </div>
+          </div>
+
+          {/* Backup & Restore Controls */}
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-[#240C0B] uppercase tracking-wider block">
+              Database Backup & Portability
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="bg-[#240C0B] hover:bg-[#180504] text-white text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer transition-all shadow-xs"
+              >
+                <Download className="w-4 h-4 text-[#FF6B00]" /> Backup JSON Database
+              </button>
+
+              <label className="btn-ghost text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer">
+                <Upload className="w-4 h-4 text-[#2E8A81]" /> Restore JSON File
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Danger Zone: Reset & Clear All Website Data */}
+          <div className="pt-3 border-t border-[#E6DFD5] space-y-3">
+            <div className="flex items-center gap-2 text-[#C9503A]">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <label className="text-xs font-black uppercase tracking-wider">
+                Danger Zone: Reset & Clear Website Data
+              </label>
+            </div>
+
+            <p className="text-xs text-[#6E5B58] leading-relaxed">
+              Choose whether to reset back to the default sample dataset or completely wipe all stored records (clients, appointments, inventory, gift cards, invoices, and settings) from your browser storage.
             </p>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {/* Reset to Demo Data */}
+              <button
+                type="button"
+                onClick={() => {
+                  confirmDelete({
+                    title: 'Reset to Sample Demo Data?',
+                    message: 'This will reset all clients, appointments, staff, and inventory to the fresh PawBook Pro demo dataset. Any custom records you created will be replaced with defaults.',
+                    confirmLabel: 'Reset Demo Data',
+                    onConfirm: () => resetToDemoData(),
+                  });
+                }}
+                className="btn-ghost text-xs px-4 py-2.5 rounded-xl text-[#7A6865] hover:text-[#240C0B] border-[#D8D3C4] hover:bg-[#FAF8F5] flex items-center gap-2 font-bold cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4 text-[#FF6B00]" /> Reset to Sample Dataset
+              </button>
+
+              {/* Clear ALL Website Data */}
+              <button
+                type="button"
+                onClick={() => {
+                  confirmDelete({
+                    title: 'Clear ALL Website Data?',
+                    message: 'WARNING: This will permanently wipe ALL website data including all client profiles, appointments, grooming history, retail items, sales tax settings, and storage keys. This action cannot be undone.',
+                    confirmLabel: 'Clear All Website Data',
+                    onConfirm: () => clearAllData(true),
+                  });
+                }}
+                className="bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#C9503A] border border-[#FCA5A5] text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-extrabold cursor-pointer transition-all shadow-xs active:scale-95"
+              >
+                <Trash2 className="w-4 h-4 text-[#C9503A]" /> Clear All Website Data
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Backup & Restore Controls */}
-        <div className="space-y-3">
-          <label className="text-xs font-bold text-[#240C0B] uppercase tracking-wider block">
-            Database Backup & Portability
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="bg-[#240C0B] hover:bg-[#180504] text-white text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer transition-all shadow-xs"
-            >
-              <Download className="w-4 h-4 text-[#FF6B00]" /> Backup JSON Database
-            </button>
-
-            <label className="btn-ghost text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold cursor-pointer">
-              <Upload className="w-4 h-4 text-[#2E8A81]" /> Restore JSON File
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Danger Zone: Reset & Clear All Website Data */}
-        <div className="pt-3 border-t border-[#E6DFD5] space-y-3">
-          <div className="flex items-center gap-2 text-[#C9503A]">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <label className="text-xs font-black uppercase tracking-wider">
-              Danger Zone: Reset & Clear Website Data
-            </label>
-          </div>
-
-          <p className="text-xs text-[#6E5B58] leading-relaxed">
-            Choose whether to reset back to the default sample dataset or completely wipe all stored records (clients, appointments, inventory, gift cards, invoices, and settings) from your browser storage.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            {/* Reset to Demo Data */}
-            <button
-              type="button"
-              onClick={() => {
-                confirmDelete({
-                  title: 'Reset to Sample Demo Data?',
-                  message: 'This will reset all clients, appointments, staff, and inventory to the fresh PawBook Pro demo dataset. Any custom records you created will be replaced with defaults.',
-                  confirmLabel: 'Reset Demo Data',
-                  onConfirm: () => resetToDemoData(),
-                });
-              }}
-              className="btn-ghost text-xs px-4 py-2.5 rounded-xl text-[#7A6865] hover:text-[#240C0B] border-[#D8D3C4] hover:bg-[#FAF8F5] flex items-center gap-2 font-bold cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4 text-[#FF6B00]" /> Reset to Sample Dataset
-            </button>
-
-            {/* Clear ALL Website Data */}
-            <button
-              type="button"
-              onClick={() => {
-                confirmDelete({
-                  title: 'Clear ALL Website Data?',
-                  message: 'WARNING: This will permanently wipe ALL website data including all client profiles, appointments, grooming history, retail items, sales tax settings, and storage keys. This action cannot be undone.',
-                  confirmLabel: 'Clear All Website Data',
-                  onConfirm: () => clearAllData(true),
-                });
-              }}
-              className="bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#C9503A] border border-[#FCA5A5] text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 font-extrabold cursor-pointer transition-all shadow-xs active:scale-95"
-            >
-              <Trash2 className="w-4 h-4 text-[#C9503A]" /> Clear All Website Data
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
